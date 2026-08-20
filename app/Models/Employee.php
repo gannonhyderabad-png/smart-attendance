@@ -78,6 +78,8 @@ class Employee extends Model {
         $decoded = trim(rawurldecode($code));
         $raw = trim($code);
         $normalized = str_replace([' ', '_'], '-', $decoded);
+        $padded6 = is_numeric($decoded) ? str_pad($decoded, 6, '0', STR_PAD_LEFT) : $decoded;
+        $unpadded = is_numeric($decoded) ? (string)((int)$decoded) : $decoded;
 
         $stmt = self::db()->prepare("SELECT e.*, d.name as department_name 
                                     FROM employees e 
@@ -85,12 +87,14 @@ class Employee extends Model {
                                     WHERE LOWER(TRIM(e.employee_code)) = LOWER(?) 
                                        OR LOWER(TRIM(e.employee_code)) = LOWER(?)
                                        OR LOWER(TRIM(e.employee_code)) = LOWER(?)
+                                       OR LOWER(TRIM(e.employee_code)) = LOWER(?)
+                                       OR LOWER(TRIM(e.employee_code)) = LOWER(?)
                                        OR e.punch_token = ? 
                                        OR e.punch_token = ?
                                        OR (e.id = ? AND ? > 0)
                                     LIMIT 1");
         $idVal = is_numeric($raw) ? (int)$raw : (is_numeric($decoded) ? (int)$decoded : 0);
-        $stmt->execute([$decoded, $raw, $normalized, $decoded, $raw, $idVal, $idVal]);
+        $stmt->execute([$decoded, $raw, $normalized, $padded6, $unpadded, $decoded, $raw, $idVal, $idVal]);
         return $stmt->fetch() ?: null;
     }
 
@@ -103,17 +107,17 @@ class Employee extends Model {
         return $stmt->fetch() ?: null;
     }
 
-    public static function generateNextCode(string $prefix = 'EMP-'): string {
+    public static function generateNextCode(string $prefix = ''): string {
         $stmt = self::db()->query("SELECT employee_code FROM employees ORDER BY id DESC LIMIT 1");
         $lastCode = $stmt->fetchColumn();
 
         if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
             $nextNum = ((int) $matches[1]) + 1;
-            $length = max(3, strlen($matches[1]));
-            return $prefix . str_pad((string) $nextNum, $length, '0', STR_PAD_LEFT);
+            // Pad to 6 digits by default: 000001 to 999999
+            return str_pad((string) $nextNum, 6, '0', STR_PAD_LEFT);
         }
 
-        return $prefix . '001';
+        return '000001';
     }
 
     public static function generateToken(): string {

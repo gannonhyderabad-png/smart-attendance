@@ -60,8 +60,7 @@ class EmployeeController extends Controller {
         Auth::requireAuth();
 
         global $appConfig;
-        $prefix = $appConfig['employee_code_prefix'] ?? 'EMP-';
-        $suggestedCode = Employee::generateNextCode($prefix);
+        $suggestedCode = Employee::generateNextCode('');
         $departments = Department::all();
         $departmentList = Employee::getDistinctDepartments();
         $siteList = Employee::getDistinctSites();

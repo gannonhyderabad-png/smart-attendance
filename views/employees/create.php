@@ -34,9 +34,9 @@
                             <label class="form-label small fw-semibold text-muted">Employee Code <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-id-card"></i></span>
-                                <input type="text" name="employee_code" id="employeeCodeInput" class="form-control bg-light border-start-0 font-monospace fw-bold text-primary" value="<?= e($suggestedCode) ?>" required>
+                                <input type="text" name="employee_code" id="employeeCodeInput" class="form-control bg-light border-start-0 font-monospace fw-bold text-primary" placeholder="000001" value="<?= e($suggestedCode) ?>" required>
                             </div>
-                            <div class="form-text small">System generated unique identifier (e.g. EMP001, EMP-101).</div>
+                            <div class="form-text small">Unique numeric code in range <code>000001</code> to <code>999999</code>.</div>
                         </div>
 
                         <div class="col-md-6">

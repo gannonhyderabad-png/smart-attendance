@@ -7,7 +7,7 @@ echo        DEPLOY SMART ATTENDANCE TO GITHUB & RENDER
 echo ===================================================================
 echo.
 echo Pushing latest code with Recycle Bin, Excel Export & Sites to GitHub...
-echo Repository: https://github.com/gammonhyderabad-png/smart-attendance
+echo Repository: https://github.com/gannonhyderabad-png/smart-attendance
 echo.
 
 set "GIT_PATH=%USERPROFILE%\MinGit\cmd\git.exe"

@@ -93,4 +93,43 @@ class ApiController extends Controller {
         $stats = Attendance::getDashboardStats();
         $this->json(['success' => true, 'data' => $stats]);
     }
+
+    /**
+     * GET /api/sync
+     * Real-time sync endpoint for local PC auto-sync tool
+     */
+    public function sync(): void {
+        $lastId = (int) Request::input('last_id', 0);
+        $pdo = \Database\Database::getConnection();
+
+        $stmt = $pdo->prepare("SELECT a.*, e.name as employee_name, e.employee_code 
+                               FROM attendance a 
+                               JOIN employees e ON a.employee_id = e.id 
+                               WHERE a.id > ? 
+                               ORDER BY a.id ASC LIMIT 100");
+        $stmt->execute([$lastId]);
+        $punches = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $items = [];
+        foreach ($punches as $p) {
+            $photoPath = $p['punch_photo'] ?? null;
+            $photoBase64 = null;
+            if (!empty($photoPath)) {
+                $fullPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($photoPath, '/\\'));
+                if (file_exists($fullPath)) {
+                    $photoBase64 = base64_encode(file_get_contents($fullPath));
+                }
+            }
+            $p['photo_base64'] = $photoBase64;
+            $items[] = $p;
+        }
+
+        $this->json([
+            'success' => true,
+            'count' => count($items),
+            'latest_id' => !empty($items) ? end($items)['id'] : $lastId,
+            'punches' => $items,
+            'server_time' => date('Y-m-d H:i:s')
+        ]);
+    }
 }

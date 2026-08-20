@@ -274,6 +274,7 @@ $router->get('/p/{code}/status', [\App\Controllers\PunchController::class, 'stat
 $router->post('/api/punch', [\App\Controllers\ApiController::class, 'punch']);
 $router->get('/api/employee/{code}', [\App\Controllers\ApiController::class, 'employeeStatus']);
 $router->get('/api/attendance/summary', [\App\Controllers\ApiController::class, 'summary']);
+$router->get('/api/sync', [\App\Controllers\ApiController::class, 'sync']);
 
 // -------------------------------------------------------------
 // Protected Admin Routes

@@ -45,10 +45,7 @@ if (!function_exists('base_url')) {
         global $appConfig;
         $configured = $appConfig['url'] ?? '';
 
-        // If configured with a valid public domain, use it as default
-        $url = !empty($configured) ? rtrim($configured, '/\\') : 'http://localhost:8000';
-        
-        // Auto-detect current host/port if running dynamically
+        // Auto-detect current host/port dynamically (e.g. smart-attendance-hw9c.onrender.com)
         if (isset($_SERVER['HTTP_HOST'])) {
             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
                 || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
@@ -60,6 +57,8 @@ if (!function_exists('base_url')) {
             if (!empty($subfolder)) {
                 $url .= '/' . trim($subfolder, '/\\');
             }
+        } else {
+            $url = !empty($configured) ? rtrim($configured, '/\\') : 'https://smart-attendance-hw9c.onrender.com';
         }
         
         $url = rtrim(str_replace('\\', '/', $url), '/');
@@ -70,19 +69,22 @@ if (!function_exists('base_url')) {
 
 if (!function_exists('mobile_base_url')) {
     /**
-     * Return base URL optimized for mobile phone QR scanning (replaces localhost with LAN IP)
+     * Return base URL optimized for mobile phone QR scanning
      */
     function mobile_base_url(string $path = ''): string {
+        // If accessed via a live public host, use base_url directly
+        if (!empty($_SERVER['HTTP_HOST']) && !str_contains($_SERVER['HTTP_HOST'], 'localhost') && !str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')) {
+            return base_url($path);
+        }
+
         global $appConfig;
         $configured = $appConfig['url'] ?? '';
-
-        // If APP_URL in .env is configured with a real domain or IP, use it
-        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1')) {
+        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1') && !str_contains($configured, 'trycloudflare.com')) {
             $path = ltrim($path, '/');
             return empty($path) ? rtrim($configured, '/') : rtrim($configured, '/') . '/' . $path;
         }
 
-        // Otherwise replace localhost with server's LAN IP so phones on Wi-Fi can open it
+        // Local development fallback
         $lanIp = get_server_lan_ip();
         $port = $_SERVER['SERVER_PORT'] ?? '8000';
         $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
@@ -91,7 +93,6 @@ if (!function_exists('mobile_base_url')) {
         if ($port && $port != '80' && $port != '443') {
             $url .= ':' . $port;
         }
-
         $url .= get_app_subfolder();
 
         $path = ltrim($path, '/');
@@ -101,30 +102,24 @@ if (!function_exists('mobile_base_url')) {
 
 if (!function_exists('public_url')) {
     /**
-     * Return always-reachable public URL for employees (using Cloudflare / configured domain or LAN IP)
+     * Return always-reachable public URL for employees (always uses active Render domain or configured URL)
      */
     function public_url(string $path = ''): string {
+        // 1. If accessed via browser, always use the active domain (e.g. smart-attendance-hw9c.onrender.com)
+        if (!empty($_SERVER['HTTP_HOST']) && !str_contains($_SERVER['HTTP_HOST'], 'localhost') && !str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')) {
+            return base_url($path);
+        }
+
+        // 2. If configured with Render domain in appConfig
         global $appConfig;
         $configured = $appConfig['url'] ?? '';
-
-        // 1. If configured with a real public domain in .env (e.g. Cloudflare tunnel), use it
-        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1')) {
+        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1') && !str_contains($configured, 'trycloudflare.com')) {
             $path = ltrim($path, '/');
             return empty($path) ? rtrim($configured, '/') : rtrim($configured, '/') . '/' . $path;
         }
 
-        // 2. If accessed via a public domain in request, use that
-        if (!empty($_SERVER['HTTP_HOST']) && !str_contains($_SERVER['HTTP_HOST'], 'localhost') && !str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')) {
-            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
-            $proto = $isHttps ? 'https://' : 'http://';
-            $url = $proto . $_SERVER['HTTP_HOST'] . get_app_subfolder();
-            $path = ltrim($path, '/');
-            return empty($path) ? rtrim($url, '/') : rtrim($url, '/') . '/' . $path;
-        }
-
-        // 3. Fallback to LAN IP
-        return mobile_base_url($path);
+        // 3. Render default domain fallback
+        return 'https://smart-attendance-hw9c.onrender.com/' . ltrim($path, '/');
     }
 }
 

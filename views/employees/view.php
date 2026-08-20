@@ -237,20 +237,28 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Generate QR Code dynamically
+    function renderEmployeeQr() {
         const qrContainer = document.getElementById('qrcodeBox');
-        if (qrContainer && typeof QRCode !== 'undefined') {
+        if (!qrContainer) return;
+        if (typeof QRCode !== 'undefined') {
+            qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
                 text: <?= json_encode($punchUrl) ?>,
                 width: 160,
                 height: 160,
                 colorDark: "#111827",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                correctLevel: (typeof QRCode.CorrectLevel !== 'undefined') ? QRCode.CorrectLevel.M : 0
             });
+        } else {
+            // Dynamic fallback image if library is delayed
+            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(<?= json_encode($punchUrl) ?>)}" style="width:160px;height:160px;" alt="QR Code">`;
         }
-    });
+    }
+    document.addEventListener('DOMContentLoaded', renderEmployeeQr);
+    window.addEventListener('load', renderEmployeeQr);
+    setTimeout(renderEmployeeQr, 500);
+</script>
 
     function viewPunchPhoto(url, title, time) {
         if (!url) return;

@@ -300,8 +300,10 @@ function showEmployeeQr(punchUrl, name, code) {
             height: 154,
             colorDark: "#111827",
             colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
+            correctLevel: (typeof QRCode.CorrectLevel !== 'undefined') ? QRCode.CorrectLevel.M : 0
         });
+    } else {
+        qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=154x154&data=${encodeURIComponent(punchUrl)}" style="width:154px;height:154px;" alt="QR Code">`;
     }
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickQrModal'));
     modal.show();

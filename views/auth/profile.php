@@ -102,7 +102,7 @@
                 <hr class="my-3 text-secondary opacity-25">
 
                 <!-- Restore Backup Form -->
-                <div>
+                <div class="mb-3">
                     <h6 class="fw-bold text-dark mb-1"><i class="fa-solid fa-cloud-arrow-up text-primary me-2"></i>Restore / Upload Backup</h6>
                     <p class="text-muted small mb-2">Upload a previously downloaded <code>.zip</code> file to restore all photos and attendance logs.</p>
                     <form method="POST" action="<?= base_url('backup/restore') ?>" enctype="multipart/form-data">
@@ -114,6 +114,30 @@
                             </button>
                         </div>
                         <small class="text-muted" style="font-size: 0.72rem;">Supports: <code>.zip</code> (Full bundle), <code>.sqlite</code>, <code>.sql</code></small>
+                    </form>
+                </div>
+
+                <hr class="my-3 text-secondary opacity-25">
+
+                <!-- Clean Old Photos Form -->
+                <div>
+                    <h6 class="fw-bold text-dark mb-1"><i class="fa-solid fa-broom text-warning me-2"></i>Storage Auto-Cleaner</h6>
+                    <p class="text-muted small mb-2">Delete old selfie pictures to free up disk space while preserving all timestamps and work hours in the database.</p>
+                    <form method="POST" action="<?= base_url('backup/clean-photos') ?>" class="row g-2 align-items-center">
+                        <?= csrf_field() ?>
+                        <div class="col-8">
+                            <select name="days" class="form-select form-select-sm bg-light">
+                                <option value="30">Delete photos older than 30 days</option>
+                                <option value="60" selected>Delete photos older than 60 days</option>
+                                <option value="90">Delete photos older than 90 days</option>
+                                <option value="180">Delete photos older than 6 months</option>
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 fw-semibold" onclick="return confirm('Clean old punch photos? Make sure you have downloaded a backup ZIP first.')">
+                                <i class="fa-solid fa-trash-can me-1"></i> Clean
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

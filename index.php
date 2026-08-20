@@ -309,6 +309,7 @@ $router->get('/profile', [\App\Controllers\AuthController::class, 'profile']);
 $router->post('/profile/update', [\App\Controllers\AuthController::class, 'updateProfile']);
 $router->get('/backup/download', [\App\Controllers\BackupController::class, 'download']);
 $router->post('/backup/restore', [\App\Controllers\BackupController::class, 'restore']);
+$router->post('/backup/clean-photos', [\App\Controllers\BackupController::class, 'cleanOldPhotos']);
 
 // Dispatch Current Request
 try {

@@ -190,4 +190,36 @@ class BackupController extends Controller {
         $this->setFlash('success', "Backup restored successfully! Restored database and {$restoredPhotos} uploaded photos.");
         redirect('profile');
     }
+
+    /**
+     * Clean old punch photos older than specified days to free up disk storage
+     */
+    public function cleanOldPhotos(): void {
+        Auth::requireAuth();
+        $days = (int) \App\Core\Request::input('days', 60);
+        if ($days < 7) $days = 7;
+
+        $cutoffTime = time() - ($days * 86400);
+        $punchesDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'punches';
+        $deletedFiles = 0;
+        $freedBytes = 0;
+
+        if (is_dir($punchesDir)) {
+            $files = scandir($punchesDir);
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') continue;
+                $filePath = $punchesDir . DIRECTORY_SEPARATOR . $file;
+                if (is_file($filePath) && filemtime($filePath) < $cutoffTime) {
+                    $freedBytes += filesize($filePath);
+                    @unlink($filePath);
+                    $deletedFiles++;
+                }
+            }
+        }
+
+        $freedMb = round($freedBytes / (1024 * 1024), 2);
+        \App\Core\Logger::log(Auth::id(), 'STORAGE_CLEANED', "Cleaned {$deletedFiles} punch photos older than {$days} days ({$freedMb} MB freed)");
+        $this->setFlash('success', "Storage cleanup complete! Removed {$deletedFiles} old photos older than {$days} days and freed {$freedMb} MB of disk space.");
+        redirect('profile');
+    }
 }

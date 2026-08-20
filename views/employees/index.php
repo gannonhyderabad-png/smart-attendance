@@ -60,11 +60,6 @@
             <?php if ($currentView === 'trash'): ?>
                 <input type="hidden" name="view" value="trash">
             <?php endif; ?>
-        <!-- Filters Form -->
-        <form method="GET" action="<?= base_url('employees') ?>" class="row g-2 mb-4">
-            <?php if ($currentView === 'trash'): ?>
-                <input type="hidden" name="view" value="trash">
-            <?php endif; ?>
             <div class="col-md-3">
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
@@ -212,15 +207,22 @@
                                         </div>
                                     </td>
                                 <?php else: ?>
-                                    <td>
-                                        <div class="input-group input-group-sm" style="max-width: 240px;">
-                                            <input type="text" class="form-control bg-light font-monospace" value="<?= e($empPunchUrl) ?>" id="url-<?= $emp['id'] ?>" readonly>
-                                            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('<?= e($empPunchUrl) ?>', this)" title="Copy Attendance Link">
-                                                <i class="fa-regular fa-copy"></i>
-                                            </button>
-                                            <a href="<?= e($empPunchUrl) ?>" target="_blank" class="btn btn-outline-primary" title="Open Mobile View">
-                                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    <td style="min-width: 220px;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <a href="<?= e($empPunchUrl) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-sm text-nowrap" title="Open Mobile Attendance Punch Page">
+                                                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Punch
                                             </a>
+                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="showEmployeeQr('<?= e($empPunchUrl) ?>', '<?= e(addslashes($emp['name'])) ?>', '<?= e($emp['employee_code']) ?>')" title="Show QR Code">
+                                                <i class="fa-solid fa-qrcode text-dark"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="copyToClipboard('<?= e($empPunchUrl) ?>', this)" title="Copy Direct Attendance Link">
+                                                <i class="fa-regular fa-copy text-secondary"></i>
+                                            </button>
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="font-monospace text-muted text-truncate d-block" style="font-size: 0.68rem; max-width: 210px;" title="<?= e($empPunchUrl) ?>">
+                                                <?= e($empPunchUrl) ?>
+                                            </small>
                                         </div>
                                     </td>
                                     <td>
@@ -231,7 +233,7 @@
                                     </td>
                                     <td class="pe-3 text-end">
                                         <div class="btn-group btn-group-sm">
-                                            <a href="<?= base_url('employees/view/' . $emp['id']) ?>" class="btn btn-primary text-white border-0 px-2" title="View Profile & QR Code">
+                                            <a href="<?= base_url('employees/view/' . $emp['id']) ?>" class="btn btn-light border text-primary" title="View Profile & Full QR Card">
                                                 <i class="fa-solid fa-id-card me-1"></i> Details
                                             </a>
                                             <a href="<?= base_url('employees/edit/' . $emp['id']) ?>" class="btn btn-light border text-secondary" title="Edit Employee">
@@ -252,3 +254,56 @@
 
     </div>
 </div>
+
+<!-- Quick QR Code Modal for Employee Table -->
+<div class="modal fade" id="quickQrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg p-3 text-center">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                <div class="text-start">
+                    <h6 class="fw-bold mb-0 text-dark" id="modalEmpName">Attendance QR Code</h6>
+                    <small class="text-muted font-monospace" id="modalEmpCode"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="p-3 bg-light rounded-4 border my-2">
+                <div id="quickQrContainer" class="d-flex justify-content-center p-2 bg-white rounded-3 shadow-sm border mx-auto" style="width: 170px; height: 170px;"></div>
+                <small class="text-muted d-block mt-2">Scan with any smartphone camera</small>
+            </div>
+            <div class="d-flex gap-2 justify-content-center mt-2">
+                <a id="modalWaBtn" href="#" target="_blank" class="btn btn-success btn-sm rounded-pill px-3 flex-grow-1 shadow-sm">
+                    <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp
+                </a>
+                <a id="modalOpenBtn" href="#" target="_blank" class="btn btn-primary btn-sm rounded-pill px-3 flex-grow-1 shadow-sm">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Page
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showEmployeeQr(punchUrl, name, code) {
+    document.getElementById('modalEmpName').textContent = name;
+    document.getElementById('modalEmpCode').textContent = code;
+    document.getElementById('modalOpenBtn').href = punchUrl;
+    
+    const waText = `Hello ${name}, here is your attendance punch link: ${punchUrl}`;
+    document.getElementById('modalWaBtn').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`;
+    
+    const qrBox = document.getElementById('quickQrContainer');
+    qrBox.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(qrBox, {
+            text: punchUrl,
+            width: 154,
+            height: 154,
+            colorDark: "#111827",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickQrModal'));
+    modal.show();
+}
+</script>

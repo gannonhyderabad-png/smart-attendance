@@ -77,13 +77,20 @@ class Employee extends Model {
     public static function findByCode(string $code): ?array {
         $decoded = trim(rawurldecode($code));
         $raw = trim($code);
+        $normalized = str_replace([' ', '_'], '-', $decoded);
 
         $stmt = self::db()->prepare("SELECT e.*, d.name as department_name 
                                     FROM employees e 
                                     LEFT JOIN departments d ON e.department_id = d.id 
                                     WHERE LOWER(TRIM(e.employee_code)) = LOWER(?) 
-                                       OR LOWER(TRIM(e.employee_code)) = LOWER(?) LIMIT 1");
-        $stmt->execute([$decoded, $raw]);
+                                       OR LOWER(TRIM(e.employee_code)) = LOWER(?)
+                                       OR LOWER(TRIM(e.employee_code)) = LOWER(?)
+                                       OR e.punch_token = ? 
+                                       OR e.punch_token = ?
+                                       OR (e.id = ? AND ? > 0)
+                                    LIMIT 1");
+        $idVal = is_numeric($raw) ? (int)$raw : (is_numeric($decoded) ? (int)$decoded : 0);
+        $stmt->execute([$decoded, $raw, $normalized, $decoded, $raw, $idVal, $idVal]);
         return $stmt->fetch() ?: null;
     }
 

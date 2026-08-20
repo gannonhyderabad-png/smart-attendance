@@ -102,7 +102,9 @@ class BackupController extends Controller {
             if (is_dir($fullPath)) {
                 $this->addFolderToZip($zip, $fullPath, $localZipPath);
             } elseif (is_file($fullPath)) {
+                $zip->addFile($fullPath, $localZipPath);
             }
+        }
     }
 
     /**

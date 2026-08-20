@@ -74,32 +74,33 @@ class ReportController extends Controller {
 
         // Data Rows
         foreach ($summary as $row) {
+            $emp = $row['employee'] ?? $row;
             $inTime = !empty($row['first_in']) ? date('h:i:s A', strtotime($row['first_in'])) : '—';
             $outTime = !empty($row['last_out']) ? date('h:i:s A', strtotime($row['last_out'])) : '—';
             
             $statusLabel = 'Absent';
-            if ($row['status'] === 'IN') {
+            if ($row['status'] === 'CHECKED_IN' || $row['status'] === 'IN') {
                 $statusLabel = 'Working Now (IN)';
-            } elseif ($row['status'] === 'OUT') {
+            } elseif ($row['status'] === 'COMPLETED' || $row['status'] === 'OUT') {
                 $statusLabel = 'Punched Out (Completed)';
-            } elseif ($row['status'] === 'NO_OUT_PUNCH' || $row['status'] === 'NO_OUT') {
+            } elseif ($row['status'] === 'NO_OUT_PUNCH' || $row['status'] === 'NO_OUT' || !empty($row['is_no_out'])) {
                 $statusLabel = 'Auto-Closed (No OUT)';
             }
 
             $dataRow = [
-                $row['employee_code'],
-                $row['employee_name'],
-                $row['email'] ?? '—',
-                $row['phone'] ?? '—',
-                $row['department_name'] ?? ($row['department'] ?? 'General'),
-                $row['designation'] ?? 'Staff',
-                $row['project'] ?? '—',
-                $row['site'] ?? '—',
+                $emp['employee_code'] ?? '',
+                $emp['name'] ?? '',
+                $emp['email'] ?? '—',
+                $emp['phone'] ?? '—',
+                $emp['department_name'] ?? ($emp['department'] ?? 'General'),
+                $emp['designation'] ?? 'Staff',
+                $emp['project'] ?? '—',
+                $emp['site'] ?? '—',
                 $statusLabel,
                 $inTime,
                 $outTime,
-                $row['total_punches'] ?? 0,
-                $row['work_duration_formatted'] ?? '00:00:00'
+                $row['punch_count'] ?? ($row['total_punches'] ?? 0),
+                $row['formatted_duration'] ?? ($row['work_duration_formatted'] ?? '00:00:00')
             ];
             fputcsv($output, $dataRow);
         }

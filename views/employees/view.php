@@ -142,8 +142,8 @@
                                                         <i class="fa-solid fa-arrow-right-to-bracket me-1"></i><?= date('h:i:s A', strtotime($att['in_time'])) ?>
                                                     </span>
                                                     <?php if (!empty($att['in_photo'])): ?>
-                                                        <a href="javascript:void(0)" onclick="viewPunchPhoto('<?= uploaded_url($att['in_photo']) ?>', '<?= e($employee['name']) ?> - Punch IN', '<?= date('d M Y, h:i:s A', strtotime($att['in_time'])) ?>')" class="btn btn-sm btn-light border p-0 rounded-circle" title="View IN Selfie Photo">
-                                                            <img src="<?= uploaded_url($att['in_photo']) ?>" class="rounded-circle object-fit-cover border" style="width: 24px; height: 24px;" alt="IN Selfie">
+                                                        <a href="javascript:void(0)" onclick="viewPunchPhoto('<?= uploaded_url($att['in_photo']) ?>', '<?= e($employee['name']) ?> - Punch IN Selfie', '<?= date('d M Y, h:i:s A', strtotime($att['in_time'])) ?>')" class="btn btn-sm btn-light border p-0 rounded-circle shadow-sm overflow-hidden" title="Click to Maximize IN Selfie" style="width: 28px; height: 28px; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                                                            <img src="<?= uploaded_url($att['in_photo']) ?>" class="w-100 h-100 object-fit-cover" alt="IN Selfie">
                                                         </a>
                                                     <?php endif; ?>
                                                 </div>
@@ -158,8 +158,8 @@
                                                         <i class="fa-solid fa-arrow-right-from-bracket me-1"></i><?= date('h:i:s A', strtotime($att['out_time'])) ?>
                                                     </span>
                                                     <?php if (!empty($att['out_photo'])): ?>
-                                                        <a href="javascript:void(0)" onclick="viewPunchPhoto('<?= uploaded_url($att['out_photo']) ?>', '<?= e($employee['name']) ?> - Punch OUT', '<?= date('d M Y, h:i:s A', strtotime($att['out_time'])) ?>')" class="btn btn-sm btn-light border p-0 rounded-circle" title="View OUT Selfie Photo">
-                                                            <img src="<?= uploaded_url($att['out_photo']) ?>" class="rounded-circle object-fit-cover border" style="width: 24px; height: 24px;" alt="OUT Selfie">
+                                                        <a href="javascript:void(0)" onclick="viewPunchPhoto('<?= uploaded_url($att['out_photo']) ?>', '<?= e($employee['name']) ?> - Punch OUT Selfie', '<?= date('d M Y, h:i:s A', strtotime($att['out_time'])) ?>')" class="btn btn-sm btn-light border p-0 rounded-circle shadow-sm overflow-hidden" title="Click to Maximize OUT Selfie" style="width: 28px; height: 28px; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                                                            <img src="<?= uploaded_url($att['out_photo']) ?>" class="w-100 h-100 object-fit-cover" alt="OUT Selfie">
                                                         </a>
                                                     <?php endif; ?>
                                                 </div>

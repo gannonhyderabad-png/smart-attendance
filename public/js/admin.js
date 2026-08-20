@@ -63,11 +63,17 @@ window.viewPunchPhoto = function(url, title, time) {
     const titleEl = document.getElementById('modalPunchPhotoTitle');
     const timeEl = document.getElementById('modalPunchPhotoTime');
     const openBtn = document.getElementById('modalPunchPhotoOpenBtn');
+    const downloadBtn = document.getElementById('modalPunchPhotoDownloadBtn');
     
-    if (imgEl) imgEl.src = url;
-    if (titleEl) titleEl.textContent = title || 'Punch Selfie Photo';
+    if (imgEl) {
+        imgEl.src = url;
+        imgEl.onclick = function() { window.open(url, '_blank'); };
+        imgEl.style.cursor = 'zoom-in';
+    }
+    if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-camera text-primary me-2"></i> ${title || 'Punch Selfie Snapshot'}`;
     if (timeEl) timeEl.textContent = time || '';
     if (openBtn) openBtn.href = url;
+    if (downloadBtn) downloadBtn.href = url;
     
     const modalEl = document.getElementById('punchPhotoModal');
     if (modalEl && typeof bootstrap !== 'undefined') {
@@ -77,4 +83,5 @@ window.viewPunchPhoto = function(url, title, time) {
         window.open(url, '_blank');
     }
 };
+
 

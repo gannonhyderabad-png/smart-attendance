@@ -15,12 +15,9 @@
                     'department_id' => $departmentId
                 ]);
                 ?>
-                <a href="<?= base_url('reports/monthly/export?' . $exportQuery) ?>" class="btn btn-success rounded-pill px-3 shadow-sm me-2">
-                    <i class="fa-solid fa-file-excel me-1"></i> Export Monthly Timesheet (CSV)
+                <a href="<?= base_url('reports/monthly/export?' . $exportQuery) ?>" class="btn btn-success rounded-pill px-3 shadow-sm">
+                    <i class="fa-solid fa-file-excel me-1"></i> Download Excel (.csv)
                 </a>
-                <button onclick="window.print()" class="btn btn-outline-secondary rounded-pill px-3">
-                    <i class="fa-solid fa-print"></i>
-                </button>
             </div>
         </div>
 

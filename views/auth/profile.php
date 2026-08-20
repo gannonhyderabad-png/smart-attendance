@@ -93,10 +93,28 @@
                     </div>
                 </div>
 
-                <div class="d-grid">
-                    <a href="<?= base_url('backup/download') ?>" class="btn btn-success btn-lg rounded-pill shadow-sm py-3 fw-bold">
+                <div class="d-grid gap-2 mb-3">
+                    <a href="<?= base_url('backup/download') ?>" class="btn btn-success rounded-pill shadow-sm py-2 fw-bold">
                         <i class="fa-solid fa-download me-2"></i> Download Full Backup (.ZIP)
                     </a>
+                </div>
+
+                <hr class="my-3 text-secondary opacity-25">
+
+                <!-- Restore Backup Form -->
+                <div>
+                    <h6 class="fw-bold text-dark mb-1"><i class="fa-solid fa-cloud-arrow-up text-primary me-2"></i>Restore / Upload Backup</h6>
+                    <p class="text-muted small mb-2">Upload a previously downloaded <code>.zip</code> file to restore all photos and attendance logs.</p>
+                    <form method="POST" action="<?= base_url('backup/restore') ?>" enctype="multipart/form-data">
+                        <?= csrf_field() ?>
+                        <div class="input-group input-group-sm mb-1">
+                            <input type="file" name="backup_file" class="form-control" accept=".zip,.sqlite,.sql" required>
+                            <button type="submit" class="btn btn-primary px-3 fw-semibold" onclick="return confirm('Restore this backup? This will update the database and restore all included photos.')">
+                                <i class="fa-solid fa-rotate-left me-1"></i> Restore Data
+                            </button>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Supports: <code>.zip</code> (Full bundle), <code>.sqlite</code>, <code>.sql</code></small>
+                    </form>
                 </div>
             </div>
         </div>

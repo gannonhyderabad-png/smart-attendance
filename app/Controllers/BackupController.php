@@ -102,8 +102,92 @@ class BackupController extends Controller {
             if (is_dir($fullPath)) {
                 $this->addFolderToZip($zip, $fullPath, $localZipPath);
             } elseif (is_file($fullPath)) {
-                $zip->addFile($fullPath, $localZipPath);
             }
+    }
+
+    /**
+     * Upload and restore a complete system backup ZIP or SQL file
+     */
+    public function restore(): void {
+        Auth::requireAuth();
+
+        if (empty($_FILES['backup_file']['tmp_name']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
+            $this->setFlash('error', 'Please select a valid backup (.zip) file to upload and restore.');
+            redirect('profile');
         }
+
+        $tmpFile = $_FILES['backup_file']['tmp_name'];
+        $origName = $_FILES['backup_file']['name'];
+        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+
+        if ($ext !== 'zip' && $ext !== 'sqlite' && $ext !== 'sql') {
+            $this->setFlash('error', 'Only .zip, .sqlite, or .sql backup files are supported for restoration.');
+            redirect('profile');
+        }
+
+        $restoredPhotos = 0;
+        $restoredDb = false;
+
+        if ($ext === 'zip') {
+            $zip = new ZipArchive();
+            if ($zip->open($tmpFile) === true) {
+                $baseDir = dirname(__DIR__, 2);
+
+                // 1. Extract and restore uploads (selfie photos and avatars)
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $entryName = $zip->getNameIndex($i);
+
+                    if (str_starts_with($entryName, 'public/uploads/')) {
+                        $targetPath = $baseDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $entryName);
+                        $targetDir = dirname($targetPath);
+                        if (!is_dir($targetDir)) {
+                            mkdir($targetDir, 0777, true);
+                        }
+                        if (!str_ends_with($entryName, '/')) {
+                            file_put_contents($targetPath, $zip->getFromIndex($i));
+                            $restoredPhotos++;
+                        }
+                    }
+                }
+
+                // 2. Restore SQLite database file if present
+                $sqliteContent = $zip->getFromName('database/attendance.sqlite');
+                if ($sqliteContent !== false) {
+                    $dbTarget = $baseDir . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'attendance.sqlite';
+                    $dbDir = dirname($dbTarget);
+                    if (!is_dir($dbDir)) mkdir($dbDir, 0777, true);
+                    file_put_contents($dbTarget, $sqliteContent);
+                    $restoredDb = true;
+                }
+
+                // 3. Alternatively execute SQL dump if database.sqlite wasn't present
+                if (!$restoredDb) {
+                    $sqlContent = $zip->getFromName('database/database_dump.sql');
+                    if ($sqlContent !== false && !empty(trim($sqlContent))) {
+                        try {
+                            $pdo = Database::getConnection();
+                            $pdo->exec($sqlContent);
+                            $restoredDb = true;
+                        } catch (\Throwable $e) {
+                            // SQL error
+                        }
+                    }
+                }
+
+                $zip->close();
+            } else {
+                $this->setFlash('error', 'Unable to extract the selected ZIP archive.');
+                redirect('profile');
+            }
+        } elseif ($ext === 'sqlite') {
+            $baseDir = dirname(__DIR__, 2);
+            $dbTarget = $baseDir . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'attendance.sqlite';
+            copy($tmpFile, $dbTarget);
+            $restoredDb = true;
+        }
+
+        \App\Core\Logger::log(Auth::id(), 'BACKUP_RESTORED', "Restored system backup from file: {$origName}");
+        $this->setFlash('success', "Backup restored successfully! Restored database and {$restoredPhotos} uploaded photos.");
+        redirect('profile');
     }
 }

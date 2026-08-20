@@ -308,6 +308,7 @@ $router->get('/logs', [\App\Controllers\LogController::class, 'index']);
 $router->get('/profile', [\App\Controllers\AuthController::class, 'profile']);
 $router->post('/profile/update', [\App\Controllers\AuthController::class, 'updateProfile']);
 $router->get('/backup/download', [\App\Controllers\BackupController::class, 'download']);
+$router->post('/backup/restore', [\App\Controllers\BackupController::class, 'restore']);
 
 // Dispatch Current Request
 try {

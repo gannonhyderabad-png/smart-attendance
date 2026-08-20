@@ -55,3 +55,26 @@ function copyToClipboard(text, btnElement) {
         }
     }
 }
+
+// Global View Punch Photo Modal
+window.viewPunchPhoto = function(url, title, time) {
+    if (!url) return;
+    const imgEl = document.getElementById('modalPunchPhotoImg');
+    const titleEl = document.getElementById('modalPunchPhotoTitle');
+    const timeEl = document.getElementById('modalPunchPhotoTime');
+    const openBtn = document.getElementById('modalPunchPhotoOpenBtn');
+    
+    if (imgEl) imgEl.src = url;
+    if (titleEl) titleEl.textContent = title || 'Punch Selfie Photo';
+    if (timeEl) timeEl.textContent = time || '';
+    if (openBtn) openBtn.href = url;
+    
+    const modalEl = document.getElementById('punchPhotoModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    } else {
+        window.open(url, '_blank');
+    }
+};
+

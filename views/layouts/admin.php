@@ -144,6 +144,30 @@
         </div>
     </div>
 
+    <!-- Global Punch Selfie Photo Modal -->
+    <div class="modal fade" id="punchPhotoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content rounded-4 border-0 shadow-lg p-3 text-center">
+                <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                    <div class="text-start">
+                        <h6 class="fw-bold mb-0 text-dark" id="modalPunchPhotoTitle">Punch Photo</h6>
+                        <small class="text-muted" id="modalPunchPhotoTime"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="p-2 bg-dark rounded-4 overflow-hidden shadow-inner mb-3 position-relative" style="min-height: 250px; display: flex; align-items: center; justify-content: center;">
+                    <img id="modalPunchPhotoImg" src="" class="img-fluid rounded-3 object-fit-contain" style="max-height: 400px; width: 100%;" alt="Punch Snapshot" onerror="this.src='https://placehold.co/400x300?text=Photo+Not+Found'">
+                </div>
+                <div class="d-flex gap-2">
+                    <a id="modalPunchPhotoOpenBtn" href="#" target="_blank" class="btn btn-outline-primary rounded-pill flex-grow-1 py-2 small fw-semibold">
+                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Full Image
+                    </a>
+                    <button type="button" class="btn btn-light border rounded-pill flex-grow-1 py-2 fw-semibold" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- QRCode JS Library (CDN + Local Fallback) -->

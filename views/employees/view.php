@@ -259,32 +259,3 @@
     window.addEventListener('load', renderEmployeeQr);
     setTimeout(renderEmployeeQr, 500);
 </script>
-
-    function viewPunchPhoto(url, title, time) {
-        if (!url) return;
-        document.getElementById('modalPunchPhotoImg').src = url;
-        document.getElementById('modalPunchPhotoTitle').textContent = title || 'Punch Photo';
-        document.getElementById('modalPunchPhotoTime').textContent = time || '';
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('punchPhotoModal'));
-        modal.show();
-    }
-</script>
-
-<!-- Punch Selfie Photo Modal -->
-<div class="modal fade" id="punchPhotoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-        <div class="modal-content rounded-4 border-0 shadow-lg p-3 text-center">
-            <div class="d-flex justify-content-between align-items-center mb-2 px-2">
-                <div class="text-start">
-                    <h6 class="fw-bold mb-0 text-dark" id="modalPunchPhotoTitle">Punch Photo</h6>
-                    <small class="text-muted" id="modalPunchPhotoTime"></small>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="p-2 bg-dark rounded-3 overflow-hidden shadow-inner mb-2">
-                <img id="modalPunchPhotoImg" src="" class="img-fluid rounded-3 object-fit-contain" style="max-height: 380px; width: 100%;" alt="Punch Snapshot">
-            </div>
-            <button type="button" class="btn btn-light border rounded-pill w-100 py-2" data-bs-dismiss="modal">Close Preview</button>
-        </div>
-    </div>
-</div>

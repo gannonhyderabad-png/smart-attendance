@@ -70,6 +70,11 @@
                         <i class="fa-solid fa-user-gear me-2 fa-fw"></i> Admin Settings
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="<?= base_url('backup/download') ?>" class="nav-link text-white-50">
+                        <i class="fa-solid fa-cloud-arrow-down me-2 fa-fw text-success"></i> Backup Data & Photos
+                    </a>
+                </li>
             </ul>
 
             <hr class="text-secondary">

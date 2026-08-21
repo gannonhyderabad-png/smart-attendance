@@ -12,7 +12,8 @@
                 $exportQuery = http_build_query([
                     'year' => $year,
                     'month' => $month,
-                    'department_id' => $departmentId
+                    'department_id' => $departmentId,
+                    'site' => $site ?? null
                 ]);
                 ?>
                 <a href="<?= base_url('reports/monthly/export?' . $exportQuery) ?>" class="btn btn-success rounded-pill px-3 shadow-sm">
@@ -23,7 +24,7 @@
 
         <!-- Filter Form -->
         <form method="GET" action="<?= base_url('reports/monthly') ?>" class="row g-2 mb-4 p-3 bg-light rounded-4 border">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small text-muted fw-semibold mb-1">Month</label>
                 <select name="month" class="form-select form-select-sm bg-white">
                     <?php for ($m = 1; $m <= 12; $m++): ?>
@@ -34,7 +35,7 @@
                 </select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small text-muted fw-semibold mb-1">Year</label>
                 <select name="year" class="form-select form-select-sm bg-white">
                     <?php 
@@ -45,7 +46,7 @@
                 </select>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small text-muted fw-semibold mb-1">Department</label>
                 <select name="department_id" class="form-select form-select-sm bg-white">
                     <option value="">All Departments</option>
@@ -53,6 +54,16 @@
                         <option value="<?= $dept['id'] ?>" <?= ($departmentId == $dept['id']) ? 'selected' : '' ?>>
                             <?= e($dept['name']) ?>
                         </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small text-muted fw-semibold mb-1">Work Site</label>
+                <select name="site" class="form-select form-select-sm bg-white">
+                    <option value="">All Work Sites</option>
+                    <?php foreach ($siteList ?? [] as $s): ?>
+                        <option value="<?= e($s) ?>" <?= (($site ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -76,6 +87,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th class="text-start ps-3" style="min-width: 140px;">Employee</th>
+                        <th class="text-start" style="min-width: 120px;">Work Site</th>
                         <th style="min-width: 60px;">Present</th>
                         <th style="min-width: 70px;">Total Hrs</th>
                         <?php for ($d = 1; $d <= $report['days_in_month']; $d++): 
@@ -93,7 +105,7 @@
                 <tbody>
                     <?php if (empty($report['data'])): ?>
                         <tr>
-                            <td colspan="<?= $report['days_in_month'] + 3 ?>" class="text-center py-4 text-muted">
+                            <td colspan="<?= $report['days_in_month'] + 4 ?>" class="text-center py-4 text-muted">
                                 No active employees found.
                             </td>
                         </tr>
@@ -107,6 +119,15 @@
                                         <?= e($emp['name']) ?>
                                     </a>
                                     <div class="text-muted font-monospace" style="font-size: 0.65rem;"><?= e($emp['employee_code']) ?></div>
+                                </td>
+                                <td class="text-start">
+                                    <?php if (!empty($emp['site'])): ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                            <i class="fa-solid fa-location-dot me-1 text-danger"></i><?= e($emp['site']) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted small">—</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="fw-bold text-success"><?= $row['present_days'] ?>d</td>
                                 <td class="fw-bold font-monospace text-primary"><?= $row['total_hours'] ?>h</td>

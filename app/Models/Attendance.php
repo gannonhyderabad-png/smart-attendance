@@ -743,7 +743,7 @@ class Attendance extends Model {
     /**
      * Monthly timesheet report for employees
      */
-    public static function getMonthlyReport(int $year, int $month, ?int $departmentId = null): array {
+    public static function getMonthlyReport(int $year, int $month, ?int $departmentId = null, ?string $site = null): array {
         $startDate = sprintf('%04d-%02d-01', $year, $month);
         $daysInMonth = (int) date('t', strtotime($startDate));
         $endDate = sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
@@ -756,6 +756,10 @@ class Attendance extends Model {
         if ($departmentId) {
             $empSql .= " AND e.department_id = ?";
             $empParams[] = $departmentId;
+        }
+        if (!empty($site)) {
+            $empSql .= " AND e.site = ?";
+            $empParams[] = $site;
         }
         $empSql .= " ORDER BY e.name ASC";
 

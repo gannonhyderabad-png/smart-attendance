@@ -115,16 +115,20 @@ class ReportController extends Controller {
         $year = (int) Request::input('year', date('Y'));
         $month = (int) Request::input('month', date('n'));
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
+        $site = Request::input('site');
 
-        $report = Attendance::getMonthlyReport($year, $month, $departmentId);
+        $report = Attendance::getMonthlyReport($year, $month, $departmentId, $site);
         $departments = Department::all();
+        $siteList = Employee::getDistinctSites();
 
         $this->view('reports.monthly', [
             'title' => 'Monthly Timesheet Report',
             'year' => $year,
             'month' => $month,
             'departmentId' => $departmentId,
+            'site' => $site,
             'departments' => $departments,
+            'siteList' => $siteList,
             'report' => $report
         ], 'admin');
     }
@@ -135,8 +139,9 @@ class ReportController extends Controller {
         $year = (int) Request::input('year', date('Y'));
         $month = (int) Request::input('month', date('n'));
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
+        $site = Request::input('site');
 
-        $report = Attendance::getMonthlyReport($year, $month, $departmentId);
+        $report = Attendance::getMonthlyReport($year, $month, $departmentId, $site);
         $daysInMonth = $report['days_in_month'];
 
         $filename = "monthly_timesheet_{$year}_{$month}_" . date('His') . ".csv";
@@ -146,8 +151,11 @@ class ReportController extends Controller {
 
         $output = fopen('php://output', 'w');
 
+        // Add UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
         // Header Row
-        $header = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Project', 'Present Days', 'Total Hours'];
+        $header = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Project', 'Work Site', 'Present Days', 'Total Hours'];
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $header[] = sprintf('%02d', $d);
         }
@@ -162,6 +170,7 @@ class ReportController extends Controller {
                 $emp['department_name'] ?? 'N/A',
                 $emp['designation'] ?? 'N/A',
                 $emp['project'] ?? 'N/A',
+                $emp['site'] ?? 'Main Office',
                 $row['present_days'],
                 $row['total_hours'] . 'h'
             ];

@@ -90,10 +90,10 @@
                         </div>
 
                         <div class="col-md-3">
-                            <label class="form-label small fw-semibold text-muted">Work Site / Location</label>
+                            <label class="form-label small fw-semibold text-muted">Work Site / Location Name</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-location-dot"></i></span>
-                                <input type="text" name="site" id="siteNameInput" class="form-control bg-light border-start-0" list="siteList" value="<?= e($employee['site'] ?? '') ?>" placeholder="e.g. Bengaluru, Hyderabad, HRO" onchange="autoLookupSiteCoordinates(this.value)">
+                                <input type="text" name="site" id="siteNameInput" class="form-control bg-light border-start-0" list="siteList" value="<?= e($employee['site'] ?? '') ?>" placeholder="e.g. Hyderabad Office, Site Alpha">
                             </div>
                             <datalist id="siteList">
                                 <?php foreach ($siteList as $sName): ?>
@@ -110,7 +110,7 @@
                                 <h6 class="fw-bold text-dark mb-0">
                                     <i class="fa-solid fa-map-location-dot text-primary me-2"></i>Site GPS Geofencing (200m Radius Guard)
                                 </h6>
-                                <small class="text-muted">Attendance will be strictly blocked if employee is not within 200m of these coordinates</small>
+                                <small class="text-muted">Attendance will be strictly verified within this perimeter</small>
                             </div>
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="geofence_enabled" value="0">
@@ -122,17 +122,17 @@
                         <!-- Smart Google Maps Address / Link / Coordinates Input Box -->
                         <div class="mb-3 p-3 bg-white rounded-3 border">
                             <label class="form-label small fw-bold text-dark mb-1">
-                                <i class="fa-brands fa-google text-danger me-1"></i> Paste Google Maps Full Address, Share Link, or GPS Coordinates
+                                <i class="fa-brands fa-google text-danger me-1"></i> Paste Google Maps Coordinates, Link, or Full Address
                             </label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light text-danger"><i class="fa-solid fa-location-pin"></i></span>
-                                <input type="text" id="gmapsPasteInput" class="form-control" placeholder="e.g. Flat 402, Road No 10, Banjara Hills, Hyderabad 500034 OR https://maps.app.goo.gl/... OR 17.437462, 78.448251" oninput="processGoogleMapsInput(this.value)">
+                                <input type="text" id="gmapsPasteInput" class="form-control" placeholder="Paste exact coordinates: 17.437462, 78.448251 or Google Maps link or Full Address" oninput="processGoogleMapsInput(this.value)">
                                 <button type="button" class="btn btn-primary px-3" onclick="processGoogleMapsInput(document.getElementById('gmapsPasteInput').value)">
-                                    <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Auto-Locate
+                                    <i class="fa-solid fa-location-crosshairs me-1"></i> Set Exact Location
                                 </button>
                             </div>
                             <div class="form-text small text-muted">
-                                You can copy the full door/street address from Google Maps, a share link, or raw coordinates — the system will automatically extract the GPS location!
+                                💡 Tip: You can copy coordinates from Google Maps (e.g. <code>17.437462, 78.448251</code>) and paste them here or directly in the Latitude box!
                             </div>
                         </div>
 
@@ -150,11 +150,11 @@
                         <div class="row g-3 align-items-end">
                             <div class="col-md-4">
                                 <label class="form-label small fw-semibold text-muted">Site Latitude</label>
-                                <input type="number" step="any" name="site_latitude" id="siteLatInput" class="form-control bg-white font-monospace" value="<?= e($employee['site_latitude'] ?? '') ?>" placeholder="e.g. 17.437462">
+                                <input type="number" step="any" name="site_latitude" id="siteLatInput" class="form-control bg-white font-monospace fw-bold text-dark" value="<?= e($employee['site_latitude'] ?? '') ?>" placeholder="e.g. 17.437462" onpaste="handleDirectCoordPaste(event)" oninput="updateMapPreviewLink()">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label small fw-semibold text-muted">Site Longitude</label>
-                                <input type="number" step="any" name="site_longitude" id="siteLonInput" class="form-control bg-white font-monospace" value="<?= e($employee['site_longitude'] ?? '') ?>" placeholder="e.g. 78.448251">
+                                <input type="number" step="any" name="site_longitude" id="siteLonInput" class="form-control bg-white font-monospace fw-bold text-dark" value="<?= e($employee['site_longitude'] ?? '') ?>" placeholder="e.g. 78.448251" onpaste="handleDirectCoordPaste(event)" oninput="updateMapPreviewLink()">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small fw-semibold text-muted">Radius (Meters)</label>
@@ -178,7 +178,7 @@
                             $mapUrl = $hasCoords ? "https://www.google.com/maps?q=" . $employee['site_latitude'] . "," . $employee['site_longitude'] : "#";
                             ?>
                             <a href="<?= $mapUrl ?>" id="googleMapVerifyBtn" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3 <?= $hasCoords ? '' : 'd-none' ?>">
-                                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Verify Pin on Google Maps
+                                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> View Locked Pin on Google Maps
                             </a>
                         </div>
                     </div>
@@ -217,11 +217,38 @@
 </div>
 
 <script>
+    function updateMapPreviewLink() {
+        const lat = document.getElementById('siteLatInput').value.trim();
+        const lon = document.getElementById('siteLonInput').value.trim();
+        const mapVerifyBtn = document.getElementById('googleMapVerifyBtn');
+        if (lat && lon && mapVerifyBtn) {
+            mapVerifyBtn.href = `https://www.google.com/maps?q=${lat},${lon}`;
+            mapVerifyBtn.classList.remove('d-none');
+        }
+    }
+
+    function handleDirectCoordPaste(e) {
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        if (pastedText) {
+            const parsed = extractExactCoordinates(pastedText);
+            if (parsed) {
+                e.preventDefault();
+                document.getElementById('siteLatInput').value = parsed.lat;
+                document.getElementById('siteLonInput').value = parsed.lon;
+                updateMapPreviewLink();
+                const feedback = document.getElementById('gpsAdminFeedback');
+                if (feedback) {
+                    feedback.className = 'small text-success mt-2 d-block';
+                    feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Exact Google Maps Coordinates Locked: <strong>${parsed.lat}, ${parsed.lon}</strong>`;
+                }
+            }
+        }
+    }
+
     function acquireAdminLocation(btn) {
         const feedback = document.getElementById('gpsAdminFeedback');
         const latInput = document.getElementById('siteLatInput');
         const lonInput = document.getElementById('siteLonInput');
-        const mapVerifyBtn = document.getElementById('googleMapVerifyBtn');
 
         if (!navigator.geolocation) {
             alert('Geolocation is not supported by your browser.');
@@ -240,14 +267,11 @@
                 const lon = pos.coords.longitude.toFixed(6);
                 latInput.value = lat;
                 lonInput.value = lon;
+                updateMapPreviewLink();
                 if (feedback) {
                     feedback.className = 'small text-success mt-2 d-block';
                     feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Acquired GPS location: <strong>${lat}, ${lon}</strong> (Accuracy: &plusmn;${Math.round(pos.coords.accuracy)}m)`;
                     feedback.classList.remove('d-none');
-                }
-                if (mapVerifyBtn) {
-                    mapVerifyBtn.href = `https://www.google.com/maps?q=${lat},${lon}`;
-                    mapVerifyBtn.classList.remove('d-none');
                 }
             },
             function(err) {
@@ -264,50 +288,78 @@
         const latInput = document.getElementById('siteLatInput');
         const lonInput = document.getElementById('siteLonInput');
         const feedback = document.getElementById('gpsAdminFeedback');
-        const mapVerifyBtn = document.getElementById('googleMapVerifyBtn');
 
-        if (siteInput) siteInput.value = name;
+        if (siteInput && !siteInput.value) siteInput.value = name;
         if (latInput) latInput.value = lat;
         if (lonInput) lonInput.value = lon;
+        updateMapPreviewLink();
 
         if (feedback) {
             feedback.className = 'small text-success mt-2 d-block';
             feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Loaded <strong>${name}</strong> coordinates: <code>${lat}, ${lon}</code> (200m perimeter active)`;
             feedback.classList.remove('d-none');
         }
-        if (mapVerifyBtn) {
-            mapVerifyBtn.href = `https://www.google.com/maps?q=${lat},${lon}`;
-            mapVerifyBtn.classList.remove('d-none');
-        }
     }
 
-    function parseGoogleMapsAddressOrCoords(inputVal) {
-        if (!inputVal) return null;
-        const str = inputVal.trim();
+    function dmsToDecimal(degrees, minutes, seconds, direction) {
+        let dd = parseFloat(degrees) + (parseFloat(minutes) / 60) + (parseFloat(seconds) / (60 * 60));
+        if (direction === 'S' || direction === 'W') {
+            dd = dd * -1;
+        }
+        return dd;
+    }
 
-        // 1. Direct Latitude, Longitude (e.g. "17.437462, 78.448251" or "17.437462 78.448251")
-        const coordRegex = /^(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)$/;
-        const mCoord = str.match(coordRegex);
-        if (mCoord) {
-            return { lat: parseFloat(mCoord[1]).toFixed(6), lon: parseFloat(mCoord[2]).toFixed(6) };
+    function extractExactCoordinates(str) {
+        if (!str) return null;
+        str = str.trim();
+
+        // 1. Direct Decimal: "17.437462, 78.448251" or "17.437462,78.448251" or "17.437462 78.448251"
+        const decRegex = /(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/;
+        const mDec = str.match(decRegex);
+        if (mDec) {
+            const lat = parseFloat(mDec[1]);
+            const lon = parseFloat(mDec[2]);
+            if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                return { lat: lat.toFixed(6), lon: lon.toFixed(6) };
+            }
         }
 
-        // 2. Google Maps URL with @lat,lon (e.g. /@17.437462,78.448251,17z)
-        const atCoord = str.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
-        if (atCoord) {
-            return { lat: parseFloat(atCoord[1]).toFixed(6), lon: parseFloat(atCoord[2]).toFixed(6) };
+        // 2. DMS Coordinates: 17°26'14.9"N 78°26'53.7"E or 17°26'14.9" N, 78°26'53.7" E
+        const dmsRegex = /(\d{1,2})[°\s]+(\d{1,2})['\s]+([\d.]+)["]?\s*([NSns])[,\s]+(\d{1,3})[°\s]+(\d{1,2})['\s]+([\d.]+)["]?\s*([EWew])/;
+        const mDms = str.match(dmsRegex);
+        if (mDms) {
+            const lat = dmsToDecimal(mDms[1], mDms[2], mDms[3], mDms[4].toUpperCase());
+            const lon = dmsToDecimal(mDms[5], mDms[6], mDms[7], mDms[8].toUpperCase());
+            return { lat: lat.toFixed(6), lon: lon.toFixed(6) };
         }
 
-        // 3. Google Maps URL with ?q=lat,lon or /place/lat,lon or ll=lat,lon
-        const qCoord = str.match(/(?:[?&](?:q|ll)=|\/place\/)(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
-        if (qCoord) {
-            return { lat: parseFloat(qCoord[1]).toFixed(6), lon: parseFloat(qCoord[2]).toFixed(6) };
+        // 3. Direction suffixed decimals: 17.437462 N, 78.448251 E
+        const dirDecRegex = /(\d{1,2}\.\d+)\s*([NSns])[,\s]+(\d{1,3}\.\d+)\s*([EWew])/;
+        const mDir = str.match(dirDecRegex);
+        if (mDir) {
+            let lat = parseFloat(mDir[1]);
+            if (mDir[2].toUpperCase() === 'S') lat = -lat;
+            let lon = parseFloat(mDir[3]);
+            if (mDir[4].toUpperCase() === 'W') lon = -lon;
+            return { lat: lat.toFixed(6), lon: lon.toFixed(6) };
         }
 
-        // 4. Embed / data URL with !3dlat!4dlon
-        const dataCoord = str.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
-        if (dataCoord) {
-            return { lat: parseFloat(dataCoord[1]).toFixed(6), lon: parseFloat(dataCoord[2]).toFixed(6) };
+        // 4. Google Maps URL @lat,lon
+        const atMatch = str.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
+        if (atMatch) {
+            return { lat: parseFloat(atMatch[1]).toFixed(6), lon: parseFloat(atMatch[2]).toFixed(6) };
+        }
+
+        // 5. Google Maps URL ?q=lat,lon or /place/lat,lon or ll=lat,lon
+        const qMatch = str.match(/(?:[?&](?:q|ll)=|\/place\/)(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
+        if (qMatch) {
+            return { lat: parseFloat(qMatch[1]).toFixed(6), lon: parseFloat(qMatch[2]).toFixed(6) };
+        }
+
+        // 6. Google Maps data string !3dlat!4dlon
+        const dataMatch = str.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+        if (dataMatch) {
+            return { lat: parseFloat(dataMatch[1]).toFixed(6), lon: parseFloat(dataMatch[2]).toFixed(6) };
         }
 
         return null;
@@ -320,38 +372,23 @@
         const latInput = document.getElementById('siteLatInput');
         const lonInput = document.getElementById('siteLonInput');
         const feedback = document.getElementById('gpsAdminFeedback');
-        const mapPreview = document.getElementById('googleMapVerifyBtn');
 
         // Check if direct coordinates or Google Maps link
-        const parsed = parseGoogleMapsAddressOrCoords(raw);
+        const parsed = extractExactCoordinates(raw);
         if (parsed) {
             latInput.value = parsed.lat;
             lonInput.value = parsed.lon;
+            updateMapPreviewLink();
             
             if (feedback) {
                 feedback.className = 'small text-success mt-2 d-block';
-                feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Exact Google Maps Coordinates Extracted: <strong>${parsed.lat}, ${parsed.lon}</strong>`;
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Exact Google Maps Coordinates Locked: <strong>${parsed.lat}, ${parsed.lon}</strong> (Location preserved)`;
                 feedback.classList.remove('d-none');
-            }
-            if (mapPreview) {
-                mapPreview.href = `https://www.google.com/maps?q=${parsed.lat},${parsed.lon}`;
-                mapPreview.classList.remove('d-none');
-            }
-
-            // Reverse geocode to get clean address if site name is empty or a URL
-            if (!siteInput.value || siteInput.value.includes('http') || siteInput.value.includes('@')) {
-                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsed.lat}&lon=${parsed.lon}`)
-                    .then(r => r.json())
-                    .then(d => {
-                        if (d && d.display_name) {
-                            siteInput.value = d.display_name.split(',').slice(0, 4).join(',').trim();
-                        }
-                    }).catch(() => {});
             }
             return;
         }
 
-        // Full text address (with door numbers, streets, etc.)
+        // If user typed a full address, save as site name and geocode
         siteInput.value = raw;
         geocodeFullAddress(raw);
     }
@@ -360,7 +397,6 @@
         const feedback = document.getElementById('gpsAdminFeedback');
         const latInput = document.getElementById('siteLatInput');
         const lonInput = document.getElementById('siteLonInput');
-        const mapPreview = document.getElementById('googleMapVerifyBtn');
 
         if (feedback) {
             feedback.className = 'small text-primary mt-2 d-block';
@@ -368,7 +404,6 @@
             feedback.classList.remove('d-none');
         }
 
-        // Clean door numbers and flat prefixes to geocode accurately on maps
         let cleaned = fullAddress
             .replace(/^(?:flat|door|d\.?no|plot|h\.?no|#|house|shop|office|unit)\s*[:.\-\s]*[0-9a-z\/\-]+,?\s*/i, '')
             .replace(/,\s*(?:near|opposite|opp|behind|beside)\s+[^,]+/i, '')
@@ -378,7 +413,10 @@
 
         function tryQuery(idx) {
             if (idx >= queries.length) {
-                autoLookupSiteCoordinates(fullAddress);
+                if (feedback) {
+                    feedback.className = 'small text-muted mt-2 d-block';
+                    feedback.innerHTML = `<i class="fa-solid fa-circle-info me-1"></i> Please paste exact Google Maps coordinates (e.g. <code>17.437462, 78.448251</code>) to lock the exact location.`;
+                }
                 return;
             }
 
@@ -391,14 +429,11 @@
                         const lon = parseFloat(data[0].lon).toFixed(6);
                         latInput.value = lat;
                         lonInput.value = lon;
+                        updateMapPreviewLink();
                         if (feedback) {
                             feedback.className = 'small text-success mt-2 d-block';
                             feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Address Located: <strong>${data[0].display_name.split(',').slice(0, 3).join(',')}</strong> (<code>${lat}, ${lon}</code>)`;
                             feedback.classList.remove('d-none');
-                        }
-                        if (mapPreview) {
-                            mapPreview.href = `https://www.google.com/maps?q=${lat},${lon}`;
-                            mapPreview.classList.remove('d-none');
                         }
                     } else {
                         tryQuery(idx + 1);
@@ -414,29 +449,12 @@
         const siteInput = document.getElementById('siteNameInput');
         const query = siteInput ? siteInput.value.trim() : '';
         if (!query) {
-            alert('Please type or paste a site address, city name, or Google Maps link first.');
+            alert('Please type or paste a site address, city name, or Google Maps coordinates first.');
             return;
         }
         processGoogleMapsInput(query);
     }
 
-    function autoLookupSiteCoordinates(name) {
-        const lower = name.toLowerCase();
-        if (lower.includes('bengalur') || lower.includes('bangalor')) {
-            setSitePreset('Bengaluru', 12.971599, 77.594566);
-        } else if (lower.includes('hyderabad') || lower.includes('cyber') || lower.includes('telangana')) {
-            setSitePreset('Hyderabad Hitec City', 17.448500, 78.374500);
-        } else if (lower.includes('mumbai') || lower.includes('bombay') || lower.includes('bkc')) {
-            setSitePreset('Mumbai BKC', 19.065700, 72.868700);
-        } else if (lower.includes('chennai') || lower.includes('madras')) {
-            setSitePreset('Chennai OMR', 12.979100, 80.220900);
-        } else if (lower.includes('delhi') || lower.includes('noida') || lower.includes('gurgaon')) {
-            setSitePreset('Delhi NCR', 28.535500, 77.391000);
-        } else if (lower.includes('pune')) {
-            setSitePreset('Pune', 18.520400, 73.856700);
-        } else if (lower.includes('kolkata') || lower.includes('calcutta')) {
-            setSitePreset('Kolkata', 22.572600, 88.363900);
-        }
     function previewEmployeeAvatar(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -447,4 +465,8 @@
             reader.readAsDataURL(input.files[0]);
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateMapPreviewLink();
+    });
 </script>

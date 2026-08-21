@@ -36,6 +36,19 @@ class Database {
                         ]
                     );
                     self::$instance->exec("PRAGMA foreign_keys = ON;");
+                } elseif ($default === 'pgsql') {
+                    $dsn = sprintf(
+                        "pgsql:host=%s;port=%s;dbname=%s",
+                        $connConfig['host'] ?? '127.0.0.1',
+                        $connConfig['port'] ?? '5432',
+                        $connConfig['database'] ?? 'attendance_db'
+                    );
+                    self::$instance = new PDO(
+                        $dsn,
+                        $connConfig['username'] ?? 'postgres',
+                        $connConfig['password'] ?? '',
+                        $connConfig['options'] ?? []
+                    );
                 } else {
                     $dsn = sprintf(
                         "mysql:host=%s;port=%s;dbname=%s;charset=%s",

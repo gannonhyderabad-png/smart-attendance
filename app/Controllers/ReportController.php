@@ -276,4 +276,80 @@ class ReportController extends Controller {
         fclose($output);
         exit;
     }
+
+    /**
+     * Export Detailed Day-by-Day Employee Punch IN/OUT Time Audit Report
+     */
+    public function exportMonthlyAuditCsv(): void {
+        Auth::requireAuth();
+
+        $year = (int) Request::input('year', date('Y'));
+        $month = (int) Request::input('month', date('n'));
+        $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
+        $site = Request::input('site');
+
+        $report = Attendance::getMonthlyReport($year, $month, $departmentId, $site);
+        $daysInMonth = $report['days_in_month'];
+
+        $filename = "monthly_punch_in_out_audit_{$year}_{$month}_" . date('His') . ".csv";
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+
+        // Add UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        // 1. Audit Header Block
+        fputcsv($output, ['========================================================================================================']);
+        fputcsv($output, ['MONTHLY EMPLOYEE-WISE PUNCH IN/OUT & TIME AUDIT REPORT']);
+        fputcsv($output, ['Month Period', date('F Y', mktime(0, 0, 0, $month, 1, $year)), 'Generated At', date('d M Y, h:i:s A')]);
+        fputcsv($output, ['Department Scope', $departmentId ? 'Filtered' : 'All Departments', 'Work Site Scope', $site ? $site : 'All Sites']);
+        fputcsv($output, ['========================================================================================================']);
+        fputcsv($output, []);
+
+        // 2. Audit Table Header
+        $header = ['Date', 'Day', 'Employee Code', 'Employee Name', 'Department', 'Designation', 'Work Site', 'Punch IN Time', 'Punch OUT Time', 'Total Work Duration', 'Total Hours', 'Punch Count', 'Time Audit Status'];
+        fputcsv($output, $header);
+
+        // 3. Detailed Data Rows (Day-by-Day, Employee-by-Employee)
+        foreach ($report['data'] as $row) {
+            $emp = $row['employee'];
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $stat = $row['daily_stats'][$d] ?? [];
+                $curDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
+                $dayName = date('D', strtotime($curDate));
+
+                $auditLabel = match($stat['audit_status'] ?? 'ABSENT') {
+                    'COMPLETED' => 'Completed (Verified IN & OUT)',
+                    'CHECKED_IN' => 'Checked IN (Working)',
+                    'NO_OUT' => 'Missing OUT Punch (Auto-Closed)',
+                    'WEEKEND' => 'Weekend OFF',
+                    default => 'Absent'
+                };
+
+                $dataRow = [
+                    $curDate,
+                    $dayName,
+                    $emp['employee_code'],
+                    $emp['name'],
+                    $emp['department_name'] ?? 'N/A',
+                    $emp['designation'] ?? 'N/A',
+                    $emp['site'] ?? 'Main Office',
+                    $stat['first_in'] ?? '—',
+                    $stat['last_out'] ?? '—',
+                    $stat['formatted_duration'] ?? '00:00:00',
+                    ($stat['hours'] ?? 0) . 'h',
+                    $stat['punch_count'] ?? 0,
+                    $auditLabel
+                ];
+
+                fputcsv($output, $dataRow);
+            }
+        }
+
+        fclose($output);
+        exit;
+    }
 }

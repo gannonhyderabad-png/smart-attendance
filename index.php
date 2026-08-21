@@ -302,6 +302,7 @@ $router->get('/reports/daily', [\App\Controllers\ReportController::class, 'daily
 $router->get('/reports/daily/export', [\App\Controllers\ReportController::class, 'exportDailyCsv']);
 $router->get('/reports/monthly', [\App\Controllers\ReportController::class, 'monthly']);
 $router->get('/reports/monthly/export', [\App\Controllers\ReportController::class, 'exportMonthlyCsv']);
+$router->get('/reports/monthly/audit-export', [\App\Controllers\ReportController::class, 'exportMonthlyAuditCsv']);
 
 // System Logs, Backups & Admin Settings
 $router->get('/logs', [\App\Controllers\LogController::class, 'index']);

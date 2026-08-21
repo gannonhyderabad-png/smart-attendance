@@ -778,20 +778,75 @@ class Attendance extends Model {
                 $seconds = self::calculateWorkSeconds($emp['id'], $curDate);
                 $punches = self::getDayPunches($emp['id'], $curDate);
 
+                $firstIn = null;
+                $lastOut = null;
+                $inPhoto = null;
+                $outPhoto = null;
+
+                if (count($punches) > 0) {
+                    foreach ($punches as $p) {
+                        if ($p['punch_type'] === 'IN' && $firstIn === null) {
+                            $firstIn = $p['punch_time'];
+                            $inPhoto = $p['punch_photo'] ?? null;
+                        }
+                        if ($p['punch_type'] === 'OUT') {
+                            $lastOut = $p['punch_time'];
+                            $outPhoto = $p['punch_photo'] ?? null;
+                        }
+                    }
+                }
+
+                $dayOfWeek = date('N', strtotime($curDate));
+                $isWeekend = ($dayOfWeek == 6 || $dayOfWeek == 7);
+
                 if (count($punches) > 0) {
                     $presentDays++;
                     $totalWorkedSeconds += $seconds;
+                    
+                    $latestPunch = self::getLatestPunch($emp['id'], $curDate);
+                    $currentStatus = $latestPunch ? $latestPunch['punch_type'] : 'OUT';
+                    $shiftEnd = !empty($emp['shift_end']) ? $emp['shift_end'] : '18:00:00';
+                    $shiftEndTs = strtotime($curDate . ' ' . $shiftEnd);
+                    $todayStr = date('Y-m-d');
+                    $nowTs = time();
+
+                    if ($currentStatus === 'IN') {
+                        if ($curDate === $todayStr && $nowTs <= $shiftEndTs) {
+                            $auditStatus = 'CHECKED_IN';
+                        } else {
+                            $auditStatus = 'NO_OUT';
+                        }
+                    } else {
+                        $auditStatus = 'COMPLETED';
+                    }
+
                     $dailyStats[$d] = [
+                        'date' => $curDate,
+                        'day_name' => date('D', strtotime($curDate)),
                         'status' => 'P',
+                        'audit_status' => $auditStatus,
+                        'first_in' => $firstIn ? date('h:i:s A', strtotime($firstIn)) : null,
+                        'last_out' => $lastOut ? date('h:i:s A', strtotime($lastOut)) : null,
+                        'in_photo' => $inPhoto,
+                        'out_photo' => $outPhoto,
+                        'punch_count' => count($punches),
                         'seconds' => $seconds,
-                        'hours' => round($seconds / 3600, 1)
+                        'formatted_duration' => format_seconds($seconds),
+                        'hours' => round($seconds / 3600, 2)
                     ];
                 } else {
-                    $dayOfWeek = date('N', strtotime($curDate));
-                    $isWeekend = ($dayOfWeek == 6 || $dayOfWeek == 7);
                     $dailyStats[$d] = [
+                        'date' => $curDate,
+                        'day_name' => date('D', strtotime($curDate)),
                         'status' => $isWeekend ? 'W' : 'A',
+                        'audit_status' => $isWeekend ? 'WEEKEND' : 'ABSENT',
+                        'first_in' => null,
+                        'last_out' => null,
+                        'in_photo' => null,
+                        'out_photo' => null,
+                        'punch_count' => 0,
                         'seconds' => 0,
+                        'formatted_duration' => '00:00:00',
                         'hours' => 0
                     ];
                 }

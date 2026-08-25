@@ -46,6 +46,11 @@
                         <i class="fa-solid fa-calendar-check me-2 fa-fw"></i> Attendance Logs
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="<?= base_url('leaves') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                        <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                    </a>
+                </li>
                 
                 <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">Reports & Analytics</li>
                 <li class="nav-item">

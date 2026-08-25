@@ -245,6 +245,27 @@ try {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );");
 
+        $pdo->exec("CREATE TABLE IF NOT EXISTS holidays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            holiday_date DATE NOT NULL UNIQUE,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS leaves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            leave_type TEXT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            days_count REAL DEFAULT 1.0,
+            reason TEXT,
+            status TEXT DEFAULT 'APPROVED',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+        );");
+
         try {
             $pdo->exec("ALTER TABLE employees ADD COLUMN deleted_at DATETIME NULL;");
         } catch (\Throwable $e) {}
@@ -322,6 +343,11 @@ $router->get('/holidays', [\App\Controllers\HolidayController::class, 'index']);
 $router->post('/holidays/create', [\App\Controllers\HolidayController::class, 'store']);
 $router->post('/holidays/update', [\App\Controllers\HolidayController::class, 'update']);
 $router->post('/holidays/delete', [\App\Controllers\HolidayController::class, 'delete']);
+
+// Employee Leave Management
+$router->get('/leaves', [\App\Controllers\LeaveController::class, 'index']);
+$router->post('/leaves/create', [\App\Controllers\LeaveController::class, 'store']);
+$router->post('/leaves/delete', [\App\Controllers\LeaveController::class, 'delete']);
 
 // Reports
 $router->get('/reports/daily', [\App\Controllers\ReportController::class, 'daily']);

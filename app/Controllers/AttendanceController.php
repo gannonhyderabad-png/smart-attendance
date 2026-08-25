@@ -10,6 +10,8 @@ use App\Core\Logger;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Department;
+use App\Models\Leave;
+use App\Models\Holiday;
 
 class AttendanceController extends Controller {
     public function index(): void {
@@ -104,22 +106,84 @@ class AttendanceController extends Controller {
         Auth::requireAuth();
         Csrf::verify();
 
+        $entryType = trim(Request::input('entry_type', 'punch'));
         $employeeId = (int) Request::input('employee_id', 0);
         $punchDate = trim(Request::input('punch_date', date('Y-m-d')));
+        $endDate = trim(Request::input('end_date', ''));
         $inTime = trim(Request::input('in_time', ''));
         $outTime = trim(Request::input('out_time', ''));
         $project = trim(Request::input('project', ''));
         $site = trim(Request::input('site', ''));
+        $leaveType = trim(Request::input('leave_type', 'Casual Leave'));
+        $holidayTitle = trim(Request::input('holiday_title', ''));
         $notes = trim(Request::input('notes', ''));
 
-        if ($employeeId <= 0 || empty($punchDate) || empty($inTime)) {
-            $_SESSION['flash_error'] = 'Employee, punch date, and Punch IN time are required for manual entry.';
+        // --- MODE 1: PUBLIC HOLIDAY ENTRY ---
+        if ($entryType === 'holiday') {
+            if (empty($holidayTitle) || empty($punchDate)) {
+                $_SESSION['flash_error'] = 'Holiday title and date are required.';
+                redirect('attendance');
+            }
+
+            try {
+                Holiday::create([
+                    'title' => $holidayTitle,
+                    'holiday_date' => $punchDate,
+                    'description' => $notes ?: 'Official Public Holiday'
+                ]);
+
+                Logger::log(Auth::id(), 'HOLIDAY_CREATED', "Added public holiday '{$holidayTitle}' on {$punchDate} via Manual Portal");
+                $_SESSION['flash_success'] = "Public Holiday '{$holidayTitle}' on {$punchDate} created successfully!";
+            } catch (\Throwable $e) {
+                $_SESSION['flash_error'] = 'Failed to add public holiday: ' . $e->getMessage();
+            }
+            redirect('attendance');
+        }
+
+        // Validate employee for Punch and Leave modes
+        if ($employeeId <= 0) {
+            $_SESSION['flash_error'] = 'Please select a valid employee.';
             redirect('attendance');
         }
 
         $employee = Employee::find($employeeId);
         if (!$employee) {
             $_SESSION['flash_error'] = 'Selected employee does not exist.';
+            redirect('attendance');
+        }
+
+        // --- MODE 2: EMPLOYEE LEAVE ENTRY ---
+        if ($entryType === 'leave') {
+            if (empty($punchDate)) {
+                $_SESSION['flash_error'] = 'Leave date is required.';
+                redirect('attendance');
+            }
+            if (empty($endDate)) {
+                $endDate = $punchDate;
+            }
+
+            try {
+                Leave::create([
+                    'employee_id' => $employeeId,
+                    'leave_type' => $leaveType,
+                    'start_date' => $punchDate,
+                    'end_date' => $endDate,
+                    'reason' => $notes,
+                    'status' => 'APPROVED'
+                ]);
+
+                $dateRange = ($punchDate === $endDate) ? $punchDate : "{$punchDate} to {$endDate}";
+                Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType} for {$employee['name']} ({$employee['employee_code']}) for {$dateRange}");
+                $_SESSION['flash_success'] = "Leave ({$leaveType}) for {$employee['name']} for {$dateRange} recorded successfully!";
+            } catch (\Throwable $e) {
+                $_SESSION['flash_error'] = 'Failed to save leave entry: ' . $e->getMessage();
+            }
+            redirect('attendance');
+        }
+
+        // --- MODE 3: STANDARD ATTENDANCE PUNCH (IN & OUT) ---
+        if (empty($punchDate) || empty($inTime)) {
+            $_SESSION['flash_error'] = 'Punch date and Punch IN time are required.';
             redirect('attendance');
         }
 

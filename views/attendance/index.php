@@ -314,22 +314,45 @@
     </div>
 </div>
 
-<!-- Manual Attendance Entry Modal -->
+<!-- Manual Attendance & Leave Entry Modal -->
 <div class="modal fade" id="manualEntryModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-dark">
-                    <i class="fa-solid fa-user-clock text-primary me-2"></i>Manual Attendance Entry
+                    <i class="fa-solid fa-pen-to-square text-primary me-2"></i>Manual Entry Portal
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="<?= base_url('attendance/manual') ?>" method="POST">
                 <?= csrf_field() ?>
-                <div class="modal-body py-4">
+                <div class="modal-body py-3">
+                    
+                    <!-- Entry Type Selector Tabs -->
                     <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-2">Select Entry Type</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="entry_type" id="typePunch" value="punch" checked onchange="toggleManualFormMode('punch')">
+                            <label class="btn btn-outline-primary btn-sm py-2" for="typePunch">
+                                <i class="fa-solid fa-clock me-1"></i> Attendance Punch
+                            </label>
+
+                            <input type="radio" class="btn-check" name="entry_type" id="typeLeave" value="leave" onchange="toggleManualFormMode('leave')">
+                            <label class="btn btn-outline-warning text-dark btn-sm py-2" for="typeLeave">
+                                <i class="fa-solid fa-plane-departure me-1"></i> Employee Leave
+                            </label>
+
+                            <input type="radio" class="btn-check" name="entry_type" id="typeHoliday" value="holiday" onchange="toggleManualFormMode('holiday')">
+                            <label class="btn btn-outline-info text-dark btn-sm py-2" for="typeHoliday">
+                                <i class="fa-solid fa-calendar-star me-1"></i> Public Holiday
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Employee Select (for Punch & Leave) -->
+                    <div class="mb-3" id="empSelectGroup">
                         <label class="form-label small fw-semibold text-muted">Select Employee <span class="text-danger">*</span></label>
-                        <select name="employee_id" id="manualEmpSelect" class="form-select bg-light" required onchange="handleManualEmpChange(this)">
+                        <select name="employee_id" id="manualEmpSelect" class="form-select bg-light" onchange="handleManualEmpChange(this)">
                             <option value="">-- Choose Employee --</option>
                             <?php foreach ($employees as $emp): ?>
                                 <option value="<?= $emp['id'] ?>" 
@@ -341,17 +364,44 @@
                         </select>
                     </div>
 
+                    <!-- LEAVE TYPE SELECT (Visible in Leave Mode) -->
+                    <div class="mb-3 d-none" id="leaveTypeGroup">
+                        <label class="form-label small fw-semibold text-muted">Leave Type <span class="text-danger">*</span></label>
+                        <select name="leave_type" id="manualLeaveType" class="form-select bg-light">
+                            <option value="Casual Leave">Casual Leave (CL)</option>
+                            <option value="Sick Leave">Sick / Medical Leave (SL)</option>
+                            <option value="Paid Leave">Paid Leave (PL)</option>
+                            <option value="On Duty">On Duty / Official Visit (OD)</option>
+                            <option value="Half Day Leave">Half Day Leave (HD)</option>
+                            <option value="Comp Off">Compensatory Off (CO)</option>
+                            <option value="Special Holiday">Special Holiday / Restricted Off</option>
+                            <option value="Unpaid Leave">Unpaid Leave / LOP</option>
+                        </select>
+                    </div>
+
+                    <!-- PUBLIC HOLIDAY TITLE (Visible in Holiday Mode) -->
+                    <div class="mb-3 d-none" id="holidayTitleGroup">
+                        <label class="form-label small fw-semibold text-muted">Holiday Title <span class="text-danger">*</span></label>
+                        <input type="text" name="holiday_title" id="manualHolidayTitle" class="form-control bg-light" placeholder="e.g. Independence Day, Diwali, Eid">
+                    </div>
+
+                    <!-- DATE FIELDS -->
                     <div class="row g-2 mb-3">
-                        <div class="col-md-12">
-                            <label class="form-label small fw-semibold text-muted">Attendance Date <span class="text-danger">*</span></label>
-                            <input type="date" name="punch_date" class="form-control bg-light" value="<?= date('Y-m-d') ?>" required>
+                        <div class="col-md-6" id="fromDateCol">
+                            <label class="form-label small fw-semibold text-muted" id="dateLabel">Date <span class="text-danger">*</span></label>
+                            <input type="date" name="punch_date" id="manualPunchDate" class="form-control bg-light" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-md-6 d-none" id="toDateCol">
+                            <label class="form-label small fw-semibold text-muted">To Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="manualEndDate" class="form-control bg-light" value="<?= date('Y-m-d') ?>">
                         </div>
                     </div>
 
-                    <div class="row g-2 mb-3">
+                    <!-- PUNCH IN & OUT TIMES (Visible only in Punch Mode) -->
+                    <div class="row g-2 mb-3" id="punchTimesGroup">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold text-muted">Punch IN Time <span class="text-danger">*</span></label>
-                            <input type="time" name="in_time" class="form-control bg-light" value="09:00" required>
+                            <input type="time" name="in_time" class="form-control bg-light" value="09:00">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold text-muted">Punch OUT Time <small class="text-muted">(Optional)</small></label>
@@ -359,7 +409,8 @@
                         </div>
                     </div>
 
-                    <div class="row g-2 mb-3">
+                    <!-- PROJECT & SITE (Visible only in Punch Mode) -->
+                    <div class="row g-2 mb-3" id="punchLocationGroup">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold text-muted">Project Name</label>
                             <input type="text" name="project" id="manualProjectInput" class="form-control bg-light" placeholder="e.g. ERP Project">
@@ -370,14 +421,15 @@
                         </div>
                     </div>
 
+                    <!-- REASON / NOTES -->
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Reason / Notes</label>
-                        <input type="text" name="notes" class="form-control bg-light" placeholder="e.g. On-duty site visit, biometric device glitch, approved correction">
+                        <label class="form-label small fw-semibold text-muted" id="reasonLabel">Reason / Notes</label>
+                        <input type="text" name="notes" class="form-control bg-light" placeholder="e.g. Approved leave / On-duty site visit / device glitch">
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm" id="manualSubmitBtn">
                         <i class="fa-solid fa-check me-1"></i> Save Manual Entry
                     </button>
                 </div>
@@ -387,6 +439,54 @@
 </div>
 
 <script>
+function toggleManualFormMode(mode) {
+    const empGroup = document.getElementById('empSelectGroup');
+    const leaveGroup = document.getElementById('leaveTypeGroup');
+    const holGroup = document.getElementById('holidayTitleGroup');
+    const punchTimes = document.getElementById('punchTimesGroup');
+    const punchLoc = document.getElementById('punchLocationGroup');
+    const toDateCol = document.getElementById('toDateCol');
+    const fromDateCol = document.getElementById('fromDateCol');
+    const dateLabel = document.getElementById('dateLabel');
+    const submitBtn = document.getElementById('manualSubmitBtn');
+    const manualEmpSelect = document.getElementById('manualEmpSelect');
+
+    if (mode === 'punch') {
+        empGroup.classList.remove('d-none');
+        leaveGroup.classList.add('d-none');
+        holGroup.classList.add('d-none');
+        punchTimes.classList.remove('d-none');
+        punchLoc.classList.remove('d-none');
+        toDateCol.classList.add('d-none');
+        fromDateCol.className = 'col-md-12';
+        dateLabel.innerHTML = 'Attendance Date <span class="text-danger">*</span>';
+        submitBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Save Punch Entry';
+        manualEmpSelect.required = true;
+    } else if (mode === 'leave') {
+        empGroup.classList.remove('d-none');
+        leaveGroup.classList.remove('d-none');
+        holGroup.classList.add('d-none');
+        punchTimes.classList.add('d-none');
+        punchLoc.classList.add('d-none');
+        toDateCol.classList.remove('d-none');
+        fromDateCol.className = 'col-md-6';
+        dateLabel.innerHTML = 'From Date <span class="text-danger">*</span>';
+        submitBtn.innerHTML = '<i class="fa-solid fa-plane-departure me-1"></i> Save Leave Entry';
+        manualEmpSelect.required = true;
+    } else if (mode === 'holiday') {
+        empGroup.classList.add('d-none');
+        leaveGroup.classList.add('d-none');
+        holGroup.classList.remove('d-none');
+        punchTimes.classList.add('d-none');
+        punchLoc.classList.add('d-none');
+        toDateCol.classList.add('d-none');
+        fromDateCol.className = 'col-md-12';
+        dateLabel.innerHTML = 'Holiday Date <span class="text-danger">*</span>';
+        submitBtn.innerHTML = '<i class="fa-solid fa-calendar-star me-1"></i> Save Public Holiday';
+        manualEmpSelect.required = false;
+    }
+}
+
 function handleManualEmpChange(selectEl) {
     const opt = selectEl.options[selectEl.selectedIndex];
     if (opt) {

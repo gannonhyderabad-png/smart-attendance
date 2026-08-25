@@ -86,6 +86,9 @@ class ReportController extends Controller {
                 $statusLabel = 'Punched Out (Completed)';
             } elseif ($row['status'] === 'NO_OUT_PUNCH' || $row['status'] === 'NO_OUT' || !empty($row['is_no_out'])) {
                 $statusLabel = 'Auto-Closed (No OUT)';
+            } elseif ($row['status'] === 'LEAVE' || !empty($row['leave_info'])) {
+                $lvType = $row['leave_info']['leave_type'] ?? 'Approved Leave';
+                $statusLabel = "Leave ({$lvType})";
             }
 
             $dataRow = [
@@ -220,7 +223,7 @@ class ReportController extends Controller {
         fputcsv($output, ['========================================================================================================']);
         fputcsv($output, []);
 
-        // 2. KPI Summary Section (Flow / Stage Wise)
+        // 2. KPI Summary Section
         fputcsv($output, ['--- WORKFORCE KEY PERFORMANCE SUMMARY ---']);
         fputcsv($output, ['Metric / Flow Indicator', 'Total Count', 'Unit / Details']);
         fputcsv($output, ['Total Registered Staff', $totalEmployees, 'Active Employees']);
@@ -231,17 +234,9 @@ class ReportController extends Controller {
         fputcsv($output, ['Overall Monthly Attendance Rate', $attendanceRate . '%', 'Attendance Ratio']);
         fputcsv($output, []);
 
-        // 3. Flow Chart Process Breakdown
-        fputcsv($output, ['--- ATTENDANCE FLOW CHART PROCESS SUMMARY ---']);
-        fputcsv($output, ['Stage 1: PUNCH IN', '-> [Mobile/QR Scan] -> Employee Punches IN -> Live Camera Selfie Verified -> GPS Geofence Checked']);
-        fputcsv($output, ['Stage 2: WORKING SESSION', '-> Live Session Duration Active -> Timer Recorded in Database']);
-        fputcsv($output, ['Stage 3: PUNCH OUT', '-> Employee Punches OUT -> Session Closed -> Total Hours Computed -> Tagged Present (P)']);
-        fputcsv($output, ['Stage 4: SHIFT AUDIT', '-> Auto-Calculation -> Daily & Monthly Summary Tables Aggregated']);
-        fputcsv($output, []);
-
-        // 4. Employee Detailed Matrix
+        // 3. Employee Detailed Matrix
         fputcsv($output, ['--- EMPLOYEE-WISE DAY-BY-DAY ATTENDANCE TIMESHEET ---']);
-        $header = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Project', 'Work Site', 'Present (Days)', 'Absent (Days)', 'Total Hours'];
+        $header = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Project', 'Work Site', 'Present (Days)', 'Leave (Days)', 'Absent (Days)', 'Total Hours'];
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $header[] = sprintf('Day %02d', $d);
         }
@@ -253,7 +248,8 @@ class ReportController extends Controller {
         foreach ($report['data'] as $row) {
             $emp = $row['employee'];
             $empPresent = (int) $row['present_days'];
-            $empAbsent = max(0, $daysInMonth - $empPresent);
+            $empLeaves = (int) ($row['leave_days'] ?? 0);
+            $empAbsent = max(0, $daysInMonth - $empPresent - $empLeaves);
 
             $dataRow = [
                 $emp['employee_code'],
@@ -263,6 +259,7 @@ class ReportController extends Controller {
                 $emp['project'] ?? 'N/A',
                 $emp['site'] ?? 'Main Office',
                 $empPresent,
+                $empLeaves,
                 $empAbsent,
                 $row['total_hours'] . 'h'
             ];
@@ -272,6 +269,8 @@ class ReportController extends Controller {
                 $stat = $row['daily_stats'][$d] ?? ['status' => '-', 'hours' => 0];
                 if ($stat['status'] === 'P') {
                     $dataRow[] = $stat['hours'] > 0 ? "P ({$stat['hours']}h)" : 'P';
+                } elseif ($stat['status'] === 'L') {
+                    $dataRow[] = ($stat['leave_code'] ?? 'L') . " (" . ($stat['leave_type'] ?? 'Leave') . ")";
                 } elseif (isset($holidaysMap[$curDate])) {
                     $dataRow[] = "H (" . $holidaysMap[$curDate] . ")";
                 } elseif ($stat['status'] === 'W') {
@@ -334,7 +333,9 @@ class ReportController extends Controller {
                 $dayName = date('D', strtotime($curDate));
 
                 $auditStatus = $stat['audit_status'] ?? 'ABSENT';
-                if ($auditStatus === 'ABSENT' && isset($holidaysMap[$curDate])) {
+                if ($auditStatus === 'LEAVE') {
+                    $auditLabel = 'Leave: ' . ($stat['leave_type'] ?? 'Approved') . (!empty($stat['leave_reason']) ? ' (' . $stat['leave_reason'] . ')' : '');
+                } elseif ($auditStatus === 'ABSENT' && isset($holidaysMap[$curDate])) {
                     $auditLabel = 'Holiday (' . $holidaysMap[$curDate] . ')';
                 } else {
                     $auditLabel = match($auditStatus) {

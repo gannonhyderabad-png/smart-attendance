@@ -137,6 +137,10 @@
                                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
                                             <i class="fa-solid fa-circle-check me-1"></i> Present / Out
                                         </span>
+                                    <?php elseif ($item['status'] === 'LEAVE' || !empty($item['leave_info'])): ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" title="<?= e($item['leave_info']['reason'] ?? '') ?>">
+                                            <i class="fa-solid fa-plane-departure text-warning me-1"></i> On Leave (<?= e($item['leave_info']['leave_type'] ?? 'Approved') ?>)
+                                        </span>
                                     <?php else: ?>
                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
                                             <i class="fa-solid fa-circle-xmark me-1"></i> Absent

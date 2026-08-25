@@ -3,20 +3,23 @@
 
         <!-- Header -->
         <div class="row g-3 align-items-center mb-4">
-            <div class="col-md-5">
-                <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-calendar-days text-primary me-2"></i>Monthly Timesheet & Time Audit</h5>
-                <p class="text-muted small mb-0">Employee-wise punch in/out timestamps, hours worked & audit report for <?= date('F Y', mktime(0, 0, 0, $month, 1, $year)) ?></p>
+            <div class="col-md-6">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <h5 class="fw-bold text-dark mb-0">Monthly Attendance Timesheet & Audit</h5>
+                    <span class="badge bg-primary rounded-pill px-2 py-1 small"><?= date('F Y', mktime(0, 0, 0, $month, 1, $year)) ?></span>
+                </div>
+                <p class="text-muted small mb-0">Comprehensive employee attendance, daily punches, working hours, and time audit matrix</p>
             </div>
-            <div class="col-md-7 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+            <div class="col-md-6 text-md-end d-flex gap-2 justify-content-md-end flex-wrap">
                 <?php 
                 $exportQuery = http_build_query([
                     'year' => $year,
                     'month' => $month,
                     'department_id' => $departmentId,
-                    'site' => $site ?? null
+                    'site' => $site
                 ]);
                 ?>
-                <a href="<?= base_url('reports/monthly/audit-export?' . $exportQuery) ?>" class="btn btn-success rounded-pill px-3 shadow-sm fw-semibold">
+                <a href="<?= base_url('reports/monthly/audit-export?' . $exportQuery) ?>" class="btn btn-outline-primary rounded-pill px-3 shadow-sm">
                     <i class="fa-solid fa-file-invoice me-1"></i> Download Time Audit (.csv)
                 </a>
                 <a href="<?= base_url('reports/monthly/export?' . $exportQuery) ?>" class="btn btn-outline-success rounded-pill px-3 shadow-sm">
@@ -178,6 +181,11 @@
                                                 <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
                                                     <i class="fa-solid fa-circle-check me-1"></i> <?= $row['present_days'] ?> Present Days
                                                 </span>
+                                                <?php if (!empty($row['leave_days'])): ?>
+                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 rounded-pill">
+                                                        <i class="fa-solid fa-plane-departure me-1"></i> <?= $row['leave_days'] ?> Leaves
+                                                    </span>
+                                                <?php endif; ?>
                                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill font-monospace">
                                                     <i class="fa-solid fa-clock me-1"></i> <?= $row['total_hours'] ?>h Total
                                                 </span>
@@ -272,6 +280,10 @@
                                                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" title="Shift ended with unrecorded OUT punch">
                                                                         <i class="fa-solid fa-triangle-exclamation me-1"></i> Missing OUT
                                                                     </span>
+                                                                <?php elseif ($auditStatus === 'LEAVE'): ?>
+                                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" title="<?= e($stat['leave_reason'] ?? '') ?>">
+                                                                        <i class="fa-solid fa-plane-departure me-1 text-warning"></i> <?= e($stat['leave_type'] ?? 'Leave') ?>
+                                                                    </span>
                                                                 <?php elseif ($isHoliday): ?>
                                                                     <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1" title="Public Holiday: <?= e($holidayTitle) ?>">
                                                                         <i class="fa-solid fa-calendar-star me-1 text-info"></i> Holiday (<?= e($holidayTitle) ?>)
@@ -305,6 +317,7 @@
                     <span class="fw-bold text-dark">Legend:</span>
                     <span><span class="badge bg-success">P</span> Present (Hours)</span>
                     <span><span class="badge bg-info text-dark">H</span> Public Holiday</span>
+                    <span><span class="badge bg-warning-subtle text-warning-emphasis border">CL/SL/PL/OD</span> Leave</span>
                     <span><span class="badge bg-secondary">OFF</span> Weekend</span>
                     <span><span class="badge bg-danger">A</span> Absent</span>
                 </div>
@@ -315,9 +328,10 @@
                             <tr>
                                 <th class="text-start ps-3" style="min-width: 140px;">Employee</th>
                                 <th class="text-start" style="min-width: 110px;">Work Site</th>
-                                <th style="min-width: 55px;" title="Total Present Days">Present</th>
-                                <th style="min-width: 55px;" title="Total Absent Days">Absent</th>
-                                <th style="min-width: 65px;">Total Hrs</th>
+                                <th style="min-width: 50px;" title="Total Present Days">Present</th>
+                                <th style="min-width: 50px;" title="Total Leave Days">Leave</th>
+                                <th style="min-width: 50px;" title="Total Absent Days">Absent</th>
+                                <th style="min-width: 60px;">Total Hrs</th>
                                 <?php for ($d = 1; $d <= $report['days_in_month']; $d++): 
                                     $dateStr = sprintf('%04d-%02d-%02d', $year, $month, $d);
                                     $dayName = date('D', strtotime($dateStr));
@@ -334,7 +348,7 @@
                         <tbody>
                             <?php if (empty($report['data'])): ?>
                                 <tr>
-                                    <td colspan="<?= $report['days_in_month'] + 5 ?>" class="text-center py-4 text-muted">
+                                    <td colspan="<?= $report['days_in_month'] + 6 ?>" class="text-center py-4 text-muted">
                                         No active employees found.
                                     </td>
                                 </tr>
@@ -342,7 +356,8 @@
                                 <?php foreach ($report['data'] as $row): 
                                     $emp = $row['employee'];
                                     $empPresent = (int) $row['present_days'];
-                                    $empAbsent = max(0, $report['days_in_month'] - $empPresent);
+                                    $empLeaves = (int) ($row['leave_days'] ?? 0);
+                                    $empAbsent = max(0, $report['days_in_month'] - $empPresent - $empLeaves);
                                 ?>
                                     <tr>
                                         <td class="text-start ps-3 fw-semibold text-truncate" style="max-width: 160px;">
@@ -361,6 +376,7 @@
                                             <?php endif; ?>
                                         </td>
                                         <td class="fw-bold text-success"><?= $empPresent ?>d</td>
+                                        <td class="fw-bold text-warning-emphasis"><?= $empLeaves ?>d</td>
                                         <td class="fw-bold text-danger"><?= $empAbsent ?>d</td>
                                         <td class="fw-bold font-monospace text-primary"><?= $row['total_hours'] ?>h</td>
 
@@ -373,6 +389,19 @@
                                                 <?php if ($stat['status'] === 'P'): ?>
                                                     <span class="badge bg-success-subtle text-success border border-success-subtle p-1 d-block" title="<?= $stat['hours'] ?> hours worked">
                                                         <?= $stat['hours'] > 0 ? $stat['hours'] . 'h' : 'P' ?>
+                                                    </span>
+                                                <?php elseif ($stat['status'] === 'L'): 
+                                                    $lCode = $stat['leave_code'] ?? 'L';
+                                                    $lBadgeClass = match($lCode) {
+                                                        'CL' => 'bg-info-subtle text-info border border-info-subtle',
+                                                        'SL' => 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+                                                        'PL' => 'bg-success-subtle text-success border border-success-subtle',
+                                                        'OD' => 'bg-primary-subtle text-primary border border-primary-subtle',
+                                                        default => 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
+                                                    };
+                                                ?>
+                                                    <span class="badge <?= $lBadgeClass ?> p-1 d-block" title="Leave: <?= e($stat['leave_type'] ?? 'Leave') ?><?= !empty($stat['leave_reason']) ? ' (' . e($stat['leave_reason']) . ')' : '' ?>">
+                                                        <?= $lCode ?>
                                                     </span>
                                                 <?php elseif ($isHol): ?>
                                                     <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle p-1 d-block" title="Public Holiday: <?= e($holidaysMap[$curDateStr]) ?>">

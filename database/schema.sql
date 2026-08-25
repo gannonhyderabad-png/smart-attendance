@@ -105,4 +105,20 @@ CREATE TABLE IF NOT EXISTS `holidays` (
     INDEX `idx_holiday_date` (`holiday_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 8. Employee Leaves Table
+CREATE TABLE IF NOT EXISTS `leaves` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `employee_id` INT NOT NULL,
+    `leave_type` VARCHAR(50) NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `days_count` DECIMAL(4, 1) DEFAULT 1.0,
+    `reason` TEXT NULL,
+    `status` VARCHAR(20) DEFAULT 'APPROVED',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_leave_emp` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE,
+    INDEX `idx_leave_dates` (`start_date`, `end_date`),
+    INDEX `idx_leave_emp` (`employee_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

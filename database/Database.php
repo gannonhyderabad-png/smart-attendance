@@ -227,6 +227,21 @@ class Database {
                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX `idx_holiday_date` (`holiday_date`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `leaves` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `employee_id` INT NOT NULL,
+                `leave_type` VARCHAR(50) NOT NULL,
+                `start_date` DATE NOT NULL,
+                `end_date` DATE NOT NULL,
+                `days_count` DECIMAL(4, 1) DEFAULT 1.0,
+                `reason` TEXT NULL,
+                `status` VARCHAR(20) DEFAULT 'APPROVED',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT `fk_leave_emp` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE,
+                INDEX `idx_leave_dates` (`start_date`, `end_date`),
+                INDEX `idx_leave_emp` (`employee_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -420,6 +435,19 @@ class Database {
             holiday_date DATE NOT NULL UNIQUE,
             description TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS leaves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            leave_type TEXT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            days_count REAL DEFAULT 1.0,
+            reason TEXT,
+            status TEXT DEFAULT 'APPROVED',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
         )");
 
         // Seed standard public holidays in SQLite if empty

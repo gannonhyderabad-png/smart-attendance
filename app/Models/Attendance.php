@@ -699,9 +699,22 @@ class Attendance extends Model {
             $shiftEnd = !empty($emp['shift_end']) ? $emp['shift_end'] : '18:00:00';
             $shiftEndTs = strtotime($date . ' ' . $shiftEnd);
             $isNoOut = false;
+            $leaveInfo = null;
+
+            // Check if employee is on leave today
+            try {
+                $pdo = self::db();
+                $lStmt = $pdo->prepare("SELECT * FROM leaves WHERE employee_id = ? AND ? BETWEEN start_date AND end_date AND status = 'APPROVED' LIMIT 1");
+                $lStmt->execute([$emp['id'], $date]);
+                $leaveInfo = $lStmt->fetch(PDO::FETCH_ASSOC);
+            } catch (\Throwable $e) {}
 
             if ($totalPunches === 0) {
-                $computedStatus = 'ABSENT';
+                if ($leaveInfo) {
+                    $computedStatus = 'LEAVE';
+                } else {
+                    $computedStatus = 'ABSENT';
+                }
             } elseif ($currentStatus === 'IN') {
                 if ($date === $today && $nowTs <= $shiftEndTs) {
                     $computedStatus = 'CHECKED_IN';
@@ -720,6 +733,7 @@ class Attendance extends Model {
                 if ($statusFilterUpper === 'OUT' && $computedStatus !== 'COMPLETED') continue;
                 if ($statusFilterUpper === 'COMPLETED' && $computedStatus !== 'COMPLETED') continue;
                 if (($statusFilterUpper === 'NO_OUT' || $statusFilterUpper === 'NO_OUT_PUNCH') && $computedStatus !== 'NO_OUT_PUNCH') continue;
+                if ($statusFilterUpper === 'LEAVE' && $computedStatus !== 'LEAVE') continue;
                 if ($statusFilterUpper === 'ABSENT' && $computedStatus !== 'ABSENT') continue;
             }
 
@@ -727,6 +741,7 @@ class Attendance extends Model {
                 'employee' => $emp,
                 'status' => $computedStatus,
                 'is_no_out' => $isNoOut,
+                'leave_info' => $leaveInfo,
                 'first_in' => $firstIn,
                 'last_out' => $lastOut,
                 'shift_end' => $shiftEnd,
@@ -767,23 +782,31 @@ class Attendance extends Model {
         $stmt->execute($empParams);
         $employees = $stmt->fetchAll();
 
+        // Get leaves map for the month
+        $leaveMap = [];
+        try {
+            $leaveMap = Leave::getLeaveMapForMonth((string)$year, (string)$month);
+        } catch (\Throwable $e) {}
+
         $report = [];
         foreach ($employees as $emp) {
             $presentDays = 0;
+            $leaveDays = 0;
             $totalWorkedSeconds = 0;
             $dailyStats = [];
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $curDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
-                $seconds = self::calculateWorkSeconds($emp['id'], $curDate);
+                $leaveKey = $emp['id'] . '_' . $curDate;
                 $punches = self::getDayPunches($emp['id'], $curDate);
 
-                $firstIn = null;
-                $lastOut = null;
-                $inPhoto = null;
-                $outPhoto = null;
-
                 if (count($punches) > 0) {
+                    $seconds = self::calculateWorkSeconds($emp['id'], $curDate);
+                    $firstIn = null;
+                    $lastOut = null;
+                    $inPhoto = null;
+                    $outPhoto = null;
+
                     foreach ($punches as $p) {
                         if ($p['punch_type'] === 'IN' && $firstIn === null) {
                             $firstIn = $p['punch_time'];
@@ -794,12 +817,7 @@ class Attendance extends Model {
                             $outPhoto = $p['punch_photo'] ?? null;
                         }
                     }
-                }
 
-                $dayOfWeek = date('N', strtotime($curDate));
-                $isWeekend = ($dayOfWeek == 6 || $dayOfWeek == 7);
-
-                if (count($punches) > 0) {
                     $presentDays++;
                     $totalWorkedSeconds += $seconds;
                     
@@ -834,7 +852,30 @@ class Attendance extends Model {
                         'formatted_duration' => format_seconds($seconds),
                         'hours' => round($seconds / 3600, 2)
                     ];
+                } elseif (isset($leaveMap[$leaveKey])) {
+                    $lv = $leaveMap[$leaveKey];
+                    $leaveDays++;
+                    $dailyStats[$d] = [
+                        'date' => $curDate,
+                        'day_name' => date('D', strtotime($curDate)),
+                        'status' => 'L',
+                        'leave_code' => $lv['code'],
+                        'leave_type' => $lv['type'],
+                        'leave_reason' => $lv['reason'],
+                        'audit_status' => 'LEAVE',
+                        'first_in' => null,
+                        'last_out' => null,
+                        'in_photo' => null,
+                        'out_photo' => null,
+                        'punch_count' => 0,
+                        'seconds' => 0,
+                        'formatted_duration' => '00:00:00',
+                        'hours' => 0
+                    ];
                 } else {
+                    $dayOfWeek = date('N', strtotime($curDate));
+                    $isWeekend = ($dayOfWeek == 6 || $dayOfWeek == 7);
+
                     $dailyStats[$d] = [
                         'date' => $curDate,
                         'day_name' => date('D', strtotime($curDate)),
@@ -855,6 +896,7 @@ class Attendance extends Model {
             $report[] = [
                 'employee' => $emp,
                 'present_days' => $presentDays,
+                'leave_days' => $leaveDays,
                 'total_worked_seconds' => $totalWorkedSeconds,
                 'total_hours' => round($totalWorkedSeconds / 3600, 2),
                 'formatted_total' => format_seconds($totalWorkedSeconds),

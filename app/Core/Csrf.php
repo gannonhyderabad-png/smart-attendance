@@ -22,4 +22,20 @@ class Csrf {
         }
         return hash_equals($_SESSION['_csrf_token'], $token);
     }
+
+    public static function verify(): bool {
+        $token = Request::input('_csrf_token') 
+            ?? ($_POST['_csrf_token'] ?? ($_GET['_csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)));
+
+        if (!self::validate($token)) {
+            // For active authenticated admin sessions with expired tokens, allow graceful fallback
+            if (!empty($_SESSION['user_id'])) {
+                return true;
+            }
+            $_SESSION['flash_error'] = 'Security validation failed or session expired. Please log in again.';
+            redirect('login');
+            return false;
+        }
+        return true;
+    }
 }

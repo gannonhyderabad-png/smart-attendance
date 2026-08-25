@@ -4,15 +4,22 @@
  * Database Configuration
  */
 
-$dbUrl = env('DATABASE_URL') ?: env('MYSQL_URL') ?: env('POSTGRES_URL') ?: env('JAWSDB_URL');
+$dbUrl = env('DATABASE_URL') ?: env('DATABASE_PRIVATE_URL') ?: env('DATABASE_PUBLIC_URL') ?: env('MYSQL_URL') ?: env('MYSQL_PRIVATE_URL') ?: env('MYSQL_PUBLIC_URL') ?: env('POSTGRES_URL') ?: env('JAWSDB_URL');
 $defaultDriver = env('DB_CONNECTION');
+
+$mysqlHost = env('DB_HOST') ?: env('MYSQLHOST') ?: env('PGHOST') ?: '127.0.0.1';
+$mysqlPort = env('DB_PORT') ?: env('MYSQLPORT') ?: env('PGPORT') ?: '3306';
+$mysqlDb   = env('DB_DATABASE') ?: env('MYSQLDATABASE') ?: env('PGDATABASE') ?: 'attendance_db';
+$mysqlUser = env('DB_USERNAME') ?: env('MYSQLUSER') ?: env('PGUSER') ?: 'root';
+$mysqlPass = env('DB_PASSWORD') ?: env('MYSQLPASSWORD') ?: env('PGPASSWORD') ?: '';
+
 $mysqlConfig = [
     'driver' => 'mysql',
-    'host' => env('DB_HOST', '127.0.0.1'),
-    'port' => env('DB_PORT', '3306'),
-    'database' => env('DB_DATABASE', 'attendance_db'),
-    'username' => env('DB_USERNAME', 'root'),
-    'password' => env('DB_PASSWORD', ''),
+    'host' => $mysqlHost,
+    'port' => (string) $mysqlPort,
+    'database' => $mysqlDb,
+    'username' => $mysqlUser,
+    'password' => $mysqlPass,
     'charset' => 'utf8mb4',
     'options' => [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -20,6 +27,12 @@ $mysqlConfig = [
         PDO::ATTR_EMULATE_PREPARES => false,
     ]
 ];
+
+if (env('PGHOST') || env('POSTGRES_URL')) {
+    $defaultDriver = 'pgsql';
+} elseif (env('MYSQLHOST') || env('MYSQL_URL')) {
+    $defaultDriver = 'mysql';
+}
 
 if ($dbUrl) {
     $parsed = parse_url($dbUrl);
@@ -36,7 +49,7 @@ if ($dbUrl) {
 
 if (!$defaultDriver) {
     $mysqlAvailable = false;
-    if (extension_loaded('pdo_mysql')) {
+    if (extension_loaded('pdo_mysql') && $mysqlConfig['host'] !== '127.0.0.1') {
         $socket = @fsockopen($mysqlConfig['host'], (int) $mysqlConfig['port'], $errno, $errstr, 0.4);
         if ($socket) {
             $mysqlAvailable = true;

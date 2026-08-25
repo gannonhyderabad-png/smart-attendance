@@ -273,18 +273,12 @@ class Database {
             }
         } catch (\Throwable $e) {}
 
-        // Ensure default admin has valid password hash
-        $adminStmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE email = ? LIMIT 1");
-        $adminStmt->execute(['admin@attendance.com']);
-        $adminUser = $adminStmt->fetch();
-        if (!$adminUser) {
+        // Ensure initial admin user exists only if users table is empty
+        $userCount = (int) ($pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?? 0);
+        if ($userCount === 0) {
             $newHash = password_hash('admin123', PASSWORD_BCRYPT);
             $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
             $stmt->execute(['System Administrator', 'admin@attendance.com', $newHash]);
-        } elseif (!password_verify('admin123', $adminUser['password_hash'])) {
-            $newHash = password_hash('admin123', PASSWORD_BCRYPT);
-            $updateStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
-            $updateStmt->execute([$newHash, $adminUser['id']]);
         }
     }
 
@@ -501,19 +495,6 @@ class Database {
                 ('allow_geo_capture', '1'),
                 ('auto_calculate_hours', '1'),
                 ('site_logo_text', 'SmartAttendance')");
-        } else {
-            $adminStmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE email = ? LIMIT 1");
-            $adminStmt->execute(['admin@attendance.com']);
-            $adminUser = $adminStmt->fetch();
-            if (!$adminUser) {
-                $newHash = password_hash('admin123', PASSWORD_BCRYPT);
-                $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
-                $stmt->execute(['System Administrator', 'admin@attendance.com', $newHash]);
-            } elseif (!password_verify('admin123', $adminUser['password_hash'])) {
-                $newHash = password_hash('admin123', PASSWORD_BCRYPT);
-                $updateStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
-                $updateStmt->execute([$newHash, $adminUser['id']]);
-            }
         }
 
         // No sample employees seeded so database is completely clean for user

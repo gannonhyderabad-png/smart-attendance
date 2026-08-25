@@ -49,6 +49,16 @@ error_reporting(E_ALL);
 
 // Autoloading (Resilient PSR-4 style for Linux case-insensitivity)
 spl_autoload_register(function ($class) {
+    $class = ltrim($class, '\\');
+
+    if ($class === 'Database\\Database' || strcasecmp($class, 'Database\\Database') === 0) {
+        $dbFile = __DIR__ . '/database/Database.php';
+        if (file_exists($dbFile)) {
+            require_once $dbFile;
+            return;
+        }
+    }
+
     $prefixMap = [
         'App\\' => __DIR__ . '/app/',
         'Database\\' => __DIR__ . '/database/'
@@ -56,15 +66,18 @@ spl_autoload_register(function ($class) {
 
     foreach ($prefixMap as $prefix => $baseDir) {
         $len = strlen($prefix);
-        if (strncmp($prefix, $class, $len) === 0) {
+        if (strncasecmp($prefix, $class, $len) === 0) {
             $relativeClass = substr($class, $len);
             $relPath = str_replace('\\', '/', $relativeClass);
 
             $candidates = [
                 $baseDir . $relPath . '.php',
                 $baseDir . strtolower($relPath) . '.php',
+                $baseDir . ucfirst($relPath) . '.php',
                 __DIR__ . '/' . $relPath . '.php',
                 __DIR__ . '/' . basename($relPath) . '.php',
+                __DIR__ . '/database/' . basename($relPath) . '.php',
+                __DIR__ . '/database/' . strtolower(basename($relPath)) . '.php',
             ];
 
             $parts = explode('/', $relPath);
@@ -84,6 +97,11 @@ spl_autoload_register(function ($class) {
         }
     }
 });
+
+// Explicitly require core database class on startup
+if (file_exists(__DIR__ . '/database/Database.php')) {
+    require_once __DIR__ . '/database/Database.php';
+}
 
 // Load Global Helpers & Configurations
 $helperCandidates = [

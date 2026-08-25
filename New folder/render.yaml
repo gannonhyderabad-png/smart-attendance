@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: smart-attendance-system
+    runtime: docker
+    plan: free
+    region: singapore # or frankfurt, oregon, ohio
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_NAME
+        value: "Smart Attendance Server"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_TIMEZONE
+        value: "Asia/Kolkata"
+      - key: DB_CONNECTION
+        value: sqlite
+      - key: DB_SQLITE_PATH
+        value: database/attendance.sqlite
+      - key: SESSION_LIFETIME
+        value: 120
+      - key: EMPLOYEE_CODE_PREFIX
+        value: "EMP-"
+    disk:
+      name: attendance-data
+      mountPath: /var/www/html/database
+      sizeGB: 1

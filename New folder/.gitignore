@@ -1,0 +1,8 @@
+﻿# Environment & Local Server
+cloudflared.exe
+*.log
+
+# Operating System Files
+Thumbs.db
+.DS_Store
+desktop.ini

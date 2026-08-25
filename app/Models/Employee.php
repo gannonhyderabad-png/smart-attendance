@@ -63,6 +63,10 @@ class Employee extends Model {
         return $stmt->fetchAll();
     }
 
+    public static function allActive(): array {
+        return self::all(['status' => 'active']);
+    }
+
 
 
     public static function find(int $id): ?array {

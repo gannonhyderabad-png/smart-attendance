@@ -25,7 +25,7 @@ class LeaveController extends Controller {
         if ($departmentId) $conditions['department_id'] = (int) $departmentId;
 
         $leaves = Leave::all($conditions, 'l.start_date DESC');
-        $employees = Employee::allActive();
+        $employees = Employee::all(['status' => 'active']);
         $departments = Department::all();
 
         // Calculate summary counters

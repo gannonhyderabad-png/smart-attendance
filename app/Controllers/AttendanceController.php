@@ -107,7 +107,7 @@ class AttendanceController extends Controller {
         Csrf::verify();
 
         $entryType = trim(Request::input('entry_type', 'punch'));
-        $employeeId = (int) Request::input('employee_id', 0);
+        $employeeInput = Request::input('employee_id');
         $punchDate = trim(Request::input('punch_date', date('Y-m-d')));
         $endDate = trim(Request::input('end_date', ''));
         $inTime = trim(Request::input('in_time', ''));
@@ -141,16 +141,12 @@ class AttendanceController extends Controller {
         }
 
         // Validate employee for Punch and Leave modes
-        if ($employeeId <= 0) {
-            $_SESSION['flash_error'] = 'Please select a valid employee.';
-            redirect('attendance');
-        }
-
-        $employee = Employee::find($employeeId);
+        $employee = Employee::resolveEmployee($employeeInput);
         if (!$employee) {
-            $_SESSION['flash_error'] = 'Selected employee does not exist.';
+            $_SESSION['flash_error'] = 'Selected employee was not found. Please type a valid employee code or name.';
             redirect('attendance');
         }
+        $employeeId = (int) $employee['id'];
 
         // --- MODE 2: EMPLOYEE LEAVE ENTRY ---
         if ($entryType === 'leave') {

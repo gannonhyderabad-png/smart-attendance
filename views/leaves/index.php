@@ -232,15 +232,16 @@
                 <input type="hidden" name="return_url" value="leaves">
                 <div class="modal-body py-4">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Select Employee <span class="text-danger">*</span></label>
-                        <select name="employee_id" class="form-select bg-light" required>
-                            <option value="">-- Choose Employee --</option>
+                        <label class="form-label small fw-semibold text-muted">Employee (Name or Code) <span class="text-danger">*</span></label>
+                        <input type="text" name="employee_id" list="leaveEmployeeDatalist" class="form-control bg-light" placeholder="Type Employee Name or Code (e.g. EMP001)..." required autocomplete="off">
+                        <datalist id="leaveEmployeeDatalist">
                             <?php foreach ($employees as $emp): ?>
-                                <option value="<?= $emp['id'] ?>">
-                                    <?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?> (<?= e($emp['department'] ?? 'General') ?>)
+                                <option value="<?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?>">
+                                    <?= e($emp['name']) ?> (<?= e($emp['department_name'] ?? ($emp['department'] ?? 'General')) ?>)
                                 </option>
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
+                        <small class="text-muted" style="font-size: 0.72rem;">Type employee code or name to search and select.</small>
                     </div>
 
                     <div class="mb-3">

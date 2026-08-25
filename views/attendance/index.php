@@ -351,17 +351,19 @@
 
                     <!-- Employee Select (for Punch & Leave) -->
                     <div class="mb-3" id="empSelectGroup">
-                        <label class="form-label small fw-semibold text-muted">Select Employee <span class="text-danger">*</span></label>
-                        <select name="employee_id" id="manualEmpSelect" class="form-select bg-light" onchange="handleManualEmpChange(this)">
-                            <option value="">-- Choose Employee --</option>
+                        <label class="form-label small fw-semibold text-muted">Employee (Name or Code) <span class="text-danger">*</span></label>
+                        <input type="text" name="employee_id" id="manualEmpInput" list="manualEmpDatalist" class="form-control bg-light" placeholder="Type Employee Name or Code (e.g. EMP001)..." required autocomplete="off" oninput="handleManualEmpInput(this.value)">
+                        <datalist id="manualEmpDatalist">
                             <?php foreach ($employees as $emp): ?>
-                                <option value="<?= $emp['id'] ?>" 
+                                <option value="<?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?>"
+                                        data-id="<?= $emp['id'] ?>"
                                         data-project="<?= e($emp['project'] ?? '') ?>" 
                                         data-site="<?= e($emp['site'] ?? '') ?>">
-                                    <?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?> (<?= e($emp['department'] ?? 'General') ?>)
+                                    <?= e($emp['name']) ?> (<?= e($emp['department'] ?? 'General') ?>)
                                 </option>
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
+                        <small class="text-muted" style="font-size: 0.72rem;">Type employee code or name to search.</small>
                     </div>
 
                     <!-- LEAVE TYPE SELECT (Visible in Leave Mode) -->
@@ -449,7 +451,7 @@ function toggleManualFormMode(mode) {
     const fromDateCol = document.getElementById('fromDateCol');
     const dateLabel = document.getElementById('dateLabel');
     const submitBtn = document.getElementById('manualSubmitBtn');
-    const manualEmpSelect = document.getElementById('manualEmpSelect');
+    const manualEmpInput = document.getElementById('manualEmpInput');
 
     if (mode === 'punch') {
         empGroup.classList.remove('d-none');
@@ -461,7 +463,7 @@ function toggleManualFormMode(mode) {
         fromDateCol.className = 'col-md-12';
         dateLabel.innerHTML = 'Attendance Date <span class="text-danger">*</span>';
         submitBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Save Punch Entry';
-        manualEmpSelect.required = true;
+        if (manualEmpInput) manualEmpInput.required = true;
     } else if (mode === 'leave') {
         empGroup.classList.remove('d-none');
         leaveGroup.classList.remove('d-none');
@@ -472,7 +474,7 @@ function toggleManualFormMode(mode) {
         fromDateCol.className = 'col-md-6';
         dateLabel.innerHTML = 'From Date <span class="text-danger">*</span>';
         submitBtn.innerHTML = '<i class="fa-solid fa-plane-departure me-1"></i> Save Leave Entry';
-        manualEmpSelect.required = true;
+        if (manualEmpInput) manualEmpInput.required = true;
     } else if (mode === 'holiday') {
         empGroup.classList.add('d-none');
         leaveGroup.classList.add('d-none');
@@ -483,17 +485,21 @@ function toggleManualFormMode(mode) {
         fromDateCol.className = 'col-md-12';
         dateLabel.innerHTML = 'Holiday Date <span class="text-danger">*</span>';
         submitBtn.innerHTML = '<i class="fa-solid fa-calendar-star me-1"></i> Save Public Holiday';
-        manualEmpSelect.required = false;
+        if (manualEmpInput) manualEmpInput.required = false;
     }
 }
 
-function handleManualEmpChange(selectEl) {
-    const opt = selectEl.options[selectEl.selectedIndex];
-    if (opt) {
-        const proj = opt.getAttribute('data-project') || '';
-        const site = opt.getAttribute('data-site') || '';
-        document.getElementById('manualProjectInput').value = proj;
-        document.getElementById('manualSiteInput').value = site;
+function handleManualEmpInput(val) {
+    const list = document.getElementById('manualEmpDatalist');
+    if (!list) return;
+    for (let opt of list.options) {
+        if (opt.value === val) {
+            const proj = opt.getAttribute('data-project') || '';
+            const site = opt.getAttribute('data-site') || '';
+            if (proj) document.getElementById('manualProjectInput').value = proj;
+            if (site) document.getElementById('manualSiteInput').value = site;
+            break;
+        }
     }
 }
 </script>

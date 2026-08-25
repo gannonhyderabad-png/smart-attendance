@@ -102,6 +102,41 @@ class Employee extends Model {
         return $stmt->fetch() ?: null;
     }
 
+    public static function resolveEmployee(mixed $input): ?array {
+        if (empty($input)) return null;
+        if (is_numeric($input) && (int)$input > 0) {
+            $emp = self::find((int)$input);
+            if ($emp) return $emp;
+        }
+
+        $trimmed = trim((string)$input);
+        if (empty($trimmed)) return null;
+
+        // Try direct code match or code before dash/em-dash (e.g. "EMP001 — John Doe")
+        $parts = preg_split('/[\—\-]+/', $trimmed);
+        $possibleCode = trim($parts[0] ?? '');
+        if (!empty($possibleCode)) {
+            $emp = self::findByCode($possibleCode);
+            if ($emp) return $emp;
+        }
+
+        $emp = self::findByCode($trimmed);
+        if ($emp) return $emp;
+
+        // Search by name or code pattern
+        $pdo = self::db();
+        $stmt = $pdo->prepare("SELECT e.*, d.name as department_name 
+                               FROM employees e 
+                               LEFT JOIN departments d ON e.department_id = d.id 
+                               WHERE LOWER(TRIM(e.name)) = LOWER(?) 
+                                  OR LOWER(TRIM(e.employee_code)) = LOWER(?) 
+                                  OR e.name LIKE ? 
+                                  OR e.employee_code LIKE ? 
+                               LIMIT 1");
+        $stmt->execute([$trimmed, $trimmed, '%' . $trimmed . '%', '%' . $trimmed . '%']);
+        return $stmt->fetch() ?: null;
+    }
+
     public static function findByToken(string $token): ?array {
         $stmt = self::db()->prepare("SELECT e.*, d.name as department_name 
                                     FROM employees e 

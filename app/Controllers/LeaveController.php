@@ -67,15 +67,22 @@ class LeaveController extends Controller {
         Auth::requireAuth();
         Csrf::verify();
 
-        $employeeId = (int) Request::input('employee_id', 0);
+        $employeeInput = Request::input('employee_id');
         $leaveType = trim(Request::input('leave_type', 'Casual Leave'));
         $startDate = trim(Request::input('start_date', ''));
         $endDate = trim(Request::input('end_date', ''));
         $reason = trim(Request::input('reason', ''));
         $returnUrl = Request::input('return_url', 'leaves');
 
-        if ($employeeId <= 0 || empty($startDate)) {
-            $_SESSION['flash_error'] = 'Employee and Start Date are required.';
+        $emp = Employee::resolveEmployee($employeeInput);
+        if (!$emp) {
+            $_SESSION['flash_error'] = 'Selected employee was not found. Please type a valid employee code or name.';
+            redirect($returnUrl);
+        }
+        $employeeId = (int) $emp['id'];
+
+        if (empty($startDate)) {
+            $_SESSION['flash_error'] = 'Start Date is required.';
             redirect($returnUrl);
         }
 
@@ -85,12 +92,6 @@ class LeaveController extends Controller {
 
         if ($endDate < $startDate) {
             $_SESSION['flash_error'] = 'End Date cannot be earlier than Start Date.';
-            redirect($returnUrl);
-        }
-
-        $emp = Employee::find($employeeId);
-        if (!$emp) {
-            $_SESSION['flash_error'] = 'Selected employee does not exist.';
             redirect($returnUrl);
         }
 

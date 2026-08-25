@@ -18,14 +18,18 @@ VALUES
 (4, 'Operations', 'OPS', 'Logistics, Support & Administration')
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
--- Sample Employees with pre-assigned punch tokens and projects
-INSERT INTO `employees` (`id`, `employee_code`, `name`, `email`, `phone`, `department_id`, `designation`, `project`, `punch_token`, `shift_start`, `shift_end`, `status`) 
+-- Default Settings
+INSERT INTO `settings` (`setting_key`, `setting_value`) 
 VALUES 
-(1, 'EMP001', 'Alex Johnson', 'alex.j@company.com', '+1 (555) 019-2831', 1, 'Senior Backend Engineer', 'Enterprise Helpdesk ERP', 'tok_alex_emp001_87a6', '09:00:00', '18:00:00', 'active'),
-(2, 'EMP002', 'Sarah Williams', 'sarah.w@company.com', '+1 (555) 019-2832', 2, 'HR Business Partner', 'People & Talent Portal', 'tok_sarah_emp002_94c1', '09:00:00', '18:00:00', 'active'),
-(3, 'EMP003', 'Michael Chen', 'michael.c@company.com', '+1 (555) 019-2833', 1, 'DevOps Specialist', 'Cloud Infrastructure 2.0', 'tok_mike_emp003_12d4', '10:00:00', '19:00:00', 'active'),
-(4, 'EMP004', 'Emily Davis', 'emily.d@company.com', '+1 (555) 019-2834', 3, 'Marketing Lead', 'Global Growth 2026', 'tok_emily_emp004_55f8', '09:30:00', '18:30:00', 'active')
-ON DUPLICATE KEY UPDATE `employee_code` = VALUES(`employee_code`);
+('company_name', 'Smart Attendance Management'),
+('company_email', 'admin@attendance.com'),
+('company_phone', '+91 99999 99999'),
+('work_hours_per_day', '8'),
+('grace_period_minutes', '15'),
+('allow_geo_capture', '1'),
+('auto_calculate_hours', '1'),
+('site_logo_text', 'SmartAttendance')
+ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`);
 
 -- Default Settings
 INSERT INTO `settings` (`setting_key`, `setting_value`) 

@@ -413,14 +413,6 @@ class Database {
             }
         }
 
-        // Seed sample employees if empty
-        $empCheck = $pdo->query("SELECT COUNT(*) FROM employees");
-        if ($empCheck->fetchColumn() == 0) {
-            $pdo->exec("INSERT INTO employees (employee_code, name, email, phone, department_id, designation, project, punch_token) VALUES 
-                ('EMP001', 'Alex Johnson', 'alex.j@company.com', '+1 (555) 019-2831', 1, 'Senior Backend Engineer', 'Enterprise Helpdesk ERP', 'tok_alex_emp001_87a6'),
-                ('EMP002', 'Sarah Williams', 'sarah.w@company.com', '+1 (555) 019-2832', 2, 'HR Business Partner', 'People & Talent Portal', 'tok_sarah_emp002_94c1'),
-                ('EMP003', 'Michael Chen', 'michael.c@company.com', '+1 (555) 019-2833', 1, 'DevOps Specialist', 'Cloud Infrastructure 2.0', 'tok_mike_emp003_12d4'),
-                ('EMP004', 'Emily Davis', 'emily.d@company.com', '+1 (555) 019-2834', 3, 'Marketing Lead', 'Global Growth 2026', 'tok_emily_emp004_55f8')");
-        }
+        // No sample employees seeded so database is completely clean for user
     }
 }

@@ -218,14 +218,54 @@ class Database {
             }
         }
 
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `holidays` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `title` VARCHAR(150) NOT NULL,
+                `holiday_date` DATE NOT NULL UNIQUE,
+                `description` VARCHAR(255) NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_holiday_date` (`holiday_date`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+        } catch (\Throwable $e) {}
+
+        // Seed standard public holidays if table is empty
+        try {
+            $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();
+            if ($holCount === 0) {
+                $defaultHolidays = [
+                    ['New Year\'s Day', '2026-01-01', 'Global Celebration'],
+                    ['Republic Day', '2026-01-26', 'National Holiday'],
+                    ['Maha Shivaratri', '2026-02-16', 'Religious Festival'],
+                    ['Holi', '2026-03-04', 'Festival of Colours'],
+                    ['Eid al-Fitr (Ramzan Eid)', '2026-03-21', 'Public Holiday'],
+                    ['Good Friday', '2026-04-03', 'Public Holiday'],
+                    ['Dr. Ambedkar Jayanti', '2026-04-14', 'National Observance'],
+                    ['May Day (Labor Day)', '2026-05-01', 'International Workers Day'],
+                    ['Independence Day', '2026-08-15', 'National Holiday'],
+                    ['Raksha Bandhan', '2026-08-28', 'Festival'],
+                    ['Janmashtami', '2026-09-04', 'Religious Festival'],
+                    ['Gandhi Jayanti', '2026-10-02', 'National Holiday'],
+                    ['Dussehra (Vijayadashami)', '2026-10-20', 'Festival Holiday'],
+                    ['Diwali (Deepavali)', '2026-11-08', 'Festival of Lights'],
+                    ['Guru Nanak Jayanti', '2026-11-24', 'Religious Holiday'],
+                    ['Christmas', '2026-12-25', 'Public Holiday'],
+                ];
+                $hStmt = $pdo->prepare("INSERT IGNORE INTO holidays (title, holiday_date, description) VALUES (?, ?, ?)");
+                foreach ($defaultHolidays as $h) {
+                    $hStmt->execute($h);
+                }
+            }
+        } catch (\Throwable $e) {}
+
         // Ensure default admin has valid password hash
         $adminStmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE email = ? LIMIT 1");
-        $adminStmt->execute(['admin@attendance.local']);
+        $adminStmt->execute(['admin@attendance.com']);
         $adminUser = $adminStmt->fetch();
         if (!$adminUser) {
             $newHash = password_hash('admin123', PASSWORD_BCRYPT);
             $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
-            $stmt->execute(['System Administrator', 'admin@attendance.local', $newHash]);
+            $stmt->execute(['System Administrator', 'admin@attendance.com', $newHash]);
         } elseif (!password_verify('admin123', $adminUser['password_hash'])) {
             $newHash = password_hash('admin123', PASSWORD_BCRYPT);
             $updateStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
@@ -374,12 +414,47 @@ class Database {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
 
+        $pdo->exec("CREATE TABLE IF NOT EXISTS holidays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            holiday_date DATE NOT NULL UNIQUE,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        // Seed standard public holidays in SQLite if empty
+        $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();
+        if ($holCount === 0) {
+            $defaultHolidays = [
+                ['New Year\'s Day', '2026-01-01', 'Global Celebration'],
+                ['Republic Day', '2026-01-26', 'National Holiday'],
+                ['Maha Shivaratri', '2026-02-16', 'Religious Festival'],
+                ['Holi', '2026-03-04', 'Festival of Colours'],
+                ['Eid al-Fitr (Ramzan Eid)', '2026-03-21', 'Public Holiday'],
+                ['Good Friday', '2026-04-03', 'Public Holiday'],
+                ['Dr. Ambedkar Jayanti', '2026-04-14', 'National Observance'],
+                ['May Day (Labor Day)', '2026-05-01', 'International Workers Day'],
+                ['Independence Day', '2026-08-15', 'National Holiday'],
+                ['Raksha Bandhan', '2026-08-28', 'Festival'],
+                ['Janmashtami', '2026-09-04', 'Religious Festival'],
+                ['Gandhi Jayanti', '2026-10-02', 'National Holiday'],
+                ['Dussehra (Vijayadashami)', '2026-10-20', 'Festival Holiday'],
+                ['Diwali (Deepavali)', '2026-11-08', 'Festival of Lights'],
+                ['Guru Nanak Jayanti', '2026-11-24', 'Religious Holiday'],
+                ['Christmas', '2026-12-25', 'Public Holiday'],
+            ];
+            $hStmt = $pdo->prepare("INSERT OR IGNORE INTO holidays (title, holiday_date, description) VALUES (?, ?, ?)");
+            foreach ($defaultHolidays as $h) {
+                $hStmt->execute($h);
+            }
+        }
+
         // Insert default user if empty
         $stmt = $pdo->query("SELECT COUNT(*) FROM users");
         if ($stmt->fetchColumn() == 0) {
             $passHash = password_hash('admin123', PASSWORD_BCRYPT);
             $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
-            $stmt->execute(['System Administrator', 'admin@attendance.local', $passHash]);
+            $stmt->execute(['System Administrator', 'admin@attendance.com', $passHash]);
 
             // Default departments
             $pdo->exec("INSERT INTO departments (name, code, description) VALUES 
@@ -400,12 +475,12 @@ class Database {
                 ('site_logo_text', 'SmartAttendance')");
         } else {
             $adminStmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE email = ? LIMIT 1");
-            $adminStmt->execute(['admin@attendance.local']);
+            $adminStmt->execute(['admin@attendance.com']);
             $adminUser = $adminStmt->fetch();
             if (!$adminUser) {
                 $newHash = password_hash('admin123', PASSWORD_BCRYPT);
                 $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
-                $stmt->execute(['System Administrator', 'admin@attendance.local', $newHash]);
+                $stmt->execute(['System Administrator', 'admin@attendance.com', $newHash]);
             } elseif (!password_verify('admin123', $adminUser['password_hash'])) {
                 $newHash = password_hash('admin123', PASSWORD_BCRYPT);
                 $updateStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");

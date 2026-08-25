@@ -99,4 +99,109 @@ class AttendanceController extends Controller {
         fclose($output);
         exit;
     }
+
+    public function manualStore(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $employeeId = (int) Request::input('employee_id', 0);
+        $punchDate = trim(Request::input('punch_date', date('Y-m-d')));
+        $inTime = trim(Request::input('in_time', ''));
+        $outTime = trim(Request::input('out_time', ''));
+        $project = trim(Request::input('project', ''));
+        $site = trim(Request::input('site', ''));
+        $notes = trim(Request::input('notes', ''));
+
+        if ($employeeId <= 0 || empty($punchDate) || empty($inTime)) {
+            $_SESSION['flash_error'] = 'Employee, punch date, and Punch IN time are required for manual entry.';
+            redirect('attendance');
+        }
+
+        $employee = Employee::find($employeeId);
+        if (!$employee) {
+            $_SESSION['flash_error'] = 'Selected employee does not exist.';
+            redirect('attendance');
+        }
+
+        // Use employee default project/site if not specified
+        if (empty($project)) $project = $employee['project'] ?? 'General';
+        if (empty($site)) $site = $employee['site'] ?? 'Office';
+
+        $notesFormatted = 'Manual Entry: ' . ($notes ?: 'Admin Correction');
+
+        try {
+            // 1. Create Punch IN record
+            $fullInDateTime = $punchDate . ' ' . (strlen($inTime) === 5 ? $inTime . ':00' : $inTime);
+            Attendance::create([
+                'employee_id' => $employeeId,
+                'punch_type' => 'IN',
+                'punch_time' => $fullInDateTime,
+                'punch_date' => $punchDate,
+                'project' => $project,
+                'site' => $site,
+                'latitude' => $employee['site_latitude'] ?? null,
+                'longitude' => $employee['site_longitude'] ?? null,
+                'distance_meters' => 0,
+                'location_verified' => 1,
+                'ip_address' => 'Manual Admin',
+                'device_info' => 'Admin Manual Portal',
+                'notes' => $notesFormatted
+            ]);
+
+            // 2. Create Punch OUT record if out_time provided
+            if (!empty($outTime)) {
+                $fullOutDateTime = $punchDate . ' ' . (strlen($outTime) === 5 ? $outTime . ':00' : $outTime);
+                Attendance::create([
+                    'employee_id' => $employeeId,
+                    'punch_type' => 'OUT',
+                    'punch_time' => $fullOutDateTime,
+                    'punch_date' => $punchDate,
+                    'project' => $project,
+                    'site' => $site,
+                    'latitude' => $employee['site_latitude'] ?? null,
+                    'longitude' => $employee['site_longitude'] ?? null,
+                    'distance_meters' => 0,
+                    'location_verified' => 1,
+                    'ip_address' => 'Manual Admin',
+                    'device_info' => 'Admin Manual Portal',
+                    'notes' => $notesFormatted
+                ]);
+            }
+
+            Logger::log(Auth::id(), 'MANUAL_ATTENDANCE', "Added manual attendance for {$employee['name']} ({$employee['employee_code']}) on {$punchDate} (IN: {$inTime}" . ($outTime ? ", OUT: {$outTime}" : "") . ")");
+            $_SESSION['flash_success'] = "Manual attendance entry for {$employee['name']} recorded successfully!";
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = 'Failed to save manual attendance: ' . $e->getMessage();
+        }
+
+        redirect('attendance');
+    }
+
+    public function delete(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $id = (int) Request::input('id', 0);
+        $employeeId = (int) Request::input('employee_id', 0);
+        $punchDate = trim(Request::input('punch_date', ''));
+
+        try {
+            if ($employeeId > 0 && !empty($punchDate)) {
+                // Delete full daily session for that employee and date
+                $pdo = \Database\Database::getConnection();
+                $stmt = $pdo->prepare("DELETE FROM attendance WHERE employee_id = ? AND punch_date = ?");
+                $stmt->execute([$employeeId, $punchDate]);
+                Logger::log(Auth::id(), 'ATTENDANCE_DELETED', "Deleted attendance session for employee ID {$employeeId} on {$punchDate}");
+                $_SESSION['flash_success'] = "Attendance session deleted successfully.";
+            } elseif ($id > 0) {
+                Attendance::delete($id);
+                Logger::log(Auth::id(), 'ATTENDANCE_DELETED', "Deleted attendance record #{$id}");
+                $_SESSION['flash_success'] = "Attendance record deleted successfully.";
+            }
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = 'Failed to delete attendance record: ' . $e->getMessage();
+        }
+
+        redirect('attendance');
+    }
 }

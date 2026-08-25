@@ -8,6 +8,7 @@ use App\Core\Request;
 use App\Models\Attendance;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Holiday;
 
 class ReportController extends Controller {
     public function daily(): void {
@@ -120,6 +121,8 @@ class ReportController extends Controller {
         $report = Attendance::getMonthlyReport($year, $month, $departmentId, $site);
         $departments = Department::all();
         $siteList = Employee::getDistinctSites();
+        $holidaysMap = Holiday::getMapForMonth((string)$year, (string)$month);
+        $holidaysList = Holiday::getForMonth((string)$year, (string)$month);
 
         // Calculate Executive Summary Metrics
         $totalEmployees = count($report['data']);
@@ -149,7 +152,8 @@ class ReportController extends Controller {
             'total_hours' => round($totalHours, 2),
             'total_punches' => $totalPunches,
             'attendance_rate' => $attendanceRate,
-            'days_in_month' => $daysInMonth
+            'days_in_month' => $daysInMonth,
+            'total_holidays' => count($holidaysList)
         ];
 
         $this->view('reports.monthly', [
@@ -161,7 +165,9 @@ class ReportController extends Controller {
             'departments' => $departments,
             'siteList' => $siteList,
             'report' => $report,
-            'summary' => $summary
+            'summary' => $summary,
+            'holidaysMap' => $holidaysMap,
+            'holidaysList' => $holidaysList
         ], 'admin');
     }
 
@@ -241,6 +247,8 @@ class ReportController extends Controller {
         }
         fputcsv($output, $header);
 
+        $holidaysMap = Holiday::getMapForMonth((string)$year, (string)$month);
+
         // Data Rows
         foreach ($report['data'] as $row) {
             $emp = $row['employee'];
@@ -260,9 +268,12 @@ class ReportController extends Controller {
             ];
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
+                $curDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
                 $stat = $row['daily_stats'][$d] ?? ['status' => '-', 'hours' => 0];
                 if ($stat['status'] === 'P') {
                     $dataRow[] = $stat['hours'] > 0 ? "P ({$stat['hours']}h)" : 'P';
+                } elseif (isset($holidaysMap[$curDate])) {
+                    $dataRow[] = "H (" . $holidaysMap[$curDate] . ")";
                 } elseif ($stat['status'] === 'W') {
                     $dataRow[] = 'OFF';
                 } else {
@@ -290,6 +301,7 @@ class ReportController extends Controller {
 
         $report = Attendance::getMonthlyReport($year, $month, $departmentId, $site);
         $daysInMonth = $report['days_in_month'];
+        $holidaysMap = Holiday::getMapForMonth((string)$year, (string)$month);
 
         $filename = "monthly_punch_in_out_audit_{$year}_{$month}_" . date('His') . ".csv";
 
@@ -321,13 +333,18 @@ class ReportController extends Controller {
                 $curDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
                 $dayName = date('D', strtotime($curDate));
 
-                $auditLabel = match($stat['audit_status'] ?? 'ABSENT') {
-                    'COMPLETED' => 'Completed (Verified IN & OUT)',
-                    'CHECKED_IN' => 'Checked IN (Working)',
-                    'NO_OUT' => 'Missing OUT Punch (Auto-Closed)',
-                    'WEEKEND' => 'Weekend OFF',
-                    default => 'Absent'
-                };
+                $auditStatus = $stat['audit_status'] ?? 'ABSENT';
+                if ($auditStatus === 'ABSENT' && isset($holidaysMap[$curDate])) {
+                    $auditLabel = 'Holiday (' . $holidaysMap[$curDate] . ')';
+                } else {
+                    $auditLabel = match($auditStatus) {
+                        'COMPLETED' => 'Completed (Verified IN & OUT)',
+                        'CHECKED_IN' => 'Checked IN (Working)',
+                        'NO_OUT' => 'Missing OUT Punch (Auto-Closed)',
+                        'WEEKEND' => 'Weekend OFF',
+                        default => 'Absent'
+                    };
+                }
 
                 $dataRow = [
                     $curDate,

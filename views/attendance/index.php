@@ -12,7 +12,10 @@
                 </div>
                 <p class="text-muted small mb-0">Total of <?= number_format($totalRecords) ?> employee attendance sessions recorded (IN & OUT paired side-by-side)</p>
             </div>
-            <div class="col-md-6 text-md-end">
+            <div class="col-md-6 text-md-end d-flex gap-2 justify-content-md-end flex-wrap">
+                <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#manualEntryModal">
+                    <i class="fa-solid fa-user-clock me-1"></i> + Manual Entry
+                </button>
                 <?php 
                 $exportQuery = http_build_query($filters);
                 ?>
@@ -21,6 +24,22 @@
                 </a>
             </div>
         </div>
+
+        <?php if (!empty($_SESSION['flash_success'])): ?>
+            <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+                <i class="fa-solid fa-circle-check me-2"></i><?= e($_SESSION['flash_success']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php unset($_SESSION['flash_success']); ?>
+        <?php endif; ?>
+
+        <?php if (!empty($_SESSION['flash_error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+                <i class="fa-solid fa-circle-exclamation me-2"></i><?= e($_SESSION['flash_error']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php unset($_SESSION['flash_error']); ?>
+        <?php endif; ?>
 
         <!-- Filter Form -->
         <form method="GET" action="<?= base_url('attendance') ?>" class="row g-2 mb-4 p-3 bg-light rounded-4 border">
@@ -254,6 +273,14 @@
                                         <a href="<?= punch_url($row['employee_code']) ?>" target="_blank" class="btn btn-outline-primary" title="Open Mobile Punch URL">
                                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                         </a>
+                                        <form action="<?= base_url('attendance/delete') ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete attendance record for <?= e($row['employee_name']) ?> on <?= e($row['punch_date']) ?>?');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="employee_id" value="<?= $row['employee_id'] ?>">
+                                            <input type="hidden" name="punch_date" value="<?= $row['punch_date'] ?>">
+                                            <button type="submit" class="btn btn-outline-danger border-start-0" title="Delete Attendance Session">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -286,6 +313,90 @@
 
     </div>
 </div>
+
+<!-- Manual Attendance Entry Modal -->
+<div class="modal fade" id="manualEntryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-user-clock text-primary me-2"></i>Manual Attendance Entry
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= base_url('attendance/manual') ?>" method="POST">
+                <?= csrf_field() ?>
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Select Employee <span class="text-danger">*</span></label>
+                        <select name="employee_id" id="manualEmpSelect" class="form-select bg-light" required onchange="handleManualEmpChange(this)">
+                            <option value="">-- Choose Employee --</option>
+                            <?php foreach ($employees as $emp): ?>
+                                <option value="<?= $emp['id'] ?>" 
+                                        data-project="<?= e($emp['project'] ?? '') ?>" 
+                                        data-site="<?= e($emp['site'] ?? '') ?>">
+                                    <?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?> (<?= e($emp['department'] ?? 'General') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-semibold text-muted">Attendance Date <span class="text-danger">*</span></label>
+                            <input type="date" name="punch_date" class="form-control bg-light" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Punch IN Time <span class="text-danger">*</span></label>
+                            <input type="time" name="in_time" class="form-control bg-light" value="09:00" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Punch OUT Time <small class="text-muted">(Optional)</small></label>
+                            <input type="time" name="out_time" class="form-control bg-light" value="18:00">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Project Name</label>
+                            <input type="text" name="project" id="manualProjectInput" class="form-control bg-light" placeholder="e.g. ERP Project">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Work Site / Location</label>
+                            <input type="text" name="site" id="manualSiteInput" class="form-control bg-light" placeholder="e.g. Hyderabad Office">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Reason / Notes</label>
+                        <input type="text" name="notes" class="form-control bg-light" placeholder="e.g. On-duty site visit, biometric device glitch, approved correction">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Save Manual Entry
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleManualEmpChange(selectEl) {
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (opt) {
+        const proj = opt.getAttribute('data-project') || '';
+        const site = opt.getAttribute('data-site') || '';
+        document.getElementById('manualProjectInput').value = proj;
+        document.getElementById('manualSiteInput').value = site;
+    }
+}
+</script>
 
 <!-- Punch Selfie Photo Modal -->
 <div class="modal fade" id="punchPhotoModal" tabindex="-1" aria-hidden="true">

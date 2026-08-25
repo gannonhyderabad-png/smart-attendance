@@ -314,6 +314,14 @@ $router->get('/employees/empty-trash', [\App\Controllers\EmployeeController::cla
 // Attendance Logs
 $router->get('/attendance', [\App\Controllers\AttendanceController::class, 'index']);
 $router->get('/attendance/export', [\App\Controllers\AttendanceController::class, 'exportCsv']);
+$router->post('/attendance/manual', [\App\Controllers\AttendanceController::class, 'manualStore']);
+$router->post('/attendance/delete', [\App\Controllers\AttendanceController::class, 'delete']);
+
+// Public Holidays Management
+$router->get('/holidays', [\App\Controllers\HolidayController::class, 'index']);
+$router->post('/holidays/create', [\App\Controllers\HolidayController::class, 'store']);
+$router->post('/holidays/update', [\App\Controllers\HolidayController::class, 'update']);
+$router->post('/holidays/delete', [\App\Controllers\HolidayController::class, 'delete']);
 
 // Reports
 $router->get('/reports/daily', [\App\Controllers\ReportController::class, 'daily']);

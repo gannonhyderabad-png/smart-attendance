@@ -3,6 +3,7 @@ FROM php:8.2-cli
 # Install system dependencies & PHP extensions (PDO MySQL, SQLite3, GD with WebP/JPEG/PNG, Zip, OPcache)
 RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
+    libpq-dev \
     libpng-dev \
     libjpeg-dev \
     libwebp-dev \
@@ -11,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) pdo pdo_mysql pdo_sqlite gd zip opcache \
+    && docker-php-ext-install -j$(nproc) pdo pdo_mysql pdo_pgsql pdo_sqlite gd zip opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

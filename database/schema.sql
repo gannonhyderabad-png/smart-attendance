@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS `leaves` (
     `days_count` DECIMAL(4, 1) DEFAULT 1.0,
     `origin_site` VARCHAR(150) NULL,
     `target_site` VARCHAR(150) NULL,
+    `attachment` VARCHAR(255) NULL,
     `reason` TEXT NULL,
     `status` VARCHAR(20) DEFAULT 'APPROVED',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

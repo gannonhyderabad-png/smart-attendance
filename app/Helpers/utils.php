@@ -353,6 +353,37 @@ if (!function_exists('upload_employee_avatar')) {
     }
 }
 
+if (!function_exists('upload_leave_attachment')) {
+    /**
+     * Upload and save attached PDF / image / document for Leave or OD entries
+     */
+    function upload_leave_attachment(array $file): ?string {
+        if (empty($file['tmp_name']) || $file['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $allowedExts = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'webp', 'xlsx', 'csv'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExts)) {
+            return null;
+        }
+
+        $targetDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'leaves';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+
+        $filename = 'doc_' . uniqid('', true) . '.' . $ext;
+        $targetPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+            return 'public/uploads/leaves/' . $filename;
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('uploaded_url')) {
     /**
      * Return public URL for uploaded files

@@ -164,6 +164,12 @@ class AttendanceController extends Controller {
                 $originSite = $employee['site'];
             }
 
+            // Handle PDF/Document attachment upload
+            $attachmentPath = null;
+            if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $attachmentPath = upload_leave_attachment($_FILES['attachment']);
+            }
+
             try {
                 Leave::create([
                     'employee_id' => $employeeId,
@@ -172,13 +178,15 @@ class AttendanceController extends Controller {
                     'end_date' => $endDate,
                     'origin_site' => $originSite,
                     'target_site' => $targetSite,
+                    'attachment' => $attachmentPath,
                     'reason' => $notes,
                     'status' => 'APPROVED'
                 ]);
 
                 $dateRange = ($punchDate === $endDate) ? $punchDate : "{$punchDate} to {$endDate}";
                 $odDetails = !empty($targetSite) ? " (Target: {$targetSite})" : "";
-                Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType}{$odDetails} for {$employee['name']} ({$employee['employee_code']}) for {$dateRange}");
+                $docDetails = !empty($attachmentPath) ? " [Document Attached]" : "";
+                Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType}{$odDetails}{$docDetails} for {$employee['name']} ({$employee['employee_code']}) for {$dateRange}");
                 $_SESSION['flash_success'] = "Leave ({$leaveType}{$odDetails}) for {$employee['name']} for {$dateRange} recorded successfully!";
             } catch (\Throwable $e) {
                 $_SESSION['flash_error'] = 'Failed to save leave entry: ' . $e->getMessage();

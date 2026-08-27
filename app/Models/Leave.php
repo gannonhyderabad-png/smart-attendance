@@ -116,7 +116,7 @@ class Leave extends Model {
 
     public static function create(array $data): int {
         $pdo = self::db();
-        $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, attachment, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         $startDate = $data['start_date'];
         $endDate = !empty($data['end_date']) ? $data['end_date'] : $startDate;
@@ -138,6 +138,7 @@ class Leave extends Model {
             $daysCount,
             !empty($data['origin_site']) ? trim($data['origin_site']) : null,
             !empty($data['target_site']) ? trim($data['target_site']) : null,
+            !empty($data['attachment']) ? trim($data['attachment']) : null,
             trim($data['reason'] ?? ''),
             $data['status'] ?? 'APPROVED'
         ]);

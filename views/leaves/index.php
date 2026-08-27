@@ -134,6 +134,7 @@
                     <th>Target / Visit Site</th>
                     <th>Date Period</th>
                     <th>Days</th>
+                    <th>Attached PDF / Sheet</th>
                     <th>Reason / Notes</th>
                     <th>Status</th>
                     <th class="text-end pe-4">Actions</th>
@@ -142,7 +143,7 @@
             <tbody>
                 <?php if (empty($leaves)): ?>
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
+                        <td colspan="9" class="text-center py-5 text-muted">
                             <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-secondary opacity-50 d-block"></i>
                             No leave entries recorded yet. Click <strong>Add Leave Entry</strong> to record employee leave.
                         </td>
@@ -210,6 +211,28 @@
                             <td>
                                 <span class="badge bg-light text-dark border px-2 py-1"><?= $lv['days_count'] ?> Day(s)</span>
                             </td>
+                            <td>
+                                <?php if (!empty($lv['attachment'])): 
+                                    $attExt = strtolower(pathinfo($lv['attachment'], PATHINFO_EXTENSION));
+                                    $attUrl = uploaded_url($lv['attachment']);
+                                ?>
+                                    <?php if ($attExt === 'pdf'): ?>
+                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="View Attached PDF Sheet">
+                                            <i class="fa-solid fa-file-pdf me-1 text-danger"></i> PDF Sheet
+                                        </a>
+                                    <?php elseif (in_array($attExt, ['png', 'jpg', 'jpeg', 'webp'])): ?>
+                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="View Attached Image">
+                                            <i class="fa-solid fa-image me-1"></i> Document
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="Download Attached File">
+                                            <i class="fa-solid fa-paperclip me-1"></i> File (.<?= $attExt ?>)
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted small">—</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-muted small">
                                 <?= e($lv['reason'] ?: 'Approved Leave') ?>
                             </td>
@@ -242,11 +265,11 @@
         <div class="modal-content rounded-4 border-0 shadow">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-dark">
-                    <i class="fa-solid fa-plane-departure text-warning me-2"></i>Record Employee Leave
+                    <i class="fa-solid fa-plane-departure text-warning me-2"></i>Record Employee Leave / OD
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="<?= base_url('leaves/create') ?>" method="POST">
+            <form action="<?= base_url('leaves/create') ?>" method="POST" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <input type="hidden" name="return_url" value="leaves">
                 <div class="modal-body py-4">
@@ -311,6 +334,15 @@
                             <label class="form-label small fw-semibold text-muted">To Date <span class="text-danger">*</span></label>
                             <input type="date" name="end_date" id="leaveToDate" class="form-control bg-light" value="<?= date('Y-m-d') ?>" required>
                         </div>
+                    </div>
+
+                    <!-- ATTACH PDF / DOCUMENT SHEET -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">
+                            <i class="fa-solid fa-paperclip text-primary me-1"></i>Attach PDF / Document Sheet <small class="text-muted">(Optional)</small>
+                        </label>
+                        <input type="file" name="attachment" class="form-control bg-light" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.csv">
+                        <small class="text-muted" style="font-size: 0.72rem;">Upload approval slip, medical certificate, OD tour sheet, or permission form (PDF / Images / Docs).</small>
                     </div>
 
                     <div class="mb-3">

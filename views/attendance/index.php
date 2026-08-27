@@ -324,7 +324,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="<?= base_url('attendance/manual') ?>" method="POST">
+            <form action="<?= base_url('attendance/manual') ?>" method="POST" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <div class="modal-body py-3">
                     
@@ -391,6 +391,14 @@
                                 <input type="text" name="origin_site" id="manualOdOriginSite" class="form-control bg-white" placeholder="e.g. Head Office / Primary Site">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- ATTACH PDF / DOCUMENT (Visible in Leave Mode) -->
+                    <div class="mb-3 d-none" id="manualLeaveAttachmentGroup">
+                        <label class="form-label small fw-semibold text-muted">
+                            <i class="fa-solid fa-paperclip text-primary me-1"></i>Attach PDF / Document Sheet <small class="text-muted">(Optional)</small>
+                        </label>
+                        <input type="file" name="attachment" class="form-control bg-light" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.csv">
                     </div>
 
                     <!-- PUBLIC HOLIDAY TITLE (Visible in Holiday Mode) -->
@@ -465,11 +473,13 @@ function toggleManualFormMode(mode) {
     const submitBtn = document.getElementById('manualSubmitBtn');
     const manualEmpInput = document.getElementById('manualEmpInput');
     const odSiteGroup = document.getElementById('manualOdSiteGroup');
+    const attGroup = document.getElementById('manualLeaveAttachmentGroup');
 
     if (mode === 'punch') {
         empGroup.classList.remove('d-none');
         leaveGroup.classList.add('d-none');
         holGroup.classList.add('d-none');
+        if (attGroup) attGroup.classList.add('d-none');
         if (odSiteGroup) odSiteGroup.classList.add('d-none');
         punchTimes.classList.remove('d-none');
         punchLoc.classList.remove('d-none');
@@ -482,6 +492,7 @@ function toggleManualFormMode(mode) {
         empGroup.classList.remove('d-none');
         leaveGroup.classList.remove('d-none');
         holGroup.classList.add('d-none');
+        if (attGroup) attGroup.classList.remove('d-none');
         punchTimes.classList.add('d-none');
         punchLoc.classList.add('d-none');
         toDateCol.classList.remove('d-none');
@@ -495,6 +506,7 @@ function toggleManualFormMode(mode) {
         empGroup.classList.add('d-none');
         leaveGroup.classList.add('d-none');
         holGroup.classList.remove('d-none');
+        if (attGroup) attGroup.classList.add('d-none');
         if (odSiteGroup) odSiteGroup.classList.add('d-none');
         punchTimes.classList.add('d-none');
         punchLoc.classList.add('d-none');

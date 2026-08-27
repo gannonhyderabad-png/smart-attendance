@@ -239,6 +239,7 @@ class Database {
                 `days_count` DECIMAL(4, 1) DEFAULT 1.0,
                 `origin_site` VARCHAR(150) NULL,
                 `target_site` VARCHAR(150) NULL,
+                `attachment` VARCHAR(255) NULL,
                 `reason` TEXT NULL,
                 `status` VARCHAR(20) DEFAULT 'APPROVED',
                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -249,6 +250,7 @@ class Database {
 
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `origin_site` VARCHAR(150) NULL AFTER `days_count`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `target_site` VARCHAR(150) NULL AFTER `origin_site`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `attachment` VARCHAR(255) NULL AFTER `target_site`;"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -372,6 +374,7 @@ class Database {
             days_count NUMERIC(4,1) DEFAULT 1.0,
             origin_site VARCHAR(150),
             target_site VARCHAR(150),
+            attachment VARCHAR(255),
             reason TEXT,
             status VARCHAR(20) DEFAULT 'APPROVED',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -409,7 +412,8 @@ class Database {
             "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location_verified SMALLINT DEFAULT 0",
             "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS punch_photo VARCHAR(255)",
             "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS origin_site VARCHAR(150)",
-            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS target_site VARCHAR(150)"
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS target_site VARCHAR(150)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS attachment VARCHAR(255)"
         ];
         foreach ($columns as $c) {
             try { $pdo->exec($c); } catch (\Throwable $e) {}
@@ -609,6 +613,7 @@ class Database {
             days_count REAL DEFAULT 1.0,
             origin_site TEXT,
             target_site TEXT,
+            attachment TEXT,
             reason TEXT,
             status TEXT DEFAULT 'APPROVED',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -617,6 +622,7 @@ class Database {
 
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN origin_site TEXT;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN target_site TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN attachment TEXT;"); } catch (\Throwable $e) {}
 
         // Seed standard public holidays in SQLite if empty
         $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();

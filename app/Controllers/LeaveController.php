@@ -104,6 +104,12 @@ class LeaveController extends Controller {
             $originSite = $emp['site'];
         }
 
+        // Handle PDF/Document attachment upload
+        $attachmentPath = null;
+        if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+            $attachmentPath = upload_leave_attachment($_FILES['attachment']);
+        }
+
         try {
             Leave::create([
                 'employee_id' => $employeeId,
@@ -112,13 +118,15 @@ class LeaveController extends Controller {
                 'end_date' => $endDate,
                 'origin_site' => $originSite,
                 'target_site' => $targetSite,
+                'attachment' => $attachmentPath,
                 'reason' => $reason,
                 'status' => 'APPROVED'
             ]);
 
             $dateLabel = ($startDate === $endDate) ? $startDate : "{$startDate} to {$endDate}";
             $siteDetails = !empty($targetSite) ? " (Target: {$targetSite})" : "";
-            Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType}{$siteDetails} for {$emp['name']} ({$emp['employee_code']}) for {$dateLabel}");
+            $docDetails = !empty($attachmentPath) ? " [Document Attached]" : "";
+            Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType}{$siteDetails}{$docDetails} for {$emp['name']} ({$emp['employee_code']}) for {$dateLabel}");
             $_SESSION['flash_success'] = "Leave entry for {$emp['name']} ({$leaveType}{$siteDetails}, {$dateLabel}) recorded successfully!";
         } catch (\Throwable $e) {
             $_SESSION['flash_error'] = 'Failed to record leave: ' . $e->getMessage();

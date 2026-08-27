@@ -1135,6 +1135,7 @@ class Attendance extends Model {
         $records = [];
         $presentDays = 0;
         $leaveDays = 0;
+        $odDays = 0;
         $absentDays = 0;
         $totalWorkedSeconds = 0;
         $totalPunches = 0;
@@ -1143,6 +1144,12 @@ class Attendance extends Model {
             $punches = self::getDayPunches($employeeId, $curDate);
             $countPunches = count($punches);
             $totalPunches += $countPunches;
+            $leaveInfo = $leaveMap[$curDate] ?? null;
+            $isOD = false;
+            if ($leaveInfo) {
+                $t = strtoupper($leaveInfo['leave_type'] ?? '');
+                $isOD = (str_contains($t, 'OD') || str_contains($t, 'OUTDOOR') || str_contains($t, 'DUTY'));
+            }
 
             if ($countPunches > 0) {
                 $seconds = self::calculateWorkSeconds($employeeId, $curDate);
@@ -1162,7 +1169,12 @@ class Attendance extends Model {
                     }
                 }
 
-                $presentDays++;
+                if ($isOD) {
+                    $odDays++;
+                    $presentDays++;
+                } else {
+                    $presentDays++;
+                }
                 $totalWorkedSeconds += $seconds;
 
                 $latestPunch = self::getLatestPunch($employeeId, $curDate);
@@ -1185,34 +1197,38 @@ class Attendance extends Model {
                 $records[] = [
                     'date' => $curDate,
                     'day_name' => date('D', strtotime($curDate)),
-                    'status' => 'P',
-                    'audit_status' => $auditStatus,
+                    'status' => $isOD ? 'OD' : 'P',
+                    'audit_status' => $isOD ? 'OD_DUTY' : $auditStatus,
                     'first_in' => $firstIn ? date('h:i:s A', strtotime($firstIn)) : null,
                     'last_out' => $lastOut ? date('h:i:s A', strtotime($lastOut)) : null,
                     'in_photo' => $inPhoto,
                     'out_photo' => $outPhoto,
                     'punch_count' => $countPunches,
                     'punches' => $punches,
-                    'leave_info' => null,
+                    'leave_info' => $leaveInfo,
                     'seconds' => $seconds,
                     'formatted_duration' => format_seconds($seconds),
                     'hours' => round($seconds / 3600, 2)
                 ];
-            } elseif (isset($leaveMap[$curDate])) {
-                $lv = $leaveMap[$curDate];
-                $leaveDays++;
+            } elseif ($leaveInfo) {
+                if ($isOD) {
+                    $odDays++;
+                    $presentDays++; // OD is treated as official duty
+                } else {
+                    $leaveDays++;
+                }
                 $records[] = [
                     'date' => $curDate,
                     'day_name' => date('D', strtotime($curDate)),
-                    'status' => 'L',
-                    'audit_status' => 'LEAVE',
+                    'status' => $isOD ? 'OD' : 'L',
+                    'audit_status' => $isOD ? 'OD_OFFSITE' : 'LEAVE',
                     'first_in' => null,
                     'last_out' => null,
                     'in_photo' => null,
                     'out_photo' => null,
                     'punch_count' => 0,
                     'punches' => [],
-                    'leave_info' => $lv,
+                    'leave_info' => $leaveInfo,
                     'seconds' => 0,
                     'formatted_duration' => '00:00:00',
                     'hours' => 0
@@ -1252,6 +1268,7 @@ class Attendance extends Model {
             'summary' => [
                 'total_days' => $totalDays,
                 'present_days' => $presentDays,
+                'od_days' => $odDays,
                 'leave_days' => $leaveDays,
                 'absent_days' => $absentDays,
                 'total_punches' => $totalPunches,

@@ -599,14 +599,20 @@
                                             <div class="text-muted small"><?= $rec['day_name'] ?></div>
                                         </td>
                                         <td>
-                                            <?php if ($rec['status'] === 'P'): ?>
+                                            <?php if ($rec['status'] === 'OD'): 
+                                                $lv = $rec['leave_info'] ?? [];
+                                            ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1 fw-bold">
+                                                    <i class="fa-solid fa-briefcase me-1"></i>OD (Outdoor Duty)
+                                                </span>
+                                            <?php elseif ($rec['status'] === 'P'): ?>
                                                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
                                                     <i class="fa-solid fa-check me-1"></i>Present
                                                 </span>
                                             <?php elseif ($rec['status'] === 'L'): 
                                                 $lv = $rec['leave_info'] ?? [];
                                             ?>
-                                                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1">
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1 fw-bold">
                                                     <i class="fa-solid fa-plane-departure me-1"></i><?= e($lv['leave_type'] ?? 'Leave') ?>
                                                 </span>
                                             <?php elseif ($rec['status'] === 'W'): ?>
@@ -637,13 +643,33 @@
                                         <td><span class="fw-semibold text-dark"><?= $rec['formatted_duration'] ?></span></td>
                                         <td><span class="fw-bold text-primary"><?= $rec['hours'] ?>h</span></td>
                                         <td class="pe-3">
-                                            <?php if (!empty($rec['leave_info']['target_site'])): ?>
-                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                                    <i class="fa-solid fa-location-dot text-danger me-1"></i>Target Site: <?= e($rec['leave_info']['target_site']) ?>
-                                                </span>
-                                            <?php elseif (!empty($rec['leave_info']['reason'])): ?>
-                                                <span class="text-muted small"><?= e($rec['leave_info']['reason']) ?></span>
-                                            <?php else: ?>
+                                            <?php 
+                                            $lvInfo = $rec['leave_info'] ?? [];
+                                            ?>
+                                            <?php if (!empty($lvInfo['target_site'])): ?>
+                                                <div class="d-inline-block">
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                                        <i class="fa-solid fa-location-dot text-danger me-1"></i>Target: <?= e($lvInfo['target_site']) ?>
+                                                    </span>
+                                                    <?php if (!empty($lvInfo['origin_site'])): ?>
+                                                        <span class="small text-muted ms-1">(From: <?= e($lvInfo['origin_site']) ?>)</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($lvInfo['reason'])): ?>
+                                                <div class="small text-dark mt-1"><i class="fa-regular fa-comment-dots text-muted me-1"></i><?= e($lvInfo['reason']) ?></div>
+                                            <?php endif; ?>
+
+                                            <?php if (!empty($lvInfo['attachment'])): ?>
+                                                <div class="mt-1">
+                                                    <a href="<?= uploaded_url($lvInfo['attachment']) ?>" target="_blank" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-pill" style="font-size: 0.75rem;">
+                                                        <i class="fa-solid fa-file-pdf me-1"></i>PDF Sheet
+                                                    </a>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <?php if (empty($lvInfo['target_site']) && empty($lvInfo['reason']) && empty($lvInfo['attachment'])): ?>
                                                 <span class="text-muted">—</span>
                                             <?php endif; ?>
                                         </td>

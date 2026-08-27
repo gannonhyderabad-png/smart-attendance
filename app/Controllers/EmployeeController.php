@@ -257,13 +257,15 @@ class EmployeeController extends Controller {
         $punchUrl = punch_url($employee['employee_code']);
         $recentAttendance = Attendance::getPairedSessions(['employee_id' => $employee['id']], 10, 0);
         $todayWorkSeconds = Attendance::calculateWorkSeconds($employee['id'], date('Y-m-d'));
+        $leaves = \App\Models\Leave::all(['employee_id' => $employee['id']]);
 
         $this->view('employees.view', [
             'title' => 'Employee Details - ' . $employee['name'],
             'employee' => $employee,
             'punchUrl' => $punchUrl,
             'recentAttendance' => $recentAttendance,
-            'todayWorkSeconds' => $todayWorkSeconds
+            'todayWorkSeconds' => $todayWorkSeconds,
+            'leaves' => $leaves
         ], 'admin');
     }
 

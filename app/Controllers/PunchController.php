@@ -36,11 +36,17 @@ class PunchController extends Controller {
         $todayPunches = Attendance::getDayPunches($employee['id'], $today);
         $workedSeconds = Attendance::calculateWorkSeconds($employee['id'], $today);
 
-        // Determine current status
-        $shiftEnd = !empty($employee['shift_end']) ? $employee['shift_end'] : '18:00:00';
-        $shiftEndTs = strtotime($today . ' ' . $shiftEnd);
-        $isNoOutAutoClosed = ($latestPunch && $latestPunch['punch_type'] === 'IN' && time() > $shiftEndTs);
-        $currentStatus = $latestPunch ? $latestPunch['punch_type'] : 'OUT';
+        // Check if employee has an active leave or OD entry today
+        $todayLeave = null;
+        $activeLeaves = \App\Models\Leave::all([
+            'employee_id' => $employee['id'],
+            'month_start' => $today,
+            'month_end' => $today,
+            'status' => 'APPROVED'
+        ]);
+        if (!empty($activeLeaves)) {
+            $todayLeave = $activeLeaves[0];
+        }
 
         $this->view('punch.index', [
             'employee' => $employee,
@@ -49,6 +55,7 @@ class PunchController extends Controller {
             'workedSeconds' => $workedSeconds,
             'currentStatus' => $currentStatus,
             'isNoOutAutoClosed' => $isNoOutAutoClosed,
+            'todayLeave' => $todayLeave,
             'clientIp' => Request::getClientIp(),
             'deviceInfo' => parse_user_agent_details(Request::getUserAgent())
         ], 'mobile');

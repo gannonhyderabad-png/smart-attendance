@@ -443,10 +443,12 @@ class ReportController extends Controller {
 
         foreach ($report['records'] as $rec) {
             $statusText = match($rec['audit_status']) {
+                'OD_DUTY' => 'OD (Outdoor Duty - Punched)',
+                'OD_OFFSITE' => 'OD (Outdoor Duty - Field Visit)',
                 'COMPLETED' => 'Present (Completed)',
                 'CHECKED_IN' => 'Working Now',
                 'NO_OUT' => 'Auto-Closed (No OUT)',
-                'LEAVE' => 'Leave: ' . ($rec['leave_info']['leave_type'] ?? 'Approved'),
+                'LEAVE' => 'Leave (' . ($rec['leave_info']['leave_type'] ?? 'Approved') . ')',
                 'WEEKEND' => 'Weekend OFF',
                 default => 'Absent'
             };
@@ -454,8 +456,16 @@ class ReportController extends Controller {
             $notes = '';
             if (!empty($rec['leave_info'])) {
                 $lv = $rec['leave_info'];
-                if (!empty($lv['target_site'])) $notes .= "Target Site: " . $lv['target_site'] . " | ";
-                if (!empty($lv['reason'])) $notes .= $lv['reason'];
+                $isOd = str_contains(strtoupper($lv['leave_type'] ?? ''), 'OD') || str_contains(strtoupper($lv['leave_type'] ?? ''), 'OUTDOOR') || str_contains(strtoupper($lv['leave_type'] ?? ''), 'DUTY');
+                if ($isOd) {
+                    $notes .= "OD Target Site: " . ($lv['target_site'] ?? 'Field Site');
+                    if (!empty($lv['origin_site'])) $notes .= " (From: " . $lv['origin_site'] . ")";
+                    if (!empty($lv['reason'])) $notes .= " | Notes: " . $lv['reason'];
+                    if (!empty($lv['attachment'])) $notes .= " [PDF Attached]";
+                } else {
+                    $notes .= "Leave Reason: " . ($lv['reason'] ?? $lv['leave_type']);
+                    if (!empty($lv['attachment'])) $notes .= " [PDF Attached]";
+                }
             }
 
             $rows[] = [

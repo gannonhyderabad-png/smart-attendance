@@ -258,6 +258,29 @@
                 </div>
             <?php endif; ?>
 
+            <!-- Active Leave or OD (Outdoor Duty) Notification Banner -->
+            <?php if (!empty($todayLeave)): 
+                $isOdToday = str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'OD') || str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'OUTDOOR') || str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'DUTY');
+            ?>
+                <div class="alert <?= $isOdToday ? 'alert-primary border-primary' : 'alert-warning border-warning' ?> rounded-4 text-start p-3 mb-3 shadow-sm">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="<?= $isOdToday ? 'fa-solid fa-briefcase text-primary' : 'fa-solid fa-plane-departure text-warning' ?> fs-5"></i>
+                        <h6 class="fw-bold mb-0 text-dark">
+                            <?= $isOdToday ? 'Active Outdoor Duty (OD)' : 'Approved Leave Active Today' ?>
+                        </h6>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <strong>Type:</strong> <span class="badge <?= $isOdToday ? 'bg-primary text-white' : 'bg-warning text-dark' ?> ms-1"><?= e($todayLeave['leave_type']) ?></span>
+                        <?php if (!empty($todayLeave['target_site'])): ?>
+                            <div class="mt-1 text-dark"><i class="fa-solid fa-location-dot text-danger me-1"></i><strong>Assigned Target Site:</strong> <?= e($todayLeave['target_site']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($todayLeave['reason'])): ?>
+                            <div class="mt-1"><i class="fa-regular fa-comment-dots me-1"></i><strong>Notes:</strong> <?= e($todayLeave['reason']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Status Banner -->
             <div id="statusBannerBox" class="status-pill-box <?= $currentStatus === 'IN' ? 'status-in' : 'status-out' ?>">
                 <div class="d-flex align-items-center justify-content-center gap-1">

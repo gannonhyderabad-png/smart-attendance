@@ -222,6 +222,97 @@
             </div>
         </div>
 
+        <!-- Leave & OD (Outdoor Duty) History Log -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-plane-departure text-warning me-2"></i>Approved Leaves & OD Site Logs</h5>
+                    <small class="text-muted">Recorded leave periods, outdoor duties, target sites, and attached sheets</small>
+                </div>
+                <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm border rounded-pill px-3">
+                    Manage Leaves <i class="fa-solid fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Dates</th>
+                                <th>Type</th>
+                                <th>Days</th>
+                                <th>Site Route / Target</th>
+                                <th>Reason / Notes</th>
+                                <th class="pe-4 text-end">PDF Sheet</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            <?php if (empty($leaves)): ?>
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fa-regular fa-folder-open fs-4 d-block mb-2 text-secondary"></i>
+                                        No leave or outdoor duty logs recorded for this employee.
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($leaves as $lv): 
+                                    $isOd = str_contains(strtoupper($lv['leave_type'] ?? ''), 'OD') || str_contains(strtoupper($lv['leave_type'] ?? ''), 'OUTDOOR') || str_contains(strtoupper($lv['leave_type'] ?? ''), 'DUTY');
+                                ?>
+                                    <tr>
+                                        <td class="ps-4 fw-semibold text-dark">
+                                            <?= date('d M Y', strtotime($lv['start_date'])) ?>
+                                            <?php if ($lv['start_date'] !== $lv['end_date']): ?>
+                                                <div class="text-muted small">to <?= date('d M Y', strtotime($lv['end_date'])) ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($isOd): ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1 fw-bold">
+                                                    <i class="fa-solid fa-briefcase me-1"></i><?= e($lv['leave_type']) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1 fw-bold">
+                                                    <i class="fa-solid fa-plane-departure me-1"></i><?= e($lv['leave_type']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><span class="badge bg-light text-dark border"><?= e($lv['days_count']) ?> day(s)</span></td>
+                                        <td>
+                                            <?php if (!empty($lv['target_site'])): ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                                    <i class="fa-solid fa-location-dot text-danger me-1"></i>Target: <?= e($lv['target_site']) ?>
+                                                </span>
+                                                <?php if (!empty($lv['origin_site'])): ?>
+                                                    <div class="small text-muted mt-1">From: <?= e($lv['origin_site']) ?></div>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 200px;" title="<?= e($lv['reason']) ?>">
+                                                <?= !empty($lv['reason']) ? e($lv['reason']) : '<span class="text-muted">—</span>' ?>
+                                            </div>
+                                        </td>
+                                        <td class="pe-4 text-end">
+                                            <?php if (!empty($lv['attachment'])): ?>
+                                                <a href="<?= uploaded_url($lv['attachment']) ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-semibold shadow-sm" style="font-size: 0.78rem;">
+                                                    <i class="fa-solid fa-file-pdf me-1"></i> View Sheet
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="text-muted small">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center">
             <a href="<?= base_url('employees') ?>" class="btn btn-outline-secondary rounded-pill px-4">
                 <i class="fa-solid fa-arrow-left me-1"></i> Back to Employee List

@@ -132,4 +132,132 @@ class ApiController extends Controller {
             'server_time' => date('Y-m-d H:i:s')
         ]);
     }
+
+    /**
+     * Resolve Google Maps shortlinks, share links, coordinates, or addresses
+     * POST or GET /api/resolve-location
+     */
+    public function resolveLocation(): void {
+        $input = trim(Request::input('query', Request::input('url', '')));
+        if (empty($input)) {
+            $this->json(['success' => false, 'message' => 'Please provide a location query, link, or coordinates.'], 400);
+            return;
+        }
+
+        // 1. Direct Decimal Coordinates check: e.g. "17.437462, 78.448251"
+        if (preg_match('/(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/', $input, $m)) {
+            $lat = (float) $m[1];
+            $lon = (float) $m[2];
+            if ($lat >= -90 && $lat <= 90 && $lon >= -180 && $lon <= 180) {
+                $this->json([
+                    'success' => true,
+                    'lat' => round($lat, 6),
+                    'lon' => round($lon, 6),
+                    'formatted_address' => "Coordinates ({$lat}, {$lon})",
+                    'type' => 'coordinates'
+                ]);
+                return;
+            }
+        }
+
+        // 2. Google Maps URL or Shortlink Resolver (maps.app.goo.gl, goo.gl/maps, google.com/maps)
+        if (stripos($input, 'http://') === 0 || stripos($input, 'https://') === 0 || stripos($input, 'maps.app.goo.gl') !== false || stripos($input, 'goo.gl/maps') !== false || stripos($input, 'google.com/maps') !== false || stripos($input, 'maps.google.com') !== false) {
+            $url = $input;
+            if (stripos($url, 'http') !== 0) {
+                $url = 'https://' . $url;
+            }
+
+            $effectiveUrl = $url;
+            $response = '';
+
+            if (function_exists('curl_init')) {
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+                curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                $response = curl_exec($ch) ?: '';
+                $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL) ?: $url;
+                curl_close($ch);
+            }
+
+            // Check effective resolved URL for coordinates
+            $combined = $effectiveUrl . ' ' . $response;
+
+            // Pattern A: @lat,lon
+            if (preg_match('/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/', $combined, $m)) {
+                $this->json([
+                    'success' => true,
+                    'lat' => round((float) $m[1], 6),
+                    'lon' => round((float) $m[2], 6),
+                    'formatted_address' => 'Google Maps Location',
+                    'type' => 'google_maps_link',
+                    'resolved_url' => $effectiveUrl
+                ]);
+                return;
+            }
+
+            // Pattern B: !3dlat!4dlon
+            if (preg_match('/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/', $combined, $m)) {
+                $this->json([
+                    'success' => true,
+                    'lat' => round((float) $m[1], 6),
+                    'lon' => round((float) $m[2], 6),
+                    'formatted_address' => 'Google Maps Place Pin',
+                    'type' => 'google_maps_link',
+                    'resolved_url' => $effectiveUrl
+                ]);
+                return;
+            }
+
+            // Pattern C: ?q=lat,lon or /search/lat,lon or /place/lat,lon
+            if (preg_match('/(?:[?&](?:q|ll|query)=|\/place\/|\/search\/)(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/', $combined, $m)) {
+                $this->json([
+                    'success' => true,
+                    'lat' => round((float) $m[1], 6),
+                    'lon' => round((float) $m[2], 6),
+                    'formatted_address' => 'Google Maps Location',
+                    'type' => 'google_maps_link',
+                    'resolved_url' => $effectiveUrl
+                ]);
+                return;
+            }
+        }
+
+        // 3. Search / Geocode Address via OpenStreetMap Nominatim
+        $geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&q=' . urlencode($input) . '&limit=1';
+        $geoRes = '';
+        if (function_exists('curl_init')) {
+            $ch = curl_init($geoUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'SmartAttendanceApp/2.0 (admin@attendance.local)');
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $geoRes = curl_exec($ch) ?: '';
+            curl_close($ch);
+        } else {
+            $geoRes = @file_get_contents($geoUrl);
+        }
+
+        if ($geoRes) {
+            $data = json_decode($geoRes, true);
+            if (!empty($data) && isset($data[0]['lat']) && isset($data[0]['lon'])) {
+                $this->json([
+                    'success' => true,
+                    'lat' => round((float) $data[0]['lat'], 6),
+                    'lon' => round((float) $data[0]['lon'], 6),
+                    'formatted_address' => $data[0]['display_name'],
+                    'type' => 'geocoded_address'
+                ]);
+                return;
+            }
+        }
+
+        $this->json([
+            'success' => false,
+            'message' => 'Could not determine exact GPS coordinates from this input. Please copy and paste the decimal coordinates directly from Google Maps (e.g. 17.437462, 78.448251) or drag the pin on the map.'
+        ], 422);
+    }
 }

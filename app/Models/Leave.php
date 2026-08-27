@@ -198,16 +198,43 @@ class Leave extends Model {
             else $otherTaken += $days;
         }
 
-        $assigned = self::getCompanyAssignedLeaves();
+        // Check if employee has custom quotas
+        $empStmt = $pdo->prepare("SELECT cl_quota, sl_quota, pl_quota FROM employees WHERE id = ? LIMIT 1");
+        $empStmt->execute([$employeeId]);
+        $empRow = $empStmt->fetch(PDO::FETCH_ASSOC);
+
+        $defaultAssigned = self::getCompanyAssignedLeaves();
+        $isCustom = false;
+
+        $clAssigned = $defaultAssigned['CL'];
+        if ($empRow && isset($empRow['cl_quota']) && $empRow['cl_quota'] !== null && $empRow['cl_quota'] !== '') {
+            $clAssigned = (float) $empRow['cl_quota'];
+            $isCustom = true;
+        }
+
+        $slAssigned = $defaultAssigned['SL'];
+        if ($empRow && isset($empRow['sl_quota']) && $empRow['sl_quota'] !== null && $empRow['sl_quota'] !== '') {
+            $slAssigned = (float) $empRow['sl_quota'];
+            $isCustom = true;
+        }
+
+        $plAssigned = $defaultAssigned['PL'];
+        if ($empRow && isset($empRow['pl_quota']) && $empRow['pl_quota'] !== null && $empRow['pl_quota'] !== '') {
+            $plAssigned = (float) $empRow['pl_quota'];
+            $isCustom = true;
+        }
+
+        $totalAssigned = $clAssigned + $slAssigned + $plAssigned;
         $totalStandardTaken = $clTaken + $slTaken + $plTaken + $otherTaken;
 
         return [
             'year' => $year,
+            'is_custom' => $isCustom,
             'assigned' => [
-                'CL' => $assigned['CL'],
-                'SL' => $assigned['SL'],
-                'PL' => $assigned['PL'],
-                'total' => $assigned['total']
+                'CL' => $clAssigned,
+                'SL' => $slAssigned,
+                'PL' => $plAssigned,
+                'total' => $totalAssigned
             ],
             'taken' => [
                 'CL' => $clTaken,
@@ -218,10 +245,10 @@ class Leave extends Model {
                 'total' => $totalStandardTaken
             ],
             'balance' => [
-                'CL' => max(0.0, $assigned['CL'] - $clTaken),
-                'SL' => max(0.0, $assigned['SL'] - $slTaken),
-                'PL' => max(0.0, $assigned['PL'] - $plTaken),
-                'total' => max(0.0, $assigned['total'] - $totalStandardTaken)
+                'CL' => max(0.0, $clAssigned - $clTaken),
+                'SL' => max(0.0, $slAssigned - $slTaken),
+                'PL' => max(0.0, $plAssigned - $plTaken),
+                'total' => max(0.0, $totalAssigned - $totalStandardTaken)
             ]
         ];
     }

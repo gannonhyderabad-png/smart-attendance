@@ -1,11 +1,14 @@
 <div class="row mb-4 align-items-center">
-    <div class="col-md-7">
+    <div class="col-md-6">
         <h4 class="fw-bold mb-1 text-dark">
             <i class="fa-solid fa-plane-departure text-warning me-2"></i>Employee Leave Management
         </h4>
         <p class="text-muted small mb-0">Record and manage approved leaves, sick days, on-duty visits, and custom time-offs for employees.</p>
     </div>
-    <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end">
+    <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end">
+        <button type="button" class="btn btn-outline-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#editCompanyQuotaModal">
+            <i class="fa-solid fa-sliders me-1"></i> Edit Company Leave Quota
+        </button>
         <button type="button" class="btn btn-primary rounded-pill shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addLeaveModal">
             <i class="fa-solid fa-plus me-1"></i> Add Leave Entry
         </button>
@@ -101,7 +104,8 @@
                             <th>Sick Leave (SL)</th>
                             <th>Paid Leave (PL)</th>
                             <th>Outdoor Duty (OD)</th>
-                            <th class="pe-4 text-end">Available Balance</th>
+                            <th>Available Balance</th>
+                            <th class="pe-4 text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody class="small">
@@ -121,10 +125,15 @@
                                     <div class="text-muted small"><i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($emp['site'] ?? 'Main Site') ?></div>
                                 </td>
                                 <td>
-                                    <span class="badge bg-light text-dark border font-monospace">
-                                        <?= $bal['assigned']['total'] ?> Days
-                                    </span>
-                                    <div class="text-muted small mt-1" style="font-size: 0.68rem;">12 CL &bull; 10 SL &bull; 15 PL</div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="badge bg-light text-dark border font-monospace">
+                                            <?= $bal['assigned']['total'] ?> Days
+                                        </span>
+                                        <?php if (!empty($bal['is_custom'])): ?>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-1" style="font-size: 0.65rem;">Custom</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-muted small mt-1" style="font-size: 0.68rem;"><?= $bal['assigned']['CL'] ?> CL &bull; <?= $bal['assigned']['SL'] ?> SL &bull; <?= $bal['assigned']['PL'] ?> PL</div>
                                 </td>
                                 <td>
                                     <div class="fw-semibold text-info"><?= $bal['taken']['CL'] ?> used</div>
@@ -143,11 +152,24 @@
                                         <?= $bal['taken']['OD'] ?> Visits
                                     </span>
                                 </td>
-                                <td class="pe-4 text-end">
+                                <td>
                                     <span class="badge <?= $bal['balance']['total'] > 5 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' ?> rounded-pill px-3 py-1 fw-bold fs-6 font-monospace">
                                         <?= $bal['balance']['total'] ?> / <?= $bal['assigned']['total'] ?>
                                     </span>
                                     <div class="text-muted small mt-1">Days Remaining</div>
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openEditEmpQuota(<?= htmlspecialchars(json_encode([
+                                        'id' => $emp['id'],
+                                        'name' => $emp['name'],
+                                        'code' => $emp['employee_code'],
+                                        'cl' => $bal['assigned']['CL'],
+                                        'sl' => $bal['assigned']['SL'],
+                                        'pl' => $bal['assigned']['PL'],
+                                        'is_custom' => $bal['is_custom'] ?? false
+                                    ])) ?>)" title="Edit Leave Quota for this employee">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i> Edit Quota
+                                    </button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -462,8 +484,114 @@
     </div>
 </div>
 
+<!-- Edit Company Standard Leave Quota Modal -->
+<div class="modal fade" id="editCompanyQuotaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-sliders text-primary me-2"></i>Edit Company Leave Quota
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= base_url('leaves/update-company-quota') ?>" method="POST">
+                <?= csrf_field() ?>
+                <div class="modal-body py-4">
+                    <p class="text-muted small mb-3">Set standard annual leave allowances assigned by the company to all employees.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Casual Leave (CL) Quota (Days/Year) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.5" min="0" max="365" name="cl_quota" id="compClQuota" class="form-control bg-light font-monospace fw-bold" value="<?= $companyQuotas['CL'] ?? 12 ?>" required oninput="calcCompTotal()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Sick Leave (SL) Quota (Days/Year) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.5" min="0" max="365" name="sl_quota" id="compSlQuota" class="form-control bg-light font-monospace fw-bold" value="<?= $companyQuotas['SL'] ?? 10 ?>" required oninput="calcCompTotal()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Paid / Annual Leave (PL) Quota (Days/Year) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.5" min="0" max="365" name="pl_quota" id="compPlQuota" class="form-control bg-light font-monospace fw-bold" value="<?= $companyQuotas['PL'] ?? 15 ?>" required oninput="calcCompTotal()">
+                    </div>
+
+                    <div class="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary-subtle d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold text-dark">Total Company Annual Allowance:</span>
+                        <span id="compTotalDisplay" class="badge bg-primary text-white fs-6 font-monospace px-3 py-2 rounded-pill"><?= $companyQuotas['total'] ?? 37 ?> Days</span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Update Company Quota
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Individual Employee Leave Quota Modal -->
+<div class="modal fade" id="editEmpQuotaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-user-pen text-primary me-2"></i>Edit Employee Leave Quota
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= base_url('leaves/update-employee-quota') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="employee_id" id="editEmpId">
+                <div class="modal-body py-4">
+                    <div class="p-3 bg-light rounded-4 border mb-3">
+                        <div class="fw-bold text-dark" id="editEmpName">—</div>
+                        <div class="text-muted font-monospace small" id="editEmpCode">—</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="use_company_default" id="useCompanyDefaultCheck" value="1" onchange="toggleCustomQuotaInputs(this.checked)">
+                        <label class="form-check-label small fw-semibold text-dark" for="useCompanyDefaultCheck">
+                            Use Standard Company Quota (<?= $companyQuotas['total'] ?? 37 ?> Days)
+                        </label>
+                    </div>
+
+                    <div id="customQuotaInputsContainer">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Custom Casual Leave (CL) Quota</label>
+                            <input type="number" step="0.5" min="0" max="365" name="cl_quota" id="editEmpCl" class="form-control bg-light font-monospace fw-bold" oninput="calcEmpTotal()">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Custom Sick Leave (SL) Quota</label>
+                            <input type="number" step="0.5" min="0" max="365" name="sl_quota" id="editEmpSl" class="form-control bg-light font-monospace fw-bold" oninput="calcEmpTotal()">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Custom Paid Leave (PL) Quota</label>
+                            <input type="number" step="0.5" min="0" max="365" name="pl_quota" id="editEmpPl" class="form-control bg-light font-monospace fw-bold" oninput="calcEmpTotal()">
+                        </div>
+
+                        <div class="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary-subtle d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold text-dark">Total Assigned to this Employee:</span>
+                            <span id="editEmpTotalDisplay" class="badge bg-primary text-white fs-6 font-monospace px-3 py-2 rounded-pill">0 Days</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Save Employee Quota
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 const allEmployeeBalances = <?= json_encode($employeeBalances ?? []) ?>;
+const defaultCompanyQuotas = <?= json_encode($companyQuotas ?? ['CL' => 12, 'SL' => 10, 'PL' => 15, 'total' => 37]) ?>;
 const employeesLookup = {
     <?php foreach ($employees as $emp): ?>
         "<?= addslashes(strtolower($emp['employee_code'])) ?>": <?= (int)$emp['id'] ?>,
@@ -471,6 +599,55 @@ const employeesLookup = {
         "<?= (int)$emp['id'] ?>": <?= (int)$emp['id'] ?>,
     <?php endforeach; ?>
 };
+
+function calcCompTotal() {
+    const cl = parseFloat(document.getElementById('compClQuota').value) || 0;
+    const sl = parseFloat(document.getElementById('compSlQuota').value) || 0;
+    const pl = parseFloat(document.getElementById('compPlQuota').value) || 0;
+    document.getElementById('compTotalDisplay').textContent = `${(cl + sl + pl)} Days`;
+}
+
+function openEditEmpQuota(data) {
+    document.getElementById('editEmpId').value = data.id;
+    document.getElementById('editEmpName').textContent = data.name;
+    document.getElementById('editEmpCode').textContent = data.code;
+    
+    const isCustom = data.is_custom;
+    const check = document.getElementById('useCompanyDefaultCheck');
+    check.checked = !isCustom;
+
+    document.getElementById('editEmpCl').value = data.cl;
+    document.getElementById('editEmpSl').value = data.sl;
+    document.getElementById('editEmpPl').value = data.pl;
+
+    toggleCustomQuotaInputs(!isCustom);
+    calcEmpTotal();
+
+    const modal = new bootstrap.Modal(document.getElementById('editEmpQuotaModal'));
+    modal.show();
+}
+
+function toggleCustomQuotaInputs(useDefault) {
+    const container = document.getElementById('customQuotaInputsContainer');
+    if (useDefault) {
+        container.style.opacity = '0.5';
+        container.style.pointerEvents = 'none';
+        document.getElementById('editEmpCl').value = defaultCompanyQuotas.CL;
+        document.getElementById('editEmpSl').value = defaultCompanyQuotas.SL;
+        document.getElementById('editEmpPl').value = defaultCompanyQuotas.PL;
+    } else {
+        container.style.opacity = '1';
+        container.style.pointerEvents = 'auto';
+    }
+    calcEmpTotal();
+}
+
+function calcEmpTotal() {
+    const cl = parseFloat(document.getElementById('editEmpCl').value) || 0;
+    const sl = parseFloat(document.getElementById('editEmpSl').value) || 0;
+    const pl = parseFloat(document.getElementById('editEmpPl').value) || 0;
+    document.getElementById('editEmpTotalDisplay').textContent = `${(cl + sl + pl)} Days`;
+}
 
 function updateModalEmpQuota(val) {
     const box = document.getElementById('modalEmpQuotaBox');
@@ -496,7 +673,6 @@ function updateModalEmpQuota(val) {
     }
 
     if (!empId) {
-        // Search by code substring
         for (const [key, id] of Object.entries(employeesLookup)) {
             if (cleanVal.includes(key) || key.includes(cleanVal)) {
                 empId = id;

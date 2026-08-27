@@ -350,6 +350,8 @@ $router->post('/holidays/delete', [\App\Controllers\HolidayController::class, 'd
 $router->get('/leaves', [\App\Controllers\LeaveController::class, 'index']);
 $router->post('/leaves/create', [\App\Controllers\LeaveController::class, 'store']);
 $router->post('/leaves/delete', [\App\Controllers\LeaveController::class, 'delete']);
+$router->post('/leaves/update-company-quota', [\App\Controllers\LeaveController::class, 'updateCompanyQuota']);
+$router->post('/leaves/update-employee-quota', [\App\Controllers\LeaveController::class, 'updateEmployeeQuota']);
 
 // Reports & Analytics
 $router->get('/reports', [\App\Controllers\ReportController::class, 'index']);

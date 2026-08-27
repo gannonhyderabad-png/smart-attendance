@@ -158,4 +158,63 @@ class LeaveController extends Controller {
 
         redirect($returnUrl);
     }
+
+    /**
+     * Update Company Standard Leave Quota (Admin Permission)
+     */
+    public function updateCompanyQuota(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $cl = max(0, (float) Request::input('cl_quota', 12));
+        $sl = max(0, (float) Request::input('sl_quota', 10));
+        $pl = max(0, (float) Request::input('pl_quota', 15));
+        $total = $cl + $sl + $pl;
+
+        \App\Models\Setting::set('company_assigned_cl', (string)$cl);
+        \App\Models\Setting::set('company_assigned_sl', (string)$sl);
+        \App\Models\Setting::set('company_assigned_pl', (string)$pl);
+        \App\Models\Setting::set('company_assigned_total', (string)$total);
+
+        Logger::log(Auth::id(), 'COMPANY_LEAVE_QUOTA_UPDATED', "Updated company standard leave quotas: CL={$cl}, SL={$sl}, PL={$pl}, Total={$total} Days");
+        $_SESSION['flash_success'] = "Company Assigned Leave Quota updated successfully! (CL: {$cl}, SL: {$sl}, PL: {$pl} = Total {$total} Days/Year)";
+        redirect('leaves');
+    }
+
+    /**
+     * Update Individual Employee Custom Leave Quota (Admin Permission)
+     */
+    public function updateEmployeeQuota(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $employeeId = (int) Request::input('employee_id', 0);
+        $emp = Employee::find($employeeId);
+        if (!$emp) {
+            $_SESSION['flash_error'] = 'Employee not found.';
+            redirect('leaves');
+        }
+
+        $useDefault = Request::input('use_company_default');
+        $pdo = \Database\Database::getConnection();
+        if ($useDefault) {
+            $stmt = $pdo->prepare("UPDATE employees SET cl_quota = NULL, sl_quota = NULL, pl_quota = NULL WHERE id = ?");
+            $stmt->execute([$employeeId]);
+            Logger::log(Auth::id(), 'EMPLOYEE_LEAVE_QUOTA_RESET', "Reset {$emp['name']} ({$emp['employee_code']}) leave quota to Company Standard");
+            $_SESSION['flash_success'] = "{$emp['name']}'s leave quota reset to company standard.";
+        } else {
+            $cl = max(0, (float) Request::input('cl_quota', 12));
+            $sl = max(0, (float) Request::input('sl_quota', 10));
+            $pl = max(0, (float) Request::input('pl_quota', 15));
+
+            $stmt = $pdo->prepare("UPDATE employees SET cl_quota = ?, sl_quota = ?, pl_quota = ? WHERE id = ?");
+            $stmt->execute([$cl, $sl, $pl, $employeeId]);
+
+            $total = $cl + $sl + $pl;
+            Logger::log(Auth::id(), 'EMPLOYEE_LEAVE_QUOTA_UPDATED', "Updated {$emp['name']} ({$emp['employee_code']}) custom leave quota: CL={$cl}, SL={$sl}, PL={$pl}, Total={$total} Days");
+            $_SESSION['flash_success'] = "Custom leave quota for {$emp['name']} updated: {$cl} CL, {$sl} SL, {$pl} PL (Total {$total} Days).";
+        }
+
+        redirect('leaves');
+    }
 }

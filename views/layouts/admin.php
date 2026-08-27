@@ -54,13 +54,8 @@
                 
                 <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">Reports & Analytics</li>
                 <li class="nav-item">
-                    <a href="<?= base_url('reports/daily') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports/daily') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-chart-pie me-2 fa-fw"></i> Daily Summary
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('reports/monthly') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports/monthly') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-table-cells me-2 fa-fw"></i> Monthly Timesheet
+                    <a href="<?= base_url('reports') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports') ? 'active' : 'text-white-50' ?>">
+                        <i class="fa-solid fa-chart-column me-2 fa-fw text-info"></i> Attendance Reports
                     </a>
                 </li>
                 <li class="nav-item">

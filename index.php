@@ -349,12 +349,16 @@ $router->get('/leaves', [\App\Controllers\LeaveController::class, 'index']);
 $router->post('/leaves/create', [\App\Controllers\LeaveController::class, 'store']);
 $router->post('/leaves/delete', [\App\Controllers\LeaveController::class, 'delete']);
 
-// Reports
+// Reports & Analytics
+$router->get('/reports', [\App\Controllers\ReportController::class, 'index']);
+$router->get('/reports/export', [\App\Controllers\ReportController::class, 'export']);
 $router->get('/reports/daily', [\App\Controllers\ReportController::class, 'daily']);
 $router->get('/reports/daily/export', [\App\Controllers\ReportController::class, 'exportDailyCsv']);
+$router->get('/reports/weekly', [\App\Controllers\ReportController::class, 'weekly']);
 $router->get('/reports/monthly', [\App\Controllers\ReportController::class, 'monthly']);
 $router->get('/reports/monthly/export', [\App\Controllers\ReportController::class, 'exportMonthlyCsv']);
 $router->get('/reports/monthly/audit-export', [\App\Controllers\ReportController::class, 'exportMonthlyAuditCsv']);
+$router->get('/reports/employee', [\App\Controllers\ReportController::class, 'employee']);
 
 // System Logs, Backups & Admin Settings
 $router->get('/logs', [\App\Controllers\LogController::class, 'index']);

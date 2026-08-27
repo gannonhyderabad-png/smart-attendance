@@ -913,4 +913,352 @@ class Attendance extends Model {
             'data' => $report
         ];
     }
+
+    /**
+     * Weekly attendance report for a specified date range
+     */
+    public static function getWeeklyReport(string $startDate, string $endDate, ?int $departmentId = null, ?string $site = null): array {
+        $empSql = "SELECT e.*, d.name as department_name 
+                   FROM employees e 
+                   LEFT JOIN departments d ON e.department_id = d.id 
+                   WHERE e.status = 'active'";
+        $empParams = [];
+        if ($departmentId) {
+            $empSql .= " AND e.department_id = ?";
+            $empParams[] = $departmentId;
+        }
+        if ($site) {
+            $empSql .= " AND e.site LIKE ?";
+            $empParams[] = '%' . $site . '%';
+        }
+        $empSql .= " ORDER BY e.name ASC";
+
+        $stmt = self::db()->prepare($empSql);
+        $stmt->execute($empParams);
+        $employees = $stmt->fetchAll();
+
+        // Calculate days in range
+        $startTs = strtotime($startDate);
+        $endTs = strtotime($endDate);
+        $days = [];
+        $cur = $startTs;
+        while ($cur <= $endTs) {
+            $days[] = date('Y-m-d', $cur);
+            $cur = strtotime('+1 day', $cur);
+        }
+
+        // Get leaves within range
+        $leaves = Leave::all([
+            'month_start' => $startDate,
+            'month_end' => $endDate,
+            'status' => 'APPROVED'
+        ]);
+        $leaveMap = [];
+        foreach ($leaves as $lv) {
+            $lCur = max($startTs, strtotime($lv['start_date']));
+            $lEnd = min($endTs, strtotime($lv['end_date']));
+            while ($lCur <= $lEnd) {
+                $k = $lv['employee_id'] . '_' . date('Y-m-d', $lCur);
+                $leaveMap[$k] = [
+                    'leave_id' => $lv['id'],
+                    'type' => $lv['leave_type'],
+                    'code' => Leave::getLeaveCode($lv['leave_type']),
+                    'reason' => $lv['reason'],
+                    'origin_site' => $lv['origin_site'] ?? null,
+                    'target_site' => $lv['target_site'] ?? null,
+                    'attachment' => $lv['attachment'] ?? null
+                ];
+                $lCur = strtotime('+1 day', $lCur);
+            }
+        }
+
+        $report = [];
+        foreach ($employees as $emp) {
+            $presentDays = 0;
+            $leaveDays = 0;
+            $totalWorkedSeconds = 0;
+            $dailyStats = [];
+
+            foreach ($days as $curDate) {
+                $leaveKey = $emp['id'] . '_' . $curDate;
+                $punches = self::getDayPunches($emp['id'], $curDate);
+
+                if (count($punches) > 0) {
+                    $seconds = self::calculateWorkSeconds($emp['id'], $curDate);
+                    $firstIn = null;
+                    $lastOut = null;
+                    $inPhoto = null;
+                    $outPhoto = null;
+
+                    foreach ($punches as $p) {
+                        if ($p['punch_type'] === 'IN' && $firstIn === null) {
+                            $firstIn = $p['punch_time'];
+                            $inPhoto = $p['punch_photo'] ?? null;
+                        }
+                        if ($p['punch_type'] === 'OUT') {
+                            $lastOut = $p['punch_time'];
+                            $outPhoto = $p['punch_photo'] ?? null;
+                        }
+                    }
+
+                    $presentDays++;
+                    $totalWorkedSeconds += $seconds;
+
+                    $latestPunch = self::getLatestPunch($emp['id'], $curDate);
+                    $currentStatus = $latestPunch ? $latestPunch['punch_type'] : 'OUT';
+                    $shiftEnd = !empty($emp['shift_end']) ? $emp['shift_end'] : '18:00:00';
+                    $shiftEndTs = strtotime($curDate . ' ' . $shiftEnd);
+                    $todayStr = date('Y-m-d');
+                    $nowTs = time();
+
+                    if ($currentStatus === 'IN') {
+                        if ($curDate === $todayStr && $nowTs <= $shiftEndTs) {
+                            $auditStatus = 'CHECKED_IN';
+                        } else {
+                            $auditStatus = 'NO_OUT';
+                        }
+                    } else {
+                        $auditStatus = 'COMPLETED';
+                    }
+
+                    $dailyStats[$curDate] = [
+                        'date' => $curDate,
+                        'day_name' => date('D', strtotime($curDate)),
+                        'status' => 'P',
+                        'audit_status' => $auditStatus,
+                        'first_in' => $firstIn ? date('h:i:s A', strtotime($firstIn)) : null,
+                        'last_out' => $lastOut ? date('h:i:s A', strtotime($lastOut)) : null,
+                        'in_photo' => $inPhoto,
+                        'out_photo' => $outPhoto,
+                        'punch_count' => count($punches),
+                        'seconds' => $seconds,
+                        'formatted_duration' => format_seconds($seconds),
+                        'hours' => round($seconds / 3600, 2)
+                    ];
+                } elseif (isset($leaveMap[$leaveKey])) {
+                    $lv = $leaveMap[$leaveKey];
+                    $leaveDays++;
+                    $dailyStats[$curDate] = [
+                        'date' => $curDate,
+                        'day_name' => date('D', strtotime($curDate)),
+                        'status' => 'L',
+                        'leave_code' => $lv['code'],
+                        'leave_type' => $lv['type'],
+                        'leave_reason' => $lv['reason'],
+                        'origin_site' => $lv['origin_site'] ?? null,
+                        'target_site' => $lv['target_site'] ?? null,
+                        'attachment' => $lv['attachment'] ?? null,
+                        'audit_status' => 'LEAVE',
+                        'first_in' => null,
+                        'last_out' => null,
+                        'in_photo' => null,
+                        'out_photo' => null,
+                        'punch_count' => 0,
+                        'seconds' => 0,
+                        'formatted_duration' => '00:00:00',
+                        'hours' => 0
+                    ];
+                } else {
+                    $dayOfWeek = date('N', strtotime($curDate));
+                    $isWeekend = ($dayOfWeek == 6 || $dayOfWeek == 7);
+
+                    $dailyStats[$curDate] = [
+                        'date' => $curDate,
+                        'day_name' => date('D', strtotime($curDate)),
+                        'status' => $isWeekend ? 'W' : 'A',
+                        'audit_status' => $isWeekend ? 'WEEKEND' : 'ABSENT',
+                        'first_in' => null,
+                        'last_out' => null,
+                        'in_photo' => null,
+                        'out_photo' => null,
+                        'punch_count' => 0,
+                        'seconds' => 0,
+                        'formatted_duration' => '00:00:00',
+                        'hours' => 0
+                    ];
+                }
+            }
+
+            $report[] = [
+                'employee' => $emp,
+                'present_days' => $presentDays,
+                'leave_days' => $leaveDays,
+                'total_worked_seconds' => $totalWorkedSeconds,
+                'total_hours' => round($totalWorkedSeconds / 3600, 2),
+                'formatted_total' => format_seconds($totalWorkedSeconds),
+                'daily_stats' => $dailyStats
+            ];
+        }
+
+        return [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'days' => $days,
+            'data' => $report
+        ];
+    }
+
+    /**
+     * Individual Employee-wise attendance history report
+     */
+    public static function getEmployeeWiseReport(int $employeeId, string $startDate, string $endDate): array {
+        $emp = Employee::find($employeeId);
+        if (!$emp) {
+            return ['employee' => null, 'records' => [], 'summary' => []];
+        }
+
+        $startTs = strtotime($startDate);
+        $endTs = strtotime($endDate);
+        $days = [];
+        $cur = $startTs;
+        while ($cur <= $endTs) {
+            $days[] = date('Y-m-d', $cur);
+            $cur = strtotime('+1 day', $cur);
+        }
+
+        $leaves = Leave::all([
+            'employee_id' => $employeeId,
+            'month_start' => $startDate,
+            'month_end' => $endDate,
+            'status' => 'APPROVED'
+        ]);
+        $leaveMap = [];
+        foreach ($leaves as $lv) {
+            $lCur = max($startTs, strtotime($lv['start_date']));
+            $lEnd = min($endTs, strtotime($lv['end_date']));
+            while ($lCur <= $lEnd) {
+                $leaveMap[date('Y-m-d', $lCur)] = $lv;
+                $lCur = strtotime('+1 day', $lCur);
+            }
+        }
+
+        $records = [];
+        $presentDays = 0;
+        $leaveDays = 0;
+        $absentDays = 0;
+        $totalWorkedSeconds = 0;
+        $totalPunches = 0;
+
+        foreach ($days as $curDate) {
+            $punches = self::getDayPunches($employeeId, $curDate);
+            $countPunches = count($punches);
+            $totalPunches += $countPunches;
+
+            if ($countPunches > 0) {
+                $seconds = self::calculateWorkSeconds($employeeId, $curDate);
+                $firstIn = null;
+                $lastOut = null;
+                $inPhoto = null;
+                $outPhoto = null;
+
+                foreach ($punches as $p) {
+                    if ($p['punch_type'] === 'IN' && $firstIn === null) {
+                        $firstIn = $p['punch_time'];
+                        $inPhoto = $p['punch_photo'] ?? null;
+                    }
+                    if ($p['punch_type'] === 'OUT') {
+                        $lastOut = $p['punch_time'];
+                        $outPhoto = $p['punch_photo'] ?? null;
+                    }
+                }
+
+                $presentDays++;
+                $totalWorkedSeconds += $seconds;
+
+                $latestPunch = self::getLatestPunch($employeeId, $curDate);
+                $currentStatus = $latestPunch ? $latestPunch['punch_type'] : 'OUT';
+                $shiftEnd = !empty($emp['shift_end']) ? $emp['shift_end'] : '18:00:00';
+                $shiftEndTs = strtotime($curDate . ' ' . $shiftEnd);
+                $todayStr = date('Y-m-d');
+                $nowTs = time();
+
+                if ($currentStatus === 'IN') {
+                    if ($curDate === $todayStr && $nowTs <= $shiftEndTs) {
+                        $auditStatus = 'CHECKED_IN';
+                    } else {
+                        $auditStatus = 'NO_OUT';
+                    }
+                } else {
+                    $auditStatus = 'COMPLETED';
+                }
+
+                $records[] = [
+                    'date' => $curDate,
+                    'day_name' => date('D', strtotime($curDate)),
+                    'status' => 'P',
+                    'audit_status' => $auditStatus,
+                    'first_in' => $firstIn ? date('h:i:s A', strtotime($firstIn)) : null,
+                    'last_out' => $lastOut ? date('h:i:s A', strtotime($lastOut)) : null,
+                    'in_photo' => $inPhoto,
+                    'out_photo' => $outPhoto,
+                    'punch_count' => $countPunches,
+                    'punches' => $punches,
+                    'leave_info' => null,
+                    'seconds' => $seconds,
+                    'formatted_duration' => format_seconds($seconds),
+                    'hours' => round($seconds / 3600, 2)
+                ];
+            } elseif (isset($leaveMap[$curDate])) {
+                $lv = $leaveMap[$curDate];
+                $leaveDays++;
+                $records[] = [
+                    'date' => $curDate,
+                    'day_name' => date('D', strtotime($curDate)),
+                    'status' => 'L',
+                    'audit_status' => 'LEAVE',
+                    'first_in' => null,
+                    'last_out' => null,
+                    'in_photo' => null,
+                    'out_photo' => null,
+                    'punch_count' => 0,
+                    'punches' => [],
+                    'leave_info' => $lv,
+                    'seconds' => 0,
+                    'formatted_duration' => '00:00:00',
+                    'hours' => 0
+                ];
+            } else {
+                $dayOfWeek = date('N', strtotime($curDate));
+                $isWeekend = ($dayOfWeek == 6 || $dayOfWeek == 7);
+                if (!$isWeekend) $absentDays++;
+
+                $records[] = [
+                    'date' => $curDate,
+                    'day_name' => date('D', strtotime($curDate)),
+                    'status' => $isWeekend ? 'W' : 'A',
+                    'audit_status' => $isWeekend ? 'WEEKEND' : 'ABSENT',
+                    'first_in' => null,
+                    'last_out' => null,
+                    'in_photo' => null,
+                    'out_photo' => null,
+                    'punch_count' => 0,
+                    'punches' => [],
+                    'leave_info' => null,
+                    'seconds' => 0,
+                    'formatted_duration' => '00:00:00',
+                    'hours' => 0
+                ];
+            }
+        }
+
+        $totalDays = count($days);
+        $attendanceRate = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 1) : 0;
+
+        return [
+            'employee' => $emp,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'records' => $records,
+            'summary' => [
+                'total_days' => $totalDays,
+                'present_days' => $presentDays,
+                'leave_days' => $leaveDays,
+                'absent_days' => $absentDays,
+                'total_punches' => $totalPunches,
+                'total_hours' => round($totalWorkedSeconds / 3600, 2),
+                'total_formatted_duration' => format_seconds($totalWorkedSeconds),
+                'attendance_rate' => $attendanceRate
+            ]
+        ];
+    }
 }

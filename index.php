@@ -396,6 +396,7 @@ $router->post('/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
 
 // FRM Devices Management in Admin
 $router->get('/devices', [\App\Controllers\DeviceController::class, 'index']);
+$router->post('/devices/create', [\App\Controllers\DeviceController::class, 'store']);
 $router->post('/devices/update', [\App\Controllers\DeviceController::class, 'update']);
 $router->post('/devices/delete', [\App\Controllers\DeviceController::class, 'delete']);
 

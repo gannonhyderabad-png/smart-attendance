@@ -12,9 +12,12 @@
                 </div>
                 <p class="text-muted small mb-0">Connect Facial Recognition Terminals & Fingerprint machines for instant real-time cloud attendance synchronization.</p>
             </div>
-            <div class="col-md-5 text-md-end">
+            <div class="col-md-5 text-md-end d-flex gap-2 justify-content-md-end flex-wrap">
+                <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+                    <i class="fa-solid fa-plus me-1"></i> Add Device Manually
+                </button>
                 <button type="button" class="btn btn-outline-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#setupGuideModal">
-                    <i class="fa-solid fa-book-open-reader me-1"></i> eSSL Machine Setup Guide
+                    <i class="fa-solid fa-book-open-reader me-1"></i> Setup Guide &amp; Diagnostics
                 </button>
             </div>
         </div>
@@ -25,6 +28,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php unset($_SESSION['flash_success']); ?>
+        <?php endif; ?>
+
+        <?php if (!empty($_SESSION['flash_error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+                <i class="fa-solid fa-circle-exclamation me-2"></i><?= e($_SESSION['flash_error']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php unset($_SESSION['flash_error']); ?>
         <?php endif; ?>
 
         <!-- Quick Connection Credentials Card -->
@@ -220,8 +231,20 @@
                     </div>
                 </div>
 
-                <div class="d-flex align-items-start gap-3 p-3 bg-light rounded-3 border">
+                <div class="d-flex align-items-start gap-3 mb-4 p-3 bg-light rounded-3 border">
                     <span class="badge bg-primary rounded-circle p-2 fs-6">3</span>
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">Device Network &amp; DNS Checklist (Crucial)</h6>
+                        <ul class="small text-muted mb-0 ps-3">
+                            <li>Go to <strong>Comm. &gt; Ethernet (or Wi-Fi)</strong> on your machine.</li>
+                            <li>Make sure <strong>DNS Server</strong> is set to <code class="text-primary fw-bold">8.8.8.8</code> (Google DNS) or your router's Gateway IP. If DNS is <code>0.0.0.0</code>, the machine cannot resolve the domain!</li>
+                            <li>Do <strong>NOT</strong> type <code>http://</code> or <code>https://</code> in the Server Address field — type only <code>smart-attendance-hw9c.onrender.com</code>.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-start gap-3 p-3 bg-light rounded-3 border">
+                    <span class="badge bg-primary rounded-circle p-2 fs-6">4</span>
                     <div>
                         <h6 class="fw-bold text-dark mb-1">Save and Check Connection Status</h6>
                         <p class="text-muted small mb-0">Press <strong>Save / OK</strong>. The cloud/globe icon on the device screen will turn <strong>Green (Connected)</strong>, and the device will instantly appear on this page.</p>
@@ -232,6 +255,48 @@
                 <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Got It</button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Add Device Manually Modal -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="<?= base_url('devices/create') ?>" method="POST" class="modal-content rounded-4 border-0 shadow-lg">
+            <?= csrf_field() ?>
+            <div class="modal-header border-bottom bg-light py-3 px-4">
+                <h5 class="modal-title fw-bold text-dark mb-0"><i class="fa-solid fa-plus me-2 text-primary"></i>Add FRM Device Manually</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">Device Serial Number (SN) <span class="text-danger">*</span></label>
+                    <input type="text" name="serial_number" class="form-control font-monospace" placeholder="e.g. ABCD123456789 (from device back sticker/menu)" required>
+                    <small class="text-muted" style="font-size: 0.7rem;">Found in Menu &gt; System Info &gt; Device Info &gt; Serial Number</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">Device Friendly Name</label>
+                    <input type="text" name="device_name" class="form-control" placeholder="e.g. Main Gate Face Machine">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">Device Model / Brand</label>
+                    <input type="text" name="device_model" class="form-control" placeholder="e.g. eSSL AI Face Pro / SilkBio-100TC">
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Assigned Work Site</label>
+                        <input type="text" name="site" class="form-control" placeholder="e.g. Hyderabad Office">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Project Name</label>
+                        <input type="text" name="project" class="form-control" placeholder="e.g. Metro Line 1">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top bg-light py-3 px-4">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="fa-solid fa-check me-1"></i> Register Device</button>
+            </div>
+        </form>
     </div>
 </div>
 

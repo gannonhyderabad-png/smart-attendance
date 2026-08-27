@@ -21,6 +21,33 @@ class DeviceController extends Controller {
         ], 'admin');
     }
 
+    public function store(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $sn = strtoupper(trim((string)Request::input('serial_number', '')));
+        $name = trim((string)Request::input('device_name', ''));
+        $model = trim((string)Request::input('device_model', ''));
+        $site = trim((string)Request::input('site', ''));
+        $project = trim((string)Request::input('project', ''));
+
+        if (empty($sn)) {
+            $_SESSION['flash_error'] = "Device Serial Number is required.";
+            redirect('devices');
+        }
+
+        Device::registerOrHeartbeat($sn, [
+            'device_name' => $name ?: "eSSL FRM - {$sn}",
+            'device_model' => $model ?: "eSSL / ZKTeco Face Terminal",
+            'site' => $site ?: "Head Office",
+            'project' => $project ?: "General"
+        ]);
+
+        Logger::log(Auth::id(), 'DEVICE_ADDED', "Added/Paired FRM device SN: {$sn}");
+        $_SESSION['flash_success'] = "Device [{$sn}] registered successfully! As soon as it pushes punches, attendance will sync automatically.";
+        redirect('devices');
+    }
+
     public function update(): void {
         Auth::requireAuth();
         Csrf::verify();

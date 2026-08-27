@@ -369,7 +369,7 @@
                     <!-- LEAVE TYPE SELECT (Visible in Leave Mode) -->
                     <div class="mb-3 d-none" id="leaveTypeGroup">
                         <label class="form-label small fw-semibold text-muted">Leave Type <span class="text-danger">*</span></label>
-                        <select name="leave_type" id="manualLeaveType" class="form-select bg-light">
+                        <select name="leave_type" id="manualLeaveType" class="form-select bg-light" onchange="handleManualLeaveTypeChange(this.value)">
                             <option value="Casual Leave">Casual Leave (CL)</option>
                             <option value="Sick Leave">Sick / Medical Leave (SL)</option>
                             <option value="Paid Leave">Paid Leave (PL)</option>
@@ -379,6 +379,18 @@
                             <option value="Special Holiday">Special Holiday / Restricted Off</option>
                             <option value="Unpaid Leave">Unpaid Leave / LOP</option>
                         </select>
+                    </div>
+
+                    <!-- ON DUTY (OD) TARGET SITE INPUT (Visible when Leave Type is OD) -->
+                    <div class="p-3 bg-light rounded-4 border border-primary-subtle mb-3 d-none" id="manualOdSiteGroup">
+                        <label class="form-label small fw-semibold text-primary mb-1"><i class="fa-solid fa-location-dot text-danger me-1"></i>Where to Go / Target Site (OD Visit) <span class="text-danger">*</span></label>
+                        <input type="text" name="target_site" id="manualOdTargetSite" class="form-control bg-white" placeholder="e.g. Hyderabad Metro Site, Client Office, Site-B">
+                        <div class="row g-2 mt-1">
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold text-muted mb-1">From / Base Site</label>
+                                <input type="text" name="origin_site" id="manualOdOriginSite" class="form-control bg-white" placeholder="e.g. Head Office / Primary Site">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- PUBLIC HOLIDAY TITLE (Visible in Holiday Mode) -->
@@ -452,11 +464,13 @@ function toggleManualFormMode(mode) {
     const dateLabel = document.getElementById('dateLabel');
     const submitBtn = document.getElementById('manualSubmitBtn');
     const manualEmpInput = document.getElementById('manualEmpInput');
+    const odSiteGroup = document.getElementById('manualOdSiteGroup');
 
     if (mode === 'punch') {
         empGroup.classList.remove('d-none');
         leaveGroup.classList.add('d-none');
         holGroup.classList.add('d-none');
+        if (odSiteGroup) odSiteGroup.classList.add('d-none');
         punchTimes.classList.remove('d-none');
         punchLoc.classList.remove('d-none');
         toDateCol.classList.add('d-none');
@@ -475,10 +489,13 @@ function toggleManualFormMode(mode) {
         dateLabel.innerHTML = 'From Date <span class="text-danger">*</span>';
         submitBtn.innerHTML = '<i class="fa-solid fa-plane-departure me-1"></i> Save Leave Entry';
         if (manualEmpInput) manualEmpInput.required = true;
+        const curLeaveType = document.getElementById('manualLeaveType')?.value || '';
+        handleManualLeaveTypeChange(curLeaveType);
     } else if (mode === 'holiday') {
         empGroup.classList.add('d-none');
         leaveGroup.classList.add('d-none');
         holGroup.classList.remove('d-none');
+        if (odSiteGroup) odSiteGroup.classList.add('d-none');
         punchTimes.classList.add('d-none');
         punchLoc.classList.add('d-none');
         toDateCol.classList.add('d-none');
@@ -486,6 +503,23 @@ function toggleManualFormMode(mode) {
         dateLabel.innerHTML = 'Holiday Date <span class="text-danger">*</span>';
         submitBtn.innerHTML = '<i class="fa-solid fa-calendar-star me-1"></i> Save Public Holiday';
         if (manualEmpInput) manualEmpInput.required = false;
+    }
+}
+
+function handleManualLeaveTypeChange(val) {
+    const odGroup = document.getElementById('manualOdSiteGroup');
+    const targetInput = document.getElementById('manualOdTargetSite');
+    if (!odGroup) return;
+    const isOd = (val === 'On Duty' || val.includes('Duty') || val.includes('OD') || val.includes('Official') || val.includes('Outdoor'));
+    if (isOd) {
+        odGroup.classList.remove('d-none');
+        if (targetInput) targetInput.required = true;
+    } else {
+        odGroup.classList.add('d-none');
+        if (targetInput) {
+            targetInput.required = false;
+            targetInput.value = '';
+        }
     }
 }
 

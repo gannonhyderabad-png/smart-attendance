@@ -91,6 +91,8 @@ class Leave extends Model {
                     'type' => $lv['leave_type'],
                     'code' => $code,
                     'reason' => $lv['reason'] ?: $lv['leave_type'],
+                    'origin_site' => $lv['origin_site'] ?? null,
+                    'target_site' => $lv['target_site'] ?? null,
                     'days_count' => $lv['days_count']
                 ];
                 $cur = strtotime('+1 day', $cur);
@@ -105,7 +107,7 @@ class Leave extends Model {
         if (str_contains($t, 'CASUAL') || $t === 'CL') return 'CL';
         if (str_contains($t, 'SICK') || str_contains($t, 'MEDICAL') || $t === 'SL') return 'SL';
         if (str_contains($t, 'PAID') || str_contains($t, 'PRIVILEGE') || str_contains($t, 'ANNUAL') || $t === 'PL') return 'PL';
-        if (str_contains($t, 'DUTY') || str_contains($t, 'OFFICIAL') || $t === 'OD') return 'OD';
+        if (str_contains($t, 'DUTY') || str_contains($t, 'OFFICIAL') || str_contains($t, 'OUTDOOR') || $t === 'OD') return 'OD';
         if (str_contains($t, 'HALF') || $t === 'HD') return 'HD';
         if (str_contains($t, 'COMP') || $t === 'CO') return 'CO';
         if (str_contains($t, 'HOLIDAY') || str_contains($t, 'OFF')) return 'HOL';
@@ -114,7 +116,7 @@ class Leave extends Model {
 
     public static function create(array $data): int {
         $pdo = self::db();
-        $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         $startDate = $data['start_date'];
         $endDate = !empty($data['end_date']) ? $data['end_date'] : $startDate;
@@ -134,6 +136,8 @@ class Leave extends Model {
             $startDate,
             $endDate,
             $daysCount,
+            !empty($data['origin_site']) ? trim($data['origin_site']) : null,
+            !empty($data['target_site']) ? trim($data['target_site']) : null,
             trim($data['reason'] ?? ''),
             $data['status'] ?? 'APPROVED'
         ]);

@@ -131,6 +131,7 @@
                 <tr>
                     <th class="ps-4">Employee</th>
                     <th>Leave Type</th>
+                    <th>Target / Visit Site</th>
                     <th>Date Period</th>
                     <th>Days</th>
                     <th>Reason / Notes</th>
@@ -141,7 +142,7 @@
             <tbody>
                 <?php if (empty($leaves)): ?>
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
+                        <td colspan="8" class="text-center py-5 text-muted">
                             <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-secondary opacity-50 d-block"></i>
                             No leave entries recorded yet. Click <strong>Add Leave Entry</strong> to record employee leave.
                         </td>
@@ -178,6 +179,24 @@
                                 <span class="badge <?= $badgeClass ?> px-2 py-1 rounded-pill">
                                     <i class="fa-solid fa-tag me-1"></i><?= e($lv['leave_type']) ?>
                                 </span>
+                            </td>
+                            <td>
+                                <?php if (!empty($lv['target_site'])): ?>
+                                    <div class="d-inline-flex flex-column">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                            <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($lv['target_site']) ?>
+                                        </span>
+                                        <?php if (!empty($lv['origin_site'])): ?>
+                                            <span class="text-muted small mt-1 font-monospace" style="font-size: 0.68rem;">
+                                                <i class="fa-solid fa-arrow-right text-muted me-1"></i>From: <?= e($lv['origin_site']) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php elseif ($code === 'OD'): ?>
+                                    <span class="badge bg-light text-primary border">Outdoor Site</span>
+                                <?php else: ?>
+                                    <span class="text-muted small">—</span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <div class="fw-semibold text-dark">
@@ -246,7 +265,7 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Leave Type <span class="text-danger">*</span></label>
-                        <select name="leave_type" class="form-select bg-light" required>
+                        <select name="leave_type" id="modalLeaveTypeSelect" class="form-select bg-light" required onchange="handleLeaveTypeChange(this.value)">
                             <option value="Casual Leave">Casual Leave (CL)</option>
                             <option value="Sick Leave">Sick / Medical Leave (SL)</option>
                             <option value="Paid Leave">Paid Leave (PL)</option>
@@ -257,6 +276,31 @@
                             <option value="Unpaid Leave">Unpaid Leave / LOP</option>
                         </select>
                     </div>
+
+                    <!-- ON DUTY (OD) WHERE TO GO / TARGET SITE FIELDS -->
+                    <div class="p-3 bg-light rounded-4 border border-primary-subtle mb-3 d-none" id="odSiteFields">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-primary text-white"><i class="fa-solid fa-location-crosshairs me-1"></i> Outdoor / OD Visit Details</span>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-muted">Where to Go Site / Target Site <span class="text-danger">*</span></label>
+                                <input type="text" name="target_site" id="odTargetSite" list="allSitesList" class="form-control bg-white" placeholder="e.g. Hyderabad Metro Site, Client Office, Site-B">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-muted">From / Base Site</label>
+                                <input type="text" name="origin_site" id="odOriginSite" list="allSitesList" class="form-control bg-white" placeholder="e.g. Head Office / Primary Site">
+                            </div>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Specify the destination client or project site where the employee is visiting.</small>
+                    </div>
+
+                    <!-- Available Work Sites Datalist -->
+                    <datalist id="allSitesList">
+                        <?php foreach ($siteList ?? [] as $s): ?>
+                            <option value="<?= e($s) ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
 
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
@@ -290,6 +334,23 @@ function syncToDate(val) {
     const toInput = document.getElementById('leaveToDate');
     if (toInput && (!toInput.value || toInput.value < val)) {
         toInput.value = val;
+    }
+}
+
+function handleLeaveTypeChange(val) {
+    const odBlock = document.getElementById('odSiteFields');
+    const targetInput = document.getElementById('odTargetSite');
+    if (!odBlock) return;
+    const isOd = (val === 'On Duty' || val.includes('Duty') || val.includes('OD') || val.includes('Official') || val.includes('Outdoor'));
+    if (isOd) {
+        odBlock.classList.remove('d-none');
+        if (targetInput) targetInput.required = true;
+    } else {
+        odBlock.classList.add('d-none');
+        if (targetInput) {
+            targetInput.required = false;
+            targetInput.value = '';
+        }
     }
 }
 </script>

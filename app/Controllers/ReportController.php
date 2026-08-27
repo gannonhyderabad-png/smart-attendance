@@ -270,7 +270,8 @@ class ReportController extends Controller {
                 if ($stat['status'] === 'P') {
                     $dataRow[] = $stat['hours'] > 0 ? "P ({$stat['hours']}h)" : 'P';
                 } elseif ($stat['status'] === 'L') {
-                    $dataRow[] = ($stat['leave_code'] ?? 'L') . " (" . ($stat['leave_type'] ?? 'Leave') . ")";
+                    $odExtra = !empty($stat['target_site']) ? " -> " . $stat['target_site'] : '';
+                    $dataRow[] = ($stat['leave_code'] ?? 'L') . " (" . ($stat['leave_type'] ?? 'Leave') . $odExtra . ")";
                 } elseif (isset($holidaysMap[$curDate])) {
                     $dataRow[] = "H (" . $holidaysMap[$curDate] . ")";
                 } elseif ($stat['status'] === 'W') {
@@ -334,7 +335,8 @@ class ReportController extends Controller {
 
                 $auditStatus = $stat['audit_status'] ?? 'ABSENT';
                 if ($auditStatus === 'LEAVE') {
-                    $auditLabel = 'Leave: ' . ($stat['leave_type'] ?? 'Approved') . (!empty($stat['leave_reason']) ? ' (' . $stat['leave_reason'] . ')' : '');
+                    $siteDetail = !empty($stat['target_site']) ? " [Target Site: {$stat['target_site']}]" : '';
+                    $auditLabel = 'Leave: ' . ($stat['leave_type'] ?? 'Approved') . $siteDetail . (!empty($stat['leave_reason']) ? ' (' . $stat['leave_reason'] . ')' : '');
                 } elseif ($auditStatus === 'ABSENT' && isset($holidaysMap[$curDate])) {
                     $auditLabel = 'Holiday (' . $holidaysMap[$curDate] . ')';
                 } else {

@@ -237,6 +237,8 @@ class Database {
                 `start_date` DATE NOT NULL,
                 `end_date` DATE NOT NULL,
                 `days_count` DECIMAL(4, 1) DEFAULT 1.0,
+                `origin_site` VARCHAR(150) NULL,
+                `target_site` VARCHAR(150) NULL,
                 `reason` TEXT NULL,
                 `status` VARCHAR(20) DEFAULT 'APPROVED',
                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -244,6 +246,9 @@ class Database {
                 INDEX `idx_leave_dates` (`start_date`, `end_date`),
                 INDEX `idx_leave_emp` (`employee_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `origin_site` VARCHAR(150) NULL AFTER `days_count`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `target_site` VARCHAR(150) NULL AFTER `origin_site`;"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -365,6 +370,8 @@ class Database {
             start_date DATE NOT NULL,
             end_date DATE NOT NULL,
             days_count NUMERIC(4,1) DEFAULT 1.0,
+            origin_site VARCHAR(150),
+            target_site VARCHAR(150),
             reason TEXT,
             status VARCHAR(20) DEFAULT 'APPROVED',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -400,7 +407,9 @@ class Database {
             "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS site TEXT",
             "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS distance_meters NUMERIC(10,2)",
             "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location_verified SMALLINT DEFAULT 0",
-            "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS punch_photo VARCHAR(255)"
+            "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS punch_photo VARCHAR(255)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS origin_site VARCHAR(150)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS target_site VARCHAR(150)"
         ];
         foreach ($columns as $c) {
             try { $pdo->exec($c); } catch (\Throwable $e) {}
@@ -598,11 +607,16 @@ class Database {
             start_date DATE NOT NULL,
             end_date DATE NOT NULL,
             days_count REAL DEFAULT 1.0,
+            origin_site TEXT,
+            target_site TEXT,
             reason TEXT,
             status TEXT DEFAULT 'APPROVED',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
         )");
+
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN origin_site TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN target_site TEXT;"); } catch (\Throwable $e) {}
 
         // Seed standard public holidays in SQLite if empty
         $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();

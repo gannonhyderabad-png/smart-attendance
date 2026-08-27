@@ -27,6 +27,7 @@ class LeaveController extends Controller {
         $leaves = Leave::all($conditions, 'l.start_date DESC');
         $employees = Employee::all(['status' => 'active']);
         $departments = Department::all();
+        $siteList = Employee::getDistinctSites();
 
         // Calculate summary counters
         $totalLeaves = count($leaves);
@@ -48,6 +49,7 @@ class LeaveController extends Controller {
             'leaves' => $leaves,
             'employees' => $employees,
             'departments' => $departments,
+            'siteList' => $siteList,
             'filters' => [
                 'employee_id' => $employeeId,
                 'leave_type' => $leaveType,
@@ -71,6 +73,8 @@ class LeaveController extends Controller {
         $leaveType = trim(Request::input('leave_type', 'Casual Leave'));
         $startDate = trim(Request::input('start_date', ''));
         $endDate = trim(Request::input('end_date', ''));
+        $originSite = trim(Request::input('origin_site', ''));
+        $targetSite = trim(Request::input('target_site', ''));
         $reason = trim(Request::input('reason', ''));
         $returnUrl = Request::input('return_url', 'leaves');
 
@@ -95,19 +99,27 @@ class LeaveController extends Controller {
             redirect($returnUrl);
         }
 
+        // If Origin site is empty and employee has a home site, default to it
+        if (empty($originSite) && !empty($emp['site'])) {
+            $originSite = $emp['site'];
+        }
+
         try {
             Leave::create([
                 'employee_id' => $employeeId,
                 'leave_type' => $leaveType,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
+                'origin_site' => $originSite,
+                'target_site' => $targetSite,
                 'reason' => $reason,
                 'status' => 'APPROVED'
             ]);
 
             $dateLabel = ($startDate === $endDate) ? $startDate : "{$startDate} to {$endDate}";
-            Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType} for {$emp['name']} ({$emp['employee_code']}) for {$dateLabel}");
-            $_SESSION['flash_success'] = "Leave entry for {$emp['name']} ({$leaveType}, {$dateLabel}) recorded successfully!";
+            $siteDetails = !empty($targetSite) ? " (Target: {$targetSite})" : "";
+            Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType}{$siteDetails} for {$emp['name']} ({$emp['employee_code']}) for {$dateLabel}");
+            $_SESSION['flash_success'] = "Leave entry for {$emp['name']} ({$leaveType}{$siteDetails}, {$dateLabel}) recorded successfully!";
         } catch (\Throwable $e) {
             $_SESSION['flash_error'] = 'Failed to record leave: ' . $e->getMessage();
         }

@@ -862,6 +862,8 @@ class Attendance extends Model {
                         'leave_code' => $lv['code'],
                         'leave_type' => $lv['type'],
                         'leave_reason' => $lv['reason'],
+                        'origin_site' => $lv['origin_site'] ?? null,
+                        'target_site' => $lv['target_site'] ?? null,
                         'audit_status' => 'LEAVE',
                         'first_in' => null,
                         'last_out' => null,

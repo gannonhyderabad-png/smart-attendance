@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `holidays` (
     INDEX `idx_holiday_date` (`holiday_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. Employee Leaves Table
+-- 8. Employee Leaves & On-Duty Visits Table
 CREATE TABLE IF NOT EXISTS `leaves` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `employee_id` INT NOT NULL,
@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS `leaves` (
     `start_date` DATE NOT NULL,
     `end_date` DATE NOT NULL,
     `days_count` DECIMAL(4, 1) DEFAULT 1.0,
+    `origin_site` VARCHAR(150) NULL,
+    `target_site` VARCHAR(150) NULL,
     `reason` TEXT NULL,
     `status` VARCHAR(20) DEFAULT 'APPROVED',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

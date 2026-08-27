@@ -281,9 +281,15 @@
                                                                         <i class="fa-solid fa-triangle-exclamation me-1"></i> Missing OUT
                                                                     </span>
                                                                 <?php elseif ($auditStatus === 'LEAVE'): ?>
-                                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" title="<?= e($stat['leave_reason'] ?? '') ?>">
-                                                                        <i class="fa-solid fa-plane-departure me-1 text-warning"></i> <?= e($stat['leave_type'] ?? 'Leave') ?>
-                                                                    </span>
+                                                                    <?php if (!empty($stat['target_site'])): ?>
+                                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" title="On Duty / OD Visit: <?= e($stat['target_site']) ?><?= !empty($stat['leave_reason']) ? ' - ' . e($stat['leave_reason']) : '' ?>">
+                                                                            <i class="fa-solid fa-location-dot text-danger me-1"></i> OD: <?= e($stat['target_site']) ?>
+                                                                        </span>
+                                                                    <?php else: ?>
+                                                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" title="<?= e($stat['leave_reason'] ?? '') ?>">
+                                                                            <i class="fa-solid fa-plane-departure me-1 text-warning"></i> <?= e($stat['leave_type'] ?? 'Leave') ?>
+                                                                        </span>
+                                                                    <?php endif; ?>
                                                                 <?php elseif ($isHoliday): ?>
                                                                     <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1" title="Public Holiday: <?= e($holidayTitle) ?>">
                                                                         <i class="fa-solid fa-calendar-star me-1 text-info"></i> Holiday (<?= e($holidayTitle) ?>)

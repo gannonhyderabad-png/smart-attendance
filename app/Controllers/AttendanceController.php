@@ -158,19 +158,28 @@ class AttendanceController extends Controller {
                 $endDate = $punchDate;
             }
 
+            $originSite = trim(Request::input('origin_site', ''));
+            $targetSite = trim(Request::input('target_site', ''));
+            if (empty($originSite) && !empty($employee['site'])) {
+                $originSite = $employee['site'];
+            }
+
             try {
                 Leave::create([
                     'employee_id' => $employeeId,
                     'leave_type' => $leaveType,
                     'start_date' => $punchDate,
                     'end_date' => $endDate,
+                    'origin_site' => $originSite,
+                    'target_site' => $targetSite,
                     'reason' => $notes,
                     'status' => 'APPROVED'
                 ]);
 
                 $dateRange = ($punchDate === $endDate) ? $punchDate : "{$punchDate} to {$endDate}";
-                Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType} for {$employee['name']} ({$employee['employee_code']}) for {$dateRange}");
-                $_SESSION['flash_success'] = "Leave ({$leaveType}) for {$employee['name']} for {$dateRange} recorded successfully!";
+                $odDetails = !empty($targetSite) ? " (Target: {$targetSite})" : "";
+                Logger::log(Auth::id(), 'LEAVE_RECORDED', "Recorded {$leaveType}{$odDetails} for {$employee['name']} ({$employee['employee_code']}) for {$dateRange}");
+                $_SESSION['flash_success'] = "Leave ({$leaveType}{$odDetails}) for {$employee['name']} for {$dateRange} recorded successfully!";
             } catch (\Throwable $e) {
                 $_SESSION['flash_error'] = 'Failed to save leave entry: ' . $e->getMessage();
             }

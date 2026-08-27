@@ -130,24 +130,27 @@
                             <tr>
                                 <td class="ps-3">
                                     <div class="d-flex align-items-center">
-                                        <a href="<?= base_url('employees/view/' . $row['employee_id']) ?>" class="text-decoration-none">
+                                        <a href="javascript:void(0)" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" class="text-decoration-none">
                                             <?php if (!empty($row['employee_photo'])): ?>
                                                 <img src="<?= uploaded_url($row['employee_photo']) ?>" class="rounded-circle border object-fit-cover me-2 shadow-sm" style="width: 36px; height: 36px;" alt="<?= e($row['employee_name']) ?>">
                                             <?php else: ?>
-                                                <div class="avatar-sm rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-size: 0.85rem;" title="View <?= e($row['employee_name']) ?> profile">
+                                                <div class="avatar-sm rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-size: 0.85rem;" title="View <?= e($row['employee_name']) ?> Log Sheet">
                                                     <?= strtoupper(substr($row['employee_name'], 0, 1)) ?>
                                                 </div>
                                             <?php endif; ?>
                                         </a>
                                         <div>
-                                            <a href="<?= base_url('employees/view/' . $row['employee_id']) ?>" class="fw-bold text-dark text-decoration-none" title="Click to view details for <?= e($row['employee_name']) ?>">
+                                            <a href="javascript:void(0)" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" class="fw-bold text-dark text-decoration-none" title="Click to view Attendance Log Sheet for <?= e($row['employee_name']) ?>">
                                                 <?= e($row['employee_name']) ?>
                                             </a>
                                             <div>
-                                                <a href="<?= base_url('employees/view/' . $row['employee_id']) ?>" class="badge bg-light text-primary border font-monospace text-decoration-none" style="font-size: 0.7rem;" title="View Employee Details">
+                                                <a href="javascript:void(0)" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" class="badge bg-light text-primary border font-monospace text-decoration-none" style="font-size: 0.7rem;" title="View Attendance Log Sheet">
                                                     <?= e($row['employee_code']) ?>
                                                 </a>
                                                 <span class="badge bg-secondary-subtle text-dark border border-secondary-subtle px-1 ms-1" style="font-size: 0.68rem;"><i class="fa-solid fa-building me-1 text-secondary"></i><?= e($row['department_name'] ?? 'General') ?></span>
+                                                <a href="javascript:void(0)" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill text-decoration-none ms-1 px-2 py-0" style="font-size: 0.65rem;" title="View Attendance Log Sheet">
+                                                    <i class="fa-solid fa-file-waveform me-1"></i>Log Sheet
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
@@ -185,10 +188,10 @@
                                                 </a>
                                             <?php endif; ?>
                                         </div>
-                                        <?php if (!empty($row['in_distance']) !== null && $row['in_distance'] !== ''): ?>
+                                        <?php if (isset($row['in_distance']) && $row['in_distance'] !== '' && $row['in_distance'] !== null): ?>
                                             <div class="small">
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.65rem;" title="GPS Verified within <?= round($row['in_distance']) ?>m of site">
-                                                    <i class="fa-solid fa-location-dot me-1"></i><?= round($row['in_distance']) ?>m away
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.65rem;" title="GPS Verified within <?= round((float)$row['in_distance']) ?>m of site">
+                                                    <i class="fa-solid fa-location-dot me-1"></i><?= round((float)$row['in_distance']) ?>m away
                                                 </span>
                                             </div>
                                         <?php endif; ?>
@@ -213,10 +216,10 @@
                                                 </a>
                                             <?php endif; ?>
                                         </div>
-                                        <?php if (!empty($row['out_distance']) !== null && $row['out_distance'] !== ''): ?>
+                                        <?php if (isset($row['out_distance']) && $row['out_distance'] !== '' && $row['out_distance'] !== null): ?>
                                             <div class="small">
-                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.65rem;" title="GPS Verified within <?= round($row['out_distance']) ?>m of site">
-                                                    <i class="fa-solid fa-location-dot me-1"></i><?= round($row['out_distance']) ?>m away
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.65rem;" title="GPS Verified within <?= round((float)$row['out_distance']) ?>m of site">
+                                                    <i class="fa-solid fa-location-dot me-1"></i><?= round((float)$row['out_distance']) ?>m away
                                                 </span>
                                             </div>
                                         <?php endif; ?>
@@ -267,6 +270,9 @@
                                 </td>
                                 <td class="pe-3 text-end">
                                     <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-light border text-info" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" title="View Attendance Log Sheet & Timesheet Summary">
+                                            <i class="fa-solid fa-file-waveform"></i>
+                                        </button>
                                         <a href="<?= base_url('employees/view/' . $row['employee_id']) ?>" class="btn btn-light border text-primary" title="View Employee Details & QR Code">
                                             <i class="fa-solid fa-id-card"></i>
                                         </a>
@@ -577,6 +583,12 @@ function handleManualEmpInput(val) {
         photoModalEl.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
     }
 
+    const attSummaryModalEl = document.getElementById('employeeAttendanceSummaryModal');
+    if (attSummaryModalEl) {
+        attSummaryModalEl.addEventListener('show.bs.modal', () => { isModalOpen = true; });
+        attSummaryModalEl.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
+    }
+
     function viewPunchPhoto(url, title, time) {
         if (!url) return;
         document.getElementById('modalPunchPhotoImg').src = url;
@@ -632,4 +644,400 @@ function handleManualEmpInput(val) {
 
     // Poll every 3 seconds for instant updates when employee punches IN/OUT
     setInterval(syncAttendanceLogs, 3000);
+
+    let currentSummaryEmpId = null;
+
+    async function openEmployeeAttendanceSummary(empId, month, year) {
+        if (!empId) return;
+        currentSummaryEmpId = empId;
+
+        const m = month || document.getElementById('attSummaryMonthSelect')?.value || '<?= date('m') ?>';
+        const y = year || document.getElementById('attSummaryYearSelect')?.value || '<?= date('Y') ?>';
+
+        const modalEl = document.getElementById('employeeAttendanceSummaryModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        document.getElementById('attSummaryLoadingBox').classList.remove('d-none');
+        document.getElementById('attSummaryContentBox').classList.add('d-none');
+
+        try {
+            const url = `<?= base_url('attendance/employee-summary') ?>?employee_id=${empId}&month=${m}&year=${y}`;
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await res.json();
+
+            if (!data.success) {
+                alert(data.message || 'Failed to load attendance summary.');
+                modal.hide();
+                return;
+            }
+
+            const emp = data.employee;
+            const stats = data.stats;
+            const sessions = data.sessions || [];
+            const leaves = data.leaves || [];
+            const leaveBal = data.leave_balance || {};
+
+            // Populate Employee Info
+            document.getElementById('attSummaryEmpName').textContent = emp.name || '—';
+            document.getElementById('attSummaryEmpCode').textContent = emp.employee_code || '—';
+            document.getElementById('attSummaryEmpDept').textContent = emp.department_name || emp.department || 'General';
+            document.getElementById('attSummaryEmpSite').textContent = emp.site || 'Main Site';
+            document.getElementById('attSummaryEmpRole').textContent = emp.designation || emp.role || 'Staff Member';
+            document.getElementById('attSummaryPeriodBadge').textContent = stats.month_name;
+
+            // Populate KPIs
+            document.getElementById('attSummaryTotalDays').textContent = `${stats.total_sessions} Days`;
+            document.getElementById('attSummaryTotalHours').textContent = `${stats.total_hours} hrs`;
+            document.getElementById('attSummaryAvgHours').textContent = `${stats.avg_hours_per_day} hrs/day`;
+            document.getElementById('attSummaryCompleted').textContent = `${stats.completed}`;
+            document.getElementById('attSummaryNoOut').textContent = `${stats.no_out}`;
+            
+            const totalLeavesTaken = (leaveBal.taken ? leaveBal.taken.total : 0);
+            const totalOdVisits = (leaveBal.taken ? leaveBal.taken.OD : 0);
+            document.getElementById('attSummaryLeaves').textContent = `${totalLeavesTaken} Leaves • ${totalOdVisits} OD`;
+
+            document.getElementById('attSummaryDossierLink').href = `<?= base_url('reports') ?>?report_type=employee&employee_id=${empId}`;
+
+            // Populate Timesheet Table
+            const tbody = document.getElementById('attSummaryTableBody');
+            tbody.innerHTML = '';
+
+            if (sessions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-muted"><i class="fa-regular fa-calendar-xmark fa-2x mb-2 d-block opacity-50"></i>No attendance sessions clocked in ${stats.month_name}.</td></tr>`;
+            } else {
+                sessions.forEach((s, idx) => {
+                    const tr = document.createElement('tr');
+
+                    // Punch In formatting
+                    let inCell = '—';
+                    if (s.in_time) {
+                        const inTime = formatTimeStr(s.in_time);
+                        let selfie = '';
+                        if (s.in_photo) {
+                            const photoUrl = `<?= base_url('uploads/') ?>${encodeURIComponent(s.in_photo.replace(/^uploads\//, ''))}`;
+                            selfie = `<img src="${photoUrl}" class="rounded-circle border object-fit-cover shadow-sm ms-1" style="width: 24px; height: 24px; cursor: pointer;" onclick="viewPunchPhoto('${photoUrl}', '${escapeHtml(emp.name)} - Punch IN Selfie', '${formatDateStr(s.punch_date)}, ${inTime}')" alt="IN Selfie">`;
+                        }
+                        let dist = '';
+                        if (s.in_distance !== null && s.in_distance !== undefined && s.in_distance !== '') {
+                            dist = `<div class="text-success small" style="font-size: 0.68rem;"><i class="fa-solid fa-location-dot me-1"></i>${Math.round(parseFloat(s.in_distance))}m away</div>`;
+                        }
+                        inCell = `<div class="d-flex align-items-center gap-1"><span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">${inTime}</span>${selfie}</div>${dist}`;
+                    }
+
+                    // Punch Out formatting
+                    let outCell = '—';
+                    if (s.out_time) {
+                        const outTime = formatTimeStr(s.out_time);
+                        let selfie = '';
+                        if (s.out_photo) {
+                            const photoUrl = `<?= base_url('uploads/') ?>${encodeURIComponent(s.out_photo.replace(/^uploads\//, ''))}`;
+                            selfie = `<img src="${photoUrl}" class="rounded-circle border object-fit-cover shadow-sm ms-1" style="width: 24px; height: 24px; cursor: pointer;" onclick="viewPunchPhoto('${photoUrl}', '${escapeHtml(emp.name)} - Punch OUT Selfie', '${formatDateStr(s.punch_date)}, ${outTime}')" alt="OUT Selfie">`;
+                        }
+                        let dist = '';
+                        if (s.out_distance !== null && s.out_distance !== undefined && s.out_distance !== '') {
+                            dist = `<div class="text-danger small" style="font-size: 0.68rem;"><i class="fa-solid fa-location-dot me-1"></i>${Math.round(parseFloat(s.out_distance))}m away</div>`;
+                        }
+                        outCell = `<div class="d-flex align-items-center gap-1"><span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace">${outTime}</span>${selfie}</div>${dist}`;
+                    } else if (s.status === 'IN') {
+                        outCell = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i>Working Now</span>';
+                    } else if (s.status === 'NO_OUT' || s.auto_closed) {
+                        outCell = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>No OUT Punch</span>';
+                    }
+
+                    // Status Badge
+                    let statusBadge = '<span class="badge bg-secondary-subtle text-secondary border px-2 py-1"><i class="fa-solid fa-check me-1"></i>Completed</span>';
+                    if (s.status === 'IN') {
+                        statusBadge = '<span class="badge bg-success px-2 py-1"><i class="fa-solid fa-circle me-1" style="font-size: 6px;"></i>Working Now</span>';
+                    } else if (s.status === 'NO_OUT' || s.auto_closed) {
+                        statusBadge = '<span class="badge bg-warning text-dark border border-warning px-2 py-1">No OUT Punch</span>';
+                    }
+
+                    tr.innerHTML = `
+                        <td class="ps-3 text-muted">${idx + 1}</td>
+                        <td><strong>${formatDateStr(s.punch_date)}</strong></td>
+                        <td>${inCell}</td>
+                        <td>${outCell}</td>
+                        <td><span class="fw-bold font-monospace ${s.duration_seconds > 0 ? 'text-primary' : 'text-muted'}">${s.formatted_duration || '0m'}</span></td>
+                        <td><span class="badge bg-light text-dark border">${escapeHtml(s.site || s.project || 'Main Site')}</span></td>
+                        <td class="pe-3 text-end">${statusBadge}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('attSummaryLoadingBox').classList.add('d-none');
+            document.getElementById('attSummaryContentBox').classList.remove('d-none');
+
+        } catch (err) {
+            console.error(err);
+            alert('Error loading employee attendance summary.');
+            modal.hide();
+        }
+    }
+
+    function changeSummaryPeriod() {
+        if (currentSummaryEmpId) {
+            const m = document.getElementById('attSummaryMonthSelect').value;
+            const y = document.getElementById('attSummaryYearSelect').value;
+            openEmployeeAttendanceSummary(currentSummaryEmpId, m, y);
+        }
+    }
+
+    function formatTimeStr(timeStr) {
+        if (!timeStr) return '';
+        const d = new Date(timeStr);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+        return timeStr;
+    }
+
+    function formatDateStr(str) {
+        if (!str) return '';
+        const parts = str.split('-');
+        if (parts.length === 3) {
+            const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        return str;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+    }
+
+    function printAttendanceSummarySheet() {
+        window.print();
+    }
 </script>
+
+<!-- Complete Employee Attendance Log Sheet & Summary Modal -->
+<div class="modal fade" id="employeeAttendanceSummaryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <!-- Modal Actions Bar (hidden when printing) -->
+            <div class="modal-header border-bottom bg-light d-print-none py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white p-2 rounded-3"><i class="fa-solid fa-file-waveform fs-6"></i></span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Employee Attendance Log Sheet & Summary</h5>
+                        <small class="text-muted">Detailed punches, selfies, work hours, and monthly attendance statement</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-1 bg-white border rounded-pill px-2 py-1">
+                        <select id="attSummaryMonthSelect" class="form-select form-select-sm border-0 bg-transparent fw-semibold" onchange="changeSummaryPeriod()" style="width: auto;">
+                            <?php for ($m = 1; $m <= 12; $m++): ?>
+                                <option value="<?= sprintf('%02d', $m) ?>" <?= (int)date('m') === $m ? 'selected' : '' ?>>
+                                    <?= date('F', mktime(0, 0, 0, $m, 10)) ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                        <select id="attSummaryYearSelect" class="form-select form-select-sm border-0 bg-transparent fw-semibold" onchange="changeSummaryPeriod()" style="width: auto;">
+                            <?php for ($yr = (int)date('Y'); $yr >= (int)date('Y') - 2; $yr--): ?>
+                                <option value="<?= $yr ?>" <?= (int)date('Y') === $yr ? 'selected' : '' ?>><?= $yr ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-dark rounded-pill px-3 shadow-sm" onclick="printAttendanceSummarySheet()">
+                        <i class="fa-solid fa-print me-1"></i> Print Log Sheet
+                    </button>
+                    <button type="button" class="btn btn-light rounded-circle shadow-sm" data-bs-dismiss="modal" style="width: 38px; height: 38px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body p-4 p-md-5" id="printableAttendanceSummaryArea">
+                <!-- Loading State -->
+                <div id="attSummaryLoadingBox" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <h6 class="text-muted fw-bold">Loading Employee Attendance Log Sheet...</h6>
+                </div>
+
+                <!-- Printable Content Box -->
+                <div id="attSummaryContentBox" class="d-none">
+                    <!-- Company Official Printable Header -->
+                    <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-4 bg-primary bg-opacity-10 text-primary p-3 d-flex align-items-center justify-content-center">
+                                <i class="fa-solid fa-fingerprint fs-2"></i>
+                            </div>
+                            <div>
+                                <h4 class="fw-bold text-dark mb-1 font-monospace" style="letter-spacing: -0.5px;">Gannon Dunkerley & Co. Ltd.</h4>
+                                <div class="text-uppercase small fw-bold text-primary tracking-wider" style="font-size: 0.75rem; letter-spacing: 1px;">
+                                    Employee Attendance Log Sheet & Timesheet Summary
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end text-muted small">
+                            <div><strong>Statement Period:</strong> <span id="attSummaryPeriodBadge" class="fw-bold text-dark">—</span></div>
+                            <div><strong>Printed:</strong> <?= date('d M Y, h:i A') ?></div>
+                            <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill mt-1">Official Attendance Audit Sheet</div>
+                        </div>
+                    </div>
+
+                    <!-- Employee Profile Card -->
+                    <div class="row g-3 mb-4 p-3 bg-light rounded-4 border">
+                        <div class="col-md-3">
+                            <small class="text-muted fw-semibold d-block">Employee Name</small>
+                            <span class="fs-6 fw-bold text-dark" id="attSummaryEmpName">—</span>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted fw-semibold d-block">Employee Code</small>
+                            <span class="fs-6 fw-bold text-primary font-monospace" id="attSummaryEmpCode">—</span>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted fw-semibold d-block">Department</small>
+                            <span class="fs-6 fw-semibold text-dark" id="attSummaryEmpDept">—</span>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted fw-semibold d-block">Base Work Site</small>
+                            <span class="fs-6 fw-semibold text-dark" id="attSummaryEmpSite">—</span>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted fw-semibold d-block">Designation / Role</small>
+                            <span class="fs-6 fw-semibold text-dark" id="attSummaryEmpRole">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Attendance KPI Grid -->
+                    <div class="row g-3 mb-4 text-center">
+                        <div class="col-6 col-md-2">
+                            <div class="p-3 bg-light border rounded-4">
+                                <small class="text-muted fw-semibold d-block mb-1">Days Clocked</small>
+                                <h5 class="fw-bold text-dark mb-0 font-monospace" id="attSummaryTotalDays">0</h5>
+                                <small class="text-muted" style="font-size: 0.7rem;">Attendance Days</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="p-3 bg-primary bg-opacity-10 border border-primary-subtle rounded-4">
+                                <small class="text-primary-emphasis fw-semibold d-block mb-1">Total Hours</small>
+                                <h5 class="fw-bold text-primary mb-0 font-monospace" id="attSummaryTotalHours">0 hrs</h5>
+                                <small class="text-muted" style="font-size: 0.7rem;">Work Clock</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="p-3 bg-info bg-opacity-10 border border-info-subtle rounded-4">
+                                <small class="text-info-emphasis fw-semibold d-block mb-1">Avg Hours / Day</small>
+                                <h5 class="fw-bold text-info mb-0 font-monospace" id="attSummaryAvgHours">0 hrs</h5>
+                                <small class="text-muted" style="font-size: 0.7rem;">Daily Average</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="p-3 bg-success bg-opacity-10 border border-success-subtle rounded-4">
+                                <small class="text-success-emphasis fw-semibold d-block mb-1">Completed</small>
+                                <h5 class="fw-bold text-success mb-0 font-monospace" id="attSummaryCompleted">0</h5>
+                                <small class="text-muted" style="font-size: 0.7rem;">IN & OUT Paired</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="p-3 bg-warning bg-opacity-10 border border-warning-subtle rounded-4">
+                                <small class="text-warning-emphasis fw-semibold d-block mb-1">No Out Punches</small>
+                                <h5 class="fw-bold text-warning-emphasis mb-0 font-monospace" id="attSummaryNoOut">0</h5>
+                                <small class="text-muted" style="font-size: 0.7rem;">Auto-closed</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="p-3 bg-dark text-white rounded-4 shadow-sm">
+                                <small class="text-white text-opacity-75 fw-semibold d-block mb-1">Leaves / OD</small>
+                                <h5 class="fw-bold text-white mb-0 font-monospace" id="attSummaryLeaves" style="font-size: 0.95rem;">0 / 0</h5>
+                                <small class="text-white text-opacity-75" style="font-size: 0.7rem;">Official Record</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Attendance Timesheet Table -->
+                    <div class="border rounded-4 overflow-hidden mb-4">
+                        <div class="bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0 text-dark small"><i class="fa-solid fa-clock-rotate-left me-1 text-primary"></i>Daily Punch Sessions & Geo Logs</h6>
+                            <span class="badge bg-secondary text-white rounded-pill">Verified Biometric Timesheet</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light small text-muted text-uppercase" style="font-size: 0.72rem;">
+                                    <tr>
+                                        <th class="ps-3">#</th>
+                                        <th>Date</th>
+                                        <th>Punch IN (Time & GPS)</th>
+                                        <th>Punch OUT (Time & GPS)</th>
+                                        <th>Hours Clocked</th>
+                                        <th>Project / Site</th>
+                                        <th class="pe-3 text-end">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attSummaryTableBody" class="small">
+                                    <!-- Populated dynamically by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Signature & Authorization Section for Print -->
+                    <div class="row pt-4 mt-4 border-top text-muted small">
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                            <span>Employee Signature</span>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                            <span>Site / Project Engineer</span>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                            <span>HR / Timekeeper Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light py-3 px-4 d-print-none">
+                <a id="attSummaryDossierLink" href="#" class="btn btn-outline-primary rounded-pill px-3 me-auto">
+                    <i class="fa-solid fa-chart-pie me-1"></i> Full Employee Attendance Dossier
+                </a>
+                <button type="button" class="btn btn-dark rounded-pill px-4" onclick="printAttendanceSummarySheet()">
+                    <i class="fa-solid fa-print me-1"></i> Print Log Sheet
+                </button>
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    #printableAttendanceSummaryArea, #printableAttendanceSummaryArea * {
+        visibility: visible !important;
+    }
+    #printableAttendanceSummaryArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        background: #fff !important;
+    }
+    .modal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+    .modal-dialog {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+</style>

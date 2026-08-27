@@ -281,4 +281,74 @@ class AttendanceController extends Controller {
 
         redirect('attendance');
     }
+
+    /**
+     * API for Employee Attendance Log Sheet Summary Modal
+     */
+    public function employeeSummary(): void {
+        Auth::requireAuth();
+        header('Content-Type: application/json');
+
+        $employeeId = (int) Request::input('employee_id', 0);
+        $month = Request::input('month', date('m'));
+        $year = Request::input('year', date('Y'));
+
+        $emp = Employee::find($employeeId);
+        if (!$emp) {
+            echo json_encode(['success' => false, 'message' => 'Employee not found.']);
+            exit;
+        }
+
+        $startDate = sprintf('%04d-%02d-01', $year, $month);
+        $endDate = date('Y-m-t', strtotime($startDate));
+
+        $sessions = Attendance::getPairedSessions([
+            'employee_id' => $employeeId,
+            'start_date' => $startDate,
+            'end_date' => $endDate
+        ], 100, 0);
+
+        $leaves = Leave::all([
+            'employee_id' => $employeeId
+        ], 'l.start_date DESC');
+
+        $empBalance = Leave::getEmployeeLeaveBalance($employeeId, (int)$year);
+
+        // Stats calculation
+        $totalSessions = count($sessions);
+        $totalDurationSecs = 0;
+        $totalCompleted = 0;
+        $workingNow = 0;
+        $noOutCount = 0;
+
+        foreach ($sessions as $s) {
+            $totalDurationSecs += (int) ($s['duration_seconds'] ?? 0);
+            if ($s['status'] === 'IN') $workingNow++;
+            elseif ($s['status'] === 'NO_OUT' || !empty($s['auto_closed'])) $noOutCount++;
+            else $totalCompleted++;
+        }
+
+        $totalHours = round($totalDurationSecs / 3600, 1);
+        $avgHoursPerDay = ($totalSessions > 0) ? round($totalHours / $totalSessions, 1) : 0;
+
+        echo json_encode([
+            'success' => true,
+            'employee' => $emp,
+            'stats' => [
+                'total_sessions' => $totalSessions,
+                'total_hours' => $totalHours,
+                'avg_hours_per_day' => $avgHoursPerDay,
+                'completed' => $totalCompleted,
+                'working_now' => $workingNow,
+                'no_out' => $noOutCount,
+                'month' => $month,
+                'year' => $year,
+                'month_name' => date('F Y', strtotime($startDate))
+            ],
+            'sessions' => $sessions,
+            'leaves' => $leaves,
+            'leave_balance' => $empBalance
+        ]);
+        exit;
+    }
 }

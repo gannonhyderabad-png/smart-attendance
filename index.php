@@ -346,6 +346,7 @@ $router->get('/employees/empty-trash', [\App\Controllers\EmployeeController::cla
 // Attendance Logs
 $router->get('/attendance', [\App\Controllers\AttendanceController::class, 'index']);
 $router->get('/attendance/export', [\App\Controllers\AttendanceController::class, 'exportCsv']);
+$router->get('/attendance/employee-summary', [\App\Controllers\AttendanceController::class, 'employeeSummary']);
 $router->post('/attendance/manual', [\App\Controllers\AttendanceController::class, 'manualStore']);
 $router->post('/attendance/delete', [\App\Controllers\AttendanceController::class, 'delete']);
 

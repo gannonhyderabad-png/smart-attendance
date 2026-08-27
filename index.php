@@ -374,6 +374,31 @@ $router->get('/reports/monthly/export', [\App\Controllers\ReportController::clas
 $router->get('/reports/monthly/audit-export', [\App\Controllers\ReportController::class, 'exportMonthlyAuditCsv']);
 $router->get('/reports/employee', [\App\Controllers\ReportController::class, 'employee']);
 
+// Biometric & FRM Devices (eSSL / ZKTeco Cloud ADMS Push)
+$router->get('/iclock/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/iclock/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/iclock/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
+$router->post('/iclock/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
+$router->get('/iclock/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);
+$router->post('/iclock/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);
+$router->get('/iclock/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
+$router->post('/iclock/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
+
+// Root path fallback aliases for older firmware
+$router->get('/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
+$router->post('/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
+$router->get('/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);
+$router->post('/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);
+$router->get('/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
+$router->post('/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
+
+// FRM Devices Management in Admin
+$router->get('/devices', [\App\Controllers\DeviceController::class, 'index']);
+$router->post('/devices/update', [\App\Controllers\DeviceController::class, 'update']);
+$router->post('/devices/delete', [\App\Controllers\DeviceController::class, 'delete']);
+
 // System Logs, Backups & Admin Settings
 $router->get('/logs', [\App\Controllers\LogController::class, 'index']);
 $router->get('/profile', [\App\Controllers\AuthController::class, 'profile']);

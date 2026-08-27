@@ -63,6 +63,11 @@
                         <i class="fa-solid fa-calendar-star me-2 fa-fw text-warning"></i> Public Holidays
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="<?= base_url('devices') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'devices') ? 'active' : 'text-white-50' ?>">
+                        <i class="fa-solid fa-fingerprint me-2 fa-fw text-info"></i> FRM Devices (eSSL/ZKT)
+                    </a>
+                </li>
 
                 <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">System</li>
                 <li class="nav-item">

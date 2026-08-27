@@ -248,6 +248,22 @@ class Database {
                 INDEX `idx_leave_emp` (`employee_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `devices` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `serial_number` VARCHAR(100) NOT NULL UNIQUE,
+                `device_name` VARCHAR(150) NULL,
+                `device_model` VARCHAR(100) NULL,
+                `ip_address` VARCHAR(50) NULL,
+                `site` VARCHAR(150) NULL,
+                `project` VARCHAR(150) NULL,
+                `firmware_version` VARCHAR(100) NULL,
+                `push_version` VARCHAR(50) NULL,
+                `status` VARCHAR(20) DEFAULT 'ONLINE',
+                `last_heartbeat` DATETIME NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_device_sn` (`serial_number`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `origin_site` VARCHAR(150) NULL AFTER `days_count`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `target_site` VARCHAR(150) NULL AFTER `origin_site`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `attachment` VARCHAR(255) NULL AFTER `target_site`;"); } catch (\Throwable $e) {}
@@ -635,6 +651,21 @@ class Database {
             status TEXT DEFAULT 'APPROVED',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS devices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            serial_number TEXT NOT NULL UNIQUE,
+            device_name TEXT NULL,
+            device_model TEXT NULL,
+            ip_address TEXT NULL,
+            site TEXT NULL,
+            project TEXT NULL,
+            firmware_version TEXT NULL,
+            push_version TEXT NULL,
+            status TEXT DEFAULT 'ONLINE',
+            last_heartbeat DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
 
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN origin_site TEXT;"); } catch (\Throwable $e) {}

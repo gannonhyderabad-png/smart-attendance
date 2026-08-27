@@ -251,6 +251,9 @@ class Database {
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `origin_site` VARCHAR(150) NULL AFTER `days_count`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `target_site` VARCHAR(150) NULL AFTER `origin_site`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `attachment` VARCHAR(255) NULL AFTER `target_site`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `employees` ADD COLUMN `cl_quota` DECIMAL(4,1) NULL DEFAULT NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `employees` ADD COLUMN `sl_quota` DECIMAL(4,1) NULL DEFAULT NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `employees` ADD COLUMN `pl_quota` DECIMAL(4,1) NULL DEFAULT NULL;"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -457,6 +460,12 @@ class Database {
                 $hStmt->execute($h);
             }
         }
+
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN IF NOT EXISTS cl_quota NUMERIC(4,1) DEFAULT NULL;");
+            $pdo->exec("ALTER TABLE employees ADD COLUMN IF NOT EXISTS sl_quota NUMERIC(4,1) DEFAULT NULL;");
+            $pdo->exec("ALTER TABLE employees ADD COLUMN IF NOT EXISTS pl_quota NUMERIC(4,1) DEFAULT NULL;");
+        } catch (\Throwable $e) {}
 
         try {
             $pdo->exec("UPDATE settings SET setting_value = 'Gannon Dunkerley & Co. Ltd.' WHERE setting_key = 'company_name' AND (setting_value LIKE '%TechCorp%' OR setting_value LIKE '%Smart Attendance Management%' OR setting_value IS NULL);");
@@ -684,6 +693,16 @@ class Database {
                 ('auto_calculate_hours', '1'),
                 ('site_logo_text', 'Smart Attendance')");
         }
+
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN cl_quota REAL DEFAULT NULL;");
+        } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN sl_quota REAL DEFAULT NULL;");
+        } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;");
+        } catch (\Throwable $e) {}
 
         try {
             $pdo->exec("UPDATE settings SET setting_value = 'Gannon Dunkerley & Co. Ltd.' WHERE setting_key = 'company_name' AND (setting_value LIKE '%TechCorp%' OR setting_value LIKE '%Smart Attendance Management%' OR setting_value IS NULL);");

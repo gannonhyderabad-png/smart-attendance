@@ -198,10 +198,18 @@ class Leave extends Model {
             else $otherTaken += $days;
         }
 
-        // Check if employee has custom quotas
-        $empStmt = $pdo->prepare("SELECT cl_quota, sl_quota, pl_quota FROM employees WHERE id = ? LIMIT 1");
-        $empStmt->execute([$employeeId]);
-        $empRow = $empStmt->fetch(PDO::FETCH_ASSOC);
+        // Check if employee has custom quotas safely
+        $empRow = null;
+        try {
+            $empStmt = $pdo->prepare("SELECT cl_quota, sl_quota, pl_quota FROM employees WHERE id = ? LIMIT 1");
+            $empStmt->execute([$employeeId]);
+            $empRow = $empStmt->fetch(PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            // Auto add missing columns to database
+            try { $pdo->exec("ALTER TABLE employees ADD COLUMN cl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e1) {}
+            try { $pdo->exec("ALTER TABLE employees ADD COLUMN sl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e2) {}
+            try { $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e3) {}
+        }
 
         $defaultAssigned = self::getCompanyAssignedLeaves();
         $isCustom = false;

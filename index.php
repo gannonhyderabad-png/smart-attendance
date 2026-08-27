@@ -269,6 +269,15 @@ try {
         try {
             $pdo->exec("ALTER TABLE employees ADD COLUMN deleted_at DATETIME NULL;");
         } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN cl_quota REAL DEFAULT NULL;");
+        } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN sl_quota REAL DEFAULT NULL;");
+        } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;");
+        } catch (\Throwable $e) {}
 
         // Ensure default admin exists
         $adminStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");

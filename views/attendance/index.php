@@ -16,12 +16,6 @@
                 <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#manualEntryModal">
                     <i class="fa-solid fa-user-clock me-1"></i> + Manual Entry
                 </button>
-                <?php 
-                $exportQuery = http_build_query($filters);
-                ?>
-                <a href="<?= base_url('attendance/export?' . $exportQuery) ?>" class="btn btn-success rounded-pill px-3 shadow-sm">
-                    <i class="fa-solid fa-file-csv me-1"></i> Export Filtered CSV
-                </a>
             </div>
         </div>
 
@@ -269,24 +263,13 @@
                                     <?php endif; ?>
                                 </td>
                                 <td class="pe-3 text-end">
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-light border text-info" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" title="View Attendance Log Sheet & Timesheet Summary">
-                                            <i class="fa-solid fa-file-waveform"></i>
+                                    <div class="d-inline-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" title="View Attendance Log Sheet & Timesheet Summary">
+                                            <i class="fa-solid fa-file-waveform me-1"></i> Log Sheet
                                         </button>
-                                        <a href="<?= base_url('employees/view/' . $row['employee_id']) ?>" class="btn btn-light border text-primary" title="View Employee Details & QR Code">
-                                            <i class="fa-solid fa-id-card"></i>
-                                        </a>
-                                        <a href="<?= punch_url($row['employee_code']) ?>" target="_blank" class="btn btn-outline-primary" title="Open Mobile Punch URL">
+                                        <a href="<?= punch_url($row['employee_code']) ?>" target="_blank" class="btn btn-sm btn-light border rounded-pill px-2 py-1 text-primary" title="Open Mobile Punch URL">
                                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                         </a>
-                                        <form action="<?= base_url('attendance/delete') ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete attendance record for <?= e($row['employee_name']) ?> on <?= e($row['punch_date']) ?>?');">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="employee_id" value="<?= $row['employee_id'] ?>">
-                                            <input type="hidden" name="punch_date" value="<?= $row['punch_date'] ?>">
-                                            <button type="submit" class="btn btn-outline-danger border-start-0" title="Delete Attendance Session">
-                                                <i class="fa-solid fa-trash-can"></i>
-                                            </button>
-                                        </form>
                                     </div>
                                 </td>
                             </tr>

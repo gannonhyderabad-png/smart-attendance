@@ -151,4 +151,93 @@ class Leave extends Model {
         $stmt = $pdo->prepare("DELETE FROM " . static::$table . " WHERE id = ?");
         return $stmt->execute([$id]);
     }
+
+    /**
+     * Get Standard Company Assigned Leave Quota per Employee
+     */
+    public static function getCompanyAssignedLeaves(): array {
+        $cl = (float) (Setting::get('company_assigned_cl', '12') ?: 12);
+        $sl = (float) (Setting::get('company_assigned_sl', '10') ?: 10);
+        $pl = (float) (Setting::get('company_assigned_pl', '15') ?: 15);
+        $total = (float) (Setting::get('company_assigned_total', (string)($cl + $sl + $pl)) ?: ($cl + $sl + $pl));
+
+        return [
+            'CL' => $cl,
+            'SL' => $sl,
+            'PL' => $pl,
+            'total' => $total
+        ];
+    }
+
+    /**
+     * Calculate Leave Balances & Quota for a Specific Employee
+     */
+    public static function getEmployeeLeaveBalance(int $employeeId, ?int $year = null): array {
+        $year = $year ?: (int) date('Y');
+        $startYear = sprintf('%04d-01-01', $year);
+        $endYear = sprintf('%04d-12-31', $year);
+
+        $pdo = self::db();
+        $stmt = $pdo->prepare("SELECT leave_type, days_count, status FROM " . static::$table . " WHERE employee_id = ? AND start_date >= ? AND start_date <= ?");
+        $stmt->execute([$employeeId, $startYear, $endYear]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $clTaken = 0.0;
+        $slTaken = 0.0;
+        $plTaken = 0.0;
+        $odTaken = 0.0;
+        $otherTaken = 0.0;
+
+        foreach ($rows as $r) {
+            $code = self::getLeaveCode($r['leave_type']);
+            $days = (float) $r['days_count'];
+            if ($code === 'CL') $clTaken += $days;
+            elseif ($code === 'SL') $slTaken += $days;
+            elseif ($code === 'PL') $plTaken += $days;
+            elseif ($code === 'OD') $odTaken += $days;
+            else $otherTaken += $days;
+        }
+
+        $assigned = self::getCompanyAssignedLeaves();
+        $totalStandardTaken = $clTaken + $slTaken + $plTaken + $otherTaken;
+
+        return [
+            'year' => $year,
+            'assigned' => [
+                'CL' => $assigned['CL'],
+                'SL' => $assigned['SL'],
+                'PL' => $assigned['PL'],
+                'total' => $assigned['total']
+            ],
+            'taken' => [
+                'CL' => $clTaken,
+                'SL' => $slTaken,
+                'PL' => $plTaken,
+                'OD' => $odTaken,
+                'other' => $otherTaken,
+                'total' => $totalStandardTaken
+            ],
+            'balance' => [
+                'CL' => max(0.0, $assigned['CL'] - $clTaken),
+                'SL' => max(0.0, $assigned['SL'] - $slTaken),
+                'PL' => max(0.0, $assigned['PL'] - $plTaken),
+                'total' => max(0.0, $assigned['total'] - $totalStandardTaken)
+            ]
+        ];
+    }
+
+    /**
+     * Get Leave Quotas & Balances for All Active Employees
+     */
+    public static function getAllEmployeesLeaveBalances(?int $year = null): array {
+        $year = $year ?: (int) date('Y');
+        $employees = Employee::all(['status' => 'active']);
+        $map = [];
+
+        foreach ($employees as $emp) {
+            $map[$emp['id']] = self::getEmployeeLeaveBalance($emp['id'], $year);
+        }
+
+        return $map;
+    }
 }

@@ -30,55 +30,129 @@
 
 <!-- Quick Leave KPI Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-primary">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-muted small text-uppercase fw-semibold">Total Leave Entries</div>
-                    <h3 class="fw-bold mb-0 mt-1 text-dark"><?= count($leaves) ?></h3>
-                </div>
-                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3">
-                    <i class="fa-solid fa-folder-open fa-lg"></i>
-                </div>
-            </div>
+    <div class="col-6 col-lg-2">
+        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-secondary h-100">
+            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Company Assigned</div>
+            <h4 class="fw-bold mb-0 mt-1 text-dark"><?= $companyQuotas['total'] ?? 37 ?> <span class="fs-6 text-muted fw-normal">Days/Yr</span></h4>
+            <div class="text-muted small mt-1" style="font-size: 0.68rem;">12 CL &bull; 10 SL &bull; 15 PL</div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-info">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-muted small text-uppercase fw-semibold">Casual Leave (CL)</div>
-                    <h3 class="fw-bold mb-0 mt-1 text-info"><?= $stats['cl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h3>
-                </div>
-                <div class="bg-info bg-opacity-10 text-info rounded-circle p-3">
-                    <i class="fa-solid fa-user-clock fa-lg"></i>
-                </div>
-            </div>
+    <div class="col-6 col-lg-2">
+        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-primary h-100">
+            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Total Entries</div>
+            <h4 class="fw-bold mb-0 mt-1 text-primary"><?= count($leaves) ?></h4>
+            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Recorded leaves</div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-warning">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-muted small text-uppercase fw-semibold">Sick Leave (SL)</div>
-                    <h3 class="fw-bold mb-0 mt-1 text-warning"><?= $stats['sl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h3>
-                </div>
-                <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-3">
-                    <i class="fa-solid fa-notes-medical fa-lg"></i>
-                </div>
-            </div>
+    <div class="col-6 col-lg-2">
+        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-info h-100">
+            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Casual Leave (CL)</div>
+            <h4 class="fw-bold mb-0 mt-1 text-info"><?= $stats['cl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h4>
+            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Assigned: <?= $companyQuotas['CL'] ?? 12 ?> Days</div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-success">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-muted small text-uppercase fw-semibold">On Duty / Visit (OD)</div>
-                    <h3 class="fw-bold mb-0 mt-1 text-success"><?= $stats['od'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h3>
-                </div>
-                <div class="bg-success bg-opacity-10 text-success rounded-circle p-3">
-                    <i class="fa-solid fa-briefcase fa-lg"></i>
-                </div>
+    <div class="col-6 col-lg-2">
+        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-warning h-100">
+            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Sick Leave (SL)</div>
+            <h4 class="fw-bold mb-0 mt-1 text-warning"><?= $stats['sl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h4>
+            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Assigned: <?= $companyQuotas['SL'] ?? 10 ?> Days</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-success h-100">
+            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Paid Leave (PL)</div>
+            <h4 class="fw-bold mb-0 mt-1 text-success"><?= $stats['pl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h4>
+            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Assigned: <?= $companyQuotas['PL'] ?? 15 ?> Days</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-dark h-100">
+            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Outdoor Duty (OD)</div>
+            <h4 class="fw-bold mb-0 mt-1 text-dark"><?= $stats['od'] ?> <span class="fs-6 text-muted fw-normal">Visits</span></h4>
+            <div class="text-muted small mt-1" style="font-size: 0.68rem;">On-Duty site visits</div>
+        </div>
+    </div>
+</div>
+
+<!-- Collapsible Company Assigned Staff Leave Balances Hub -->
+<div class="card border-0 rounded-4 shadow-sm bg-white mb-4">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#staffLeaveQuotaCollapse">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-scale-balanced text-primary fs-5"></i>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">Company Assigned Leave Balances per Staff</h6>
+                <small class="text-muted">Company standard annual allowance: <strong><?= $companyQuotas['total'] ?? 37 ?> Days</strong> (12 CL &bull; 10 SL &bull; 15 PL)</small>
+            </div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#staffLeaveQuotaCollapse">
+            <i class="fa-solid fa-table-list me-1"></i> Toggle Quota Matrix
+        </button>
+    </div>
+    <div class="collapse show" id="staffLeaveQuotaCollapse">
+        <div class="card-body p-0 border-top">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4">Staff Member</th>
+                            <th>Department & Site</th>
+                            <th>Company Assigned Quota</th>
+                            <th>Casual Leave (CL)</th>
+                            <th>Sick Leave (SL)</th>
+                            <th>Paid Leave (PL)</th>
+                            <th>Outdoor Duty (OD)</th>
+                            <th class="pe-4 text-end">Available Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        <?php foreach ($employees as $emp): 
+                            $bal = $employeeBalances[$emp['id']] ?? null;
+                            if (!$bal) continue;
+                        ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <a href="<?= base_url('employees/view/' . $emp['id']) ?>" class="fw-bold text-dark text-decoration-none">
+                                        <?= e($emp['name']) ?>
+                                    </a>
+                                    <div class="text-muted font-monospace small" style="font-size: 0.72rem;"><?= e($emp['employee_code']) ?></div>
+                                </td>
+                                <td>
+                                    <div><?= e($emp['department_name'] ?? ($emp['department'] ?? 'General')) ?></div>
+                                    <div class="text-muted small"><i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($emp['site'] ?? 'Main Site') ?></div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border font-monospace">
+                                        <?= $bal['assigned']['total'] ?> Days
+                                    </span>
+                                    <div class="text-muted small mt-1" style="font-size: 0.68rem;">12 CL &bull; 10 SL &bull; 15 PL</div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-info"><?= $bal['taken']['CL'] ?> used</div>
+                                    <div class="text-muted small"><?= $bal['balance']['CL'] ?> left of <?= $bal['assigned']['CL'] ?></div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-warning"><?= $bal['taken']['SL'] ?> used</div>
+                                    <div class="text-muted small"><?= $bal['balance']['SL'] ?> left of <?= $bal['assigned']['SL'] ?></div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-success"><?= $bal['taken']['PL'] ?> used</div>
+                                    <div class="text-muted small"><?= $bal['balance']['PL'] ?> left of <?= $bal['assigned']['PL'] ?></div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2">
+                                        <?= $bal['taken']['OD'] ?> Visits
+                                    </span>
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <span class="badge <?= $bal['balance']['total'] > 5 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' ?> rounded-pill px-3 py-1 fw-bold fs-6 font-monospace">
+                                        <?= $bal['balance']['total'] ?> / <?= $bal['assigned']['total'] ?>
+                                    </span>
+                                    <div class="text-muted small mt-1">Days Remaining</div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -131,6 +205,7 @@
                 <tr>
                     <th class="ps-4">Employee</th>
                     <th>Leave Type</th>
+                    <th>Company Assigned & Balance</th>
                     <th>Target / Visit Site</th>
                     <th>Date Period</th>
                     <th>Days</th>
@@ -143,7 +218,7 @@
             <tbody>
                 <?php if (empty($leaves)): ?>
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
+                        <td colspan="10" class="text-center py-5 text-muted">
                             <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-secondary opacity-50 d-block"></i>
                             No leave entries recorded yet. Click <strong>Add Leave Entry</strong> to record employee leave.
                         </td>
@@ -159,6 +234,7 @@
                             'HOL' => 'bg-purple-subtle text-purple border',
                             default => 'bg-secondary-subtle text-secondary border'
                         };
+                        $empBal = $employeeBalances[$lv['employee_id']] ?? null;
                     ?>
                         <tr>
                             <td class="ps-4">
@@ -180,6 +256,22 @@
                                 <span class="badge <?= $badgeClass ?> px-2 py-1 rounded-pill">
                                     <i class="fa-solid fa-tag me-1"></i><?= e($lv['leave_type']) ?>
                                 </span>
+                            </td>
+                            <td>
+                                <?php if ($empBal): ?>
+                                    <div class="small fw-semibold text-dark">
+                                        <span class="text-info" title="Casual Leave Balance"><strong><?= $empBal['balance']['CL'] ?></strong>/<?= $empBal['assigned']['CL'] ?> CL</span> &bull;
+                                        <span class="text-warning" title="Sick Leave Balance"><strong><?= $empBal['balance']['SL'] ?></strong>/<?= $empBal['assigned']['SL'] ?> SL</span> &bull;
+                                        <span class="text-success" title="Paid Leave Balance"><strong><?= $empBal['balance']['PL'] ?></strong>/<?= $empBal['assigned']['PL'] ?> PL</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-shield-halved me-1"></i><?= $empBal['balance']['total'] ?> / <?= $empBal['assigned']['total'] ?> Left
+                                        </span>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted small">—</span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if (!empty($lv['target_site'])): ?>
@@ -218,15 +310,11 @@
                                 ?>
                                     <?php if ($attExt === 'pdf'): ?>
                                         <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="View Attached PDF Sheet">
-                                            <i class="fa-solid fa-file-pdf me-1 text-danger"></i> PDF Sheet
-                                        </a>
-                                    <?php elseif (in_array($attExt, ['png', 'jpg', 'jpeg', 'webp'])): ?>
-                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="View Attached Image">
-                                            <i class="fa-solid fa-image me-1"></i> Document
+                                            <i class="fa-solid fa-file-pdf me-1"></i> PDF Sheet
                                         </a>
                                     <?php else: ?>
-                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="Download Attached File">
-                                            <i class="fa-solid fa-paperclip me-1"></i> File (.<?= $attExt ?>)
+                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 shadow-sm" style="font-size: 0.75rem;">
+                                            <i class="fa-solid fa-file-arrow-down me-1"></i> Attachment
                                         </a>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -275,15 +363,28 @@
                 <div class="modal-body py-4">
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Employee (Name or Code) <span class="text-danger">*</span></label>
-                        <input type="text" name="employee_id" list="leaveEmployeeDatalist" class="form-control bg-light" placeholder="Type Employee Name or Code (e.g. EMP001)..." required autocomplete="off">
+                        <input type="text" name="employee_id" id="modalEmpInput" list="leaveEmployeeDatalist" class="form-control bg-light" placeholder="Type Employee Name or Code (e.g. EMP001)..." required autocomplete="off" oninput="updateModalEmpQuota(this.value)">
                         <datalist id="leaveEmployeeDatalist">
                             <?php foreach ($employees as $emp): ?>
-                                <option value="<?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?>">
+                                <option value="<?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?>" data-empid="<?= $emp['id'] ?>" data-empcode="<?= e($emp['employee_code']) ?>">
                                     <?= e($emp['name']) ?> (<?= e($emp['department_name'] ?? ($emp['department'] ?? 'General')) ?>)
                                 </option>
                             <?php endforeach; ?>
                         </datalist>
                         <small class="text-muted" style="font-size: 0.72rem;">Type employee code or name to search and select.</small>
+                    </div>
+
+                    <!-- Live Employee Leave Quota Preview in Modal -->
+                    <div id="modalEmpQuotaBox" class="p-3 bg-light rounded-4 border mb-3 d-none">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="small fw-bold text-dark"><i class="fa-solid fa-scale-balanced text-primary me-1"></i>Company Assigned Quota:</span>
+                            <span id="modalEmpTotalBalBadge" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace"></span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 small mt-2">
+                            <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1" id="modalClBal"></span>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1" id="modalSlBal"></span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1" id="modalPlBal"></span>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -362,6 +463,60 @@
 </div>
 
 <script>
+const allEmployeeBalances = <?= json_encode($employeeBalances ?? []) ?>;
+const employeesLookup = {
+    <?php foreach ($employees as $emp): ?>
+        "<?= addslashes(strtolower($emp['employee_code'])) ?>": <?= (int)$emp['id'] ?>,
+        "<?= addslashes(strtolower($emp['name'])) ?>": <?= (int)$emp['id'] ?>,
+        "<?= (int)$emp['id'] ?>": <?= (int)$emp['id'] ?>,
+    <?php endforeach; ?>
+};
+
+function updateModalEmpQuota(val) {
+    const box = document.getElementById('modalEmpQuotaBox');
+    if (!val || !box) {
+        if (box) box.classList.add('d-none');
+        return;
+    }
+
+    let empId = null;
+    const cleanVal = val.toLowerCase().trim();
+    
+    // Check if format is "CODE — Name"
+    if (cleanVal.includes('—')) {
+        const parts = cleanVal.split('—');
+        const code = parts[0].trim();
+        if (employeesLookup[code]) empId = employeesLookup[code];
+    } else if (cleanVal.includes('-')) {
+        const parts = cleanVal.split('-');
+        const code = parts[0].trim();
+        if (employeesLookup[code]) empId = employeesLookup[code];
+    } else if (employeesLookup[cleanVal]) {
+        empId = employeesLookup[cleanVal];
+    }
+
+    if (!empId) {
+        // Search by code substring
+        for (const [key, id] of Object.entries(employeesLookup)) {
+            if (cleanVal.includes(key) || key.includes(cleanVal)) {
+                empId = id;
+                break;
+            }
+        }
+    }
+
+    if (empId && allEmployeeBalances[empId]) {
+        const b = allEmployeeBalances[empId];
+        box.classList.remove('d-none');
+        document.getElementById('modalEmpTotalBalBadge').textContent = `${b.balance.total} / ${b.assigned.total} Days Left`;
+        document.getElementById('modalClBal').textContent = `CL: ${b.balance.CL} / ${b.assigned.CL} Left`;
+        document.getElementById('modalSlBal').textContent = `SL: ${b.balance.SL} / ${b.assigned.SL} Left`;
+        document.getElementById('modalPlBal').textContent = `PL: ${b.balance.PL} / ${b.assigned.PL} Left`;
+    } else {
+        box.classList.add('d-none');
+    }
+}
+
 function syncToDate(val) {
     const toInput = document.getElementById('leaveToDate');
     if (toInput && (!toInput.value || toInput.value < val)) {

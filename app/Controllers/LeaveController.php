@@ -44,12 +44,17 @@ class LeaveController extends Controller {
             elseif ($code === 'OD') $odCount += (float)$lv['days_count'];
         }
 
+        $companyQuotas = Leave::getCompanyAssignedLeaves();
+        $employeeBalances = Leave::getAllEmployeesLeaveBalances();
+
         $this->view('leaves.index', [
             'title' => 'Employee Leave Management',
             'leaves' => $leaves,
             'employees' => $employees,
             'departments' => $departments,
             'siteList' => $siteList,
+            'companyQuotas' => $companyQuotas,
+            'employeeBalances' => $employeeBalances,
             'filters' => [
                 'employee_id' => $employeeId,
                 'leave_type' => $leaveType,

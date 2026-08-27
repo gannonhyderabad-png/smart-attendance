@@ -47,6 +47,12 @@ class LeaveController extends Controller {
         $companyQuotas = Leave::getCompanyAssignedLeaves();
         $employeeBalances = Leave::getAllEmployeesLeaveBalances();
 
+        $allLeaves = Leave::all([], 'l.start_date DESC');
+        $leavesByEmployee = [];
+        foreach ($allLeaves as $l) {
+            $leavesByEmployee[$l['employee_id']][] = $l;
+        }
+
         $this->view('leaves.index', [
             'title' => 'Employee Leave Management',
             'leaves' => $leaves,
@@ -55,6 +61,7 @@ class LeaveController extends Controller {
             'siteList' => $siteList,
             'companyQuotas' => $companyQuotas,
             'employeeBalances' => $employeeBalances,
+            'leavesByEmployee' => $leavesByEmployee,
             'filters' => [
                 'employee_id' => $employeeId,
                 'leave_type' => $leaveType,

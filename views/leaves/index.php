@@ -115,10 +115,22 @@
                         ?>
                             <tr>
                                 <td class="ps-4">
-                                    <a href="<?= base_url('employees/view/' . $emp['id']) ?>" class="fw-bold text-dark text-decoration-none">
-                                        <?= e($emp['name']) ?>
-                                    </a>
-                                    <div class="text-muted font-monospace small" style="font-size: 0.72rem;"><?= e($emp['employee_code']) ?></div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold cursor-pointer" style="width: 32px; height: 32px; font-size: 0.8rem;" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)">
+                                            <?= strtoupper(substr($emp['name'], 0, 2)) ?>
+                                        </div>
+                                        <div>
+                                            <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" class="fw-bold text-dark text-decoration-none" title="Click to view full Employee Leave Sheet">
+                                                <?= e($emp['name']) ?>
+                                            </a>
+                                            <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
+                                                <?= e($emp['employee_code']) ?>
+                                                <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" class="text-primary text-decoration-none ms-1 font-sans small fw-semibold" style="font-size: 0.7rem;">
+                                                    <i class="fa-solid fa-file-lines me-1"></i>View Sheet
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <div><?= e($emp['department_name'] ?? ($emp['department'] ?? 'General')) ?></div>
@@ -159,17 +171,22 @@
                                     <div class="text-muted small mt-1">Days Remaining</div>
                                 </td>
                                 <td class="pe-4 text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openEditEmpQuota(<?= htmlspecialchars(json_encode([
-                                        'id' => $emp['id'],
-                                        'name' => $emp['name'],
-                                        'code' => $emp['employee_code'],
-                                        'cl' => $bal['assigned']['CL'],
-                                        'sl' => $bal['assigned']['SL'],
-                                        'pl' => $bal['assigned']['PL'],
-                                        'is_custom' => $bal['is_custom'] ?? false
-                                    ])) ?>)" title="Edit Leave Quota for this employee">
-                                        <i class="fa-solid fa-pen-to-square me-1"></i> Edit Quota
-                                    </button>
+                                    <div class="d-inline-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" title="View Complete Leave Sheet">
+                                            <i class="fa-solid fa-file-lines me-1"></i> Sheet
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openEditEmpQuota(<?= htmlspecialchars(json_encode([
+                                            'id' => $emp['id'],
+                                            'name' => $emp['name'],
+                                            'code' => $emp['employee_code'],
+                                            'cl' => $bal['assigned']['CL'],
+                                            'sl' => $bal['assigned']['SL'],
+                                            'pl' => $bal['assigned']['PL'],
+                                            'is_custom' => $bal['is_custom'] ?? false
+                                        ])) ?>)" title="Edit Leave Quota for this employee">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> Quota
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -261,15 +278,18 @@
                         <tr>
                             <td class="ps-4">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold cursor-pointer" style="width: 32px; height: 32px; font-size: 0.8rem;" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="Click to view Leave Sheet">
                                         <?= strtoupper(substr($lv['employee_name'], 0, 2)) ?>
                                     </div>
                                     <div>
-                                        <a href="<?= base_url('employees/view/' . $lv['employee_id']) ?>" class="fw-bold text-dark text-decoration-none">
+                                        <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" class="fw-bold text-dark text-decoration-none" title="Click to view full Employee Leave Sheet & Dossier">
                                             <?= e($lv['employee_name']) ?>
                                         </a>
                                         <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
                                             <?= e($lv['employee_code']) ?> &bull; <?= e($lv['department_name'] ?? 'General') ?>
+                                            <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill text-decoration-none ms-1 px-2 py-0" style="font-size: 0.65rem;" title="View Complete Leave Sheet">
+                                                <i class="fa-solid fa-file-lines me-1"></i>Leave Sheet
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -298,27 +318,24 @@
                             <td>
                                 <?php if (!empty($lv['target_site'])): ?>
                                     <div class="d-inline-flex flex-column">
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                            <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($lv['target_site']) ?>
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="fa-solid fa-location-crosshairs text-primary me-1"></i><?= e($lv['target_site']) ?>
                                         </span>
                                         <?php if (!empty($lv['origin_site'])): ?>
-                                            <span class="text-muted small mt-1 font-monospace" style="font-size: 0.68rem;">
-                                                <i class="fa-solid fa-arrow-right text-muted me-1"></i>From: <?= e($lv['origin_site']) ?>
-                                            </span>
+                                            <small class="text-muted" style="font-size: 0.7rem;">From: <?= e($lv['origin_site']) ?></small>
                                         <?php endif; ?>
                                     </div>
-                                <?php elseif ($code === 'OD'): ?>
-                                    <span class="badge bg-light text-primary border">Outdoor Site</span>
                                 <?php else: ?>
                                     <span class="text-muted small">—</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <div class="fw-semibold text-dark">
-                                    <i class="fa-regular fa-calendar text-primary me-1"></i>
-                                    <?= date('d M Y', strtotime($lv['start_date'])) ?>
+                                <div class="small">
+                                    <span class="text-dark fw-semibold">
+                                        <i class="fa-regular fa-calendar me-1 text-primary"></i><?= date('d M Y', strtotime($lv['start_date'])) ?>
+                                    </span>
                                     <?php if ($lv['start_date'] !== $lv['end_date']): ?>
-                                        <span class="text-muted">to</span> <?= date('d M Y', strtotime($lv['end_date'])) ?>
+                                        <div class="text-muted" style="font-size: 0.75rem;">to <?= date('d M Y', strtotime($lv['end_date'])) ?></div>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -352,14 +369,19 @@
                                 </span>
                             </td>
                             <td class="text-end pe-4">
-                                <form action="<?= base_url('leaves/delete') ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this leave entry?');">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="id" value="<?= $lv['id'] ?>">
-                                    <input type="hidden" name="return_url" value="leaves">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2" title="Delete Leave">
-                                        <i class="fa-solid fa-trash-can"></i>
+                                <div class="d-inline-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="View Complete Leave Sheet">
+                                        <i class="fa-solid fa-file-lines"></i>
                                     </button>
-                                </form>
+                                    <form action="<?= base_url('leaves/delete') ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this leave entry?');">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="id" value="<?= $lv['id'] ?>">
+                                        <input type="hidden" name="return_url" value="leaves">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" title="Delete Leave">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -589,9 +611,220 @@
     </div>
 </div>
 
+<!-- Complete Employee Leave Statement & Dossier Sheet Modal -->
+<div class="modal fade" id="employeeLeaveSheetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <!-- Modal Actions Bar (hidden when printing) -->
+            <div class="modal-header border-bottom bg-light d-print-none py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white p-2 rounded-3"><i class="fa-solid fa-file-invoice fs-6"></i></span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Employee Leave Statement & Dossier Sheet</h5>
+                        <small class="text-muted">Official company leave record & balance report</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-dark rounded-pill px-3 shadow-sm" onclick="printLeaveSheet()">
+                        <i class="fa-solid fa-print me-1"></i> Print Leave Sheet
+                    </button>
+                    <button type="button" class="btn btn-light rounded-circle shadow-sm" data-bs-dismiss="modal" style="width: 38px; height: 38px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body p-4 p-md-5" id="printableLeaveSheetArea">
+                <!-- Company Official Printable Header -->
+                <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-4 bg-primary bg-opacity-10 text-primary p-3 d-flex align-items-center justify-content-center">
+                            <i class="fa-solid fa-building-circle-check fs-2"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-1 font-monospace" style="letter-spacing: -0.5px;">Gannon Dunkerley & Co. Ltd.</h4>
+                            <div class="text-uppercase small fw-bold text-primary tracking-wider" style="font-size: 0.75rem; letter-spacing: 1px;">
+                                Employee Leave Statement & Dossier Sheet
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end text-muted small">
+                        <div><strong>Report Date:</strong> <?= date('d M Y, h:i A') ?></div>
+                        <div><strong>Calendar Year:</strong> <?= date('Y') ?></div>
+                        <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill mt-1">Official Company Record</div>
+                    </div>
+                </div>
+
+                <!-- Employee Profile Card -->
+                <div class="row g-3 mb-4 p-3 bg-light rounded-4 border">
+                    <div class="col-md-3">
+                        <small class="text-muted fw-semibold d-block">Employee Name</small>
+                        <span class="fs-6 fw-bold text-dark" id="sheetEmpName">—</span>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted fw-semibold d-block">Employee Code</small>
+                        <span class="fs-6 fw-bold text-primary font-monospace" id="sheetEmpCode">—</span>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted fw-semibold d-block">Department</small>
+                        <span class="fs-6 fw-semibold text-dark" id="sheetEmpDept">—</span>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted fw-semibold d-block">Base Work Site</small>
+                        <span class="fs-6 fw-semibold text-dark" id="sheetEmpSite">—</span>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted fw-semibold d-block">Designation / Role</small>
+                        <span class="fs-6 fw-semibold text-dark" id="sheetEmpRole">—</span>
+                    </div>
+                </div>
+
+                <!-- Leave Quota & Balance KPI Grid -->
+                <div class="row g-3 mb-4 text-center">
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 bg-light border rounded-4">
+                            <small class="text-muted fw-semibold d-block mb-1">Total Quota</small>
+                            <h5 class="fw-bold text-dark mb-0 font-monospace" id="sheetTotalAssigned">0</h5>
+                            <small class="text-muted" style="font-size: 0.7rem;">Assigned / Year</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 bg-info bg-opacity-10 border border-info-subtle rounded-4">
+                            <small class="text-info-emphasis fw-semibold d-block mb-1">Casual Leave (CL)</small>
+                            <h5 class="fw-bold text-info mb-0 font-monospace" id="sheetClBalance">0 / 0</h5>
+                            <small class="text-muted" style="font-size: 0.7rem;" id="sheetClTaken">0 Used</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 bg-warning bg-opacity-10 border border-warning-subtle rounded-4">
+                            <small class="text-warning-emphasis fw-semibold d-block mb-1">Sick Leave (SL)</small>
+                            <h5 class="fw-bold text-warning-emphasis mb-0 font-monospace" id="sheetSlBalance">0 / 0</h5>
+                            <small class="text-muted" style="font-size: 0.7rem;" id="sheetSlTaken">0 Used</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 bg-success bg-opacity-10 border border-success-subtle rounded-4">
+                            <small class="text-success-emphasis fw-semibold d-block mb-1">Paid Leave (PL)</small>
+                            <h5 class="fw-bold text-success mb-0 font-monospace" id="sheetPlBalance">0 / 0</h5>
+                            <small class="text-muted" style="font-size: 0.7rem;" id="sheetPlTaken">0 Used</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 bg-primary bg-opacity-10 border border-primary-subtle rounded-4">
+                            <small class="text-primary-emphasis fw-semibold d-block mb-1">Outdoor Duty (OD)</small>
+                            <h5 class="fw-bold text-primary mb-0 font-monospace" id="sheetOdVisits">0</h5>
+                            <small class="text-muted" style="font-size: 0.7rem;">Site Visits</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 bg-success text-white rounded-4 shadow-sm">
+                            <small class="text-white text-opacity-75 fw-semibold d-block mb-1">Remaining Balance</small>
+                            <h5 class="fw-bold text-white mb-0 font-monospace" id="sheetTotalRemaining">0</h5>
+                            <small class="text-white text-opacity-75" style="font-size: 0.7rem;">Available Days</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Leave Records Table -->
+                <div class="border rounded-4 overflow-hidden mb-4">
+                    <div class="bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0 text-dark small"><i class="fa-solid fa-list me-1 text-primary"></i>Recorded Leave & Outdoor Duty (OD) History</h6>
+                        <span class="badge bg-secondary text-white rounded-pill" id="sheetTotalRecordsCount">0 Entries</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small text-muted text-uppercase" style="font-size: 0.72rem;">
+                                <tr>
+                                    <th class="ps-3">#</th>
+                                    <th>Leave Type</th>
+                                    <th>Date Period</th>
+                                    <th>Days</th>
+                                    <th>Origin / Target Site</th>
+                                    <th>Reason / Notes</th>
+                                    <th>Attached PDF / Sheet</th>
+                                    <th class="pe-3 text-end">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sheetTableBody" class="small">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Signature & Authorization Section for Print -->
+                <div class="row pt-4 mt-4 border-top text-muted small">
+                    <div class="col-4 text-center">
+                        <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                        <span>Employee Signature</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                        <span>Site / Project Manager</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                        <span>HR & Admin Department</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light py-3 px-4 d-print-none">
+                <a id="sheetViewDossierLink" href="#" class="btn btn-outline-primary rounded-pill px-3 me-auto">
+                    <i class="fa-solid fa-chart-pie me-1"></i> View Full Attendance Dossier
+                </a>
+                <button type="button" class="btn btn-dark rounded-pill px-4" onclick="printLeaveSheet()">
+                    <i class="fa-solid fa-print me-1"></i> Print Leave Sheet
+                </button>
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    #printableLeaveSheetArea, #printableLeaveSheetArea * {
+        visibility: visible !important;
+    }
+    #printableLeaveSheetArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        background: #fff !important;
+    }
+    .modal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+    .modal-dialog {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+</style>
+
 <script>
 const allEmployeeBalances = <?= json_encode($employeeBalances ?? []) ?>;
 const defaultCompanyQuotas = <?= json_encode($companyQuotas ?? ['CL' => 12, 'SL' => 10, 'PL' => 15, 'total' => 37]) ?>;
+const leavesByEmployee = <?= json_encode($leavesByEmployee ?? []) ?>;
+const employeesMap = {
+    <?php foreach ($employees as $emp): ?>
+        "<?= (int)$emp['id'] ?>": <?= json_encode($emp) ?>,
+    <?php endforeach; ?>
+};
 const employeesLookup = {
     <?php foreach ($employees as $emp): ?>
         "<?= addslashes(strtolower($emp['employee_code'])) ?>": <?= (int)$emp['id'] ?>,
@@ -599,6 +832,116 @@ const employeesLookup = {
         "<?= (int)$emp['id'] ?>": <?= (int)$emp['id'] ?>,
     <?php endforeach; ?>
 };
+
+function openEmployeeLeaveSheet(empId) {
+    const emp = employeesMap[empId];
+    if (!emp) return;
+
+    const bal = allEmployeeBalances[empId] || {
+        assigned: { total: 37, CL: 12, SL: 10, PL: 15 },
+        taken: { total: 0, CL: 0, SL: 0, PL: 0, OD: 0 },
+        balance: { total: 37, CL: 12, SL: 10, PL: 15 }
+    };
+
+    const empLeaves = leavesByEmployee[empId] || [];
+
+    // Populate profile card
+    document.getElementById('sheetEmpName').textContent = emp.name || '—';
+    document.getElementById('sheetEmpCode').textContent = emp.employee_code || '—';
+    document.getElementById('sheetEmpDept').textContent = emp.department_name || emp.department || 'General';
+    document.getElementById('sheetEmpSite').textContent = emp.site || 'Main Site';
+    document.getElementById('sheetEmpRole').textContent = emp.designation || emp.role || 'Staff Member';
+
+    // Populate balances
+    document.getElementById('sheetTotalAssigned').textContent = `${bal.assigned.total} Days`;
+    document.getElementById('sheetClBalance').textContent = `${bal.balance.CL} / ${bal.assigned.CL} Left`;
+    document.getElementById('sheetClTaken').textContent = `${bal.taken.CL} Days Used`;
+
+    document.getElementById('sheetSlBalance').textContent = `${bal.balance.SL} / ${bal.assigned.SL} Left`;
+    document.getElementById('sheetSlTaken').textContent = `${bal.taken.SL} Days Used`;
+
+    document.getElementById('sheetPlBalance').textContent = `${bal.balance.PL} / ${bal.assigned.PL} Left`;
+    document.getElementById('sheetPlTaken').textContent = `${bal.taken.PL} Days Used`;
+
+    document.getElementById('sheetOdVisits').textContent = `${bal.taken.OD} Visits`;
+    document.getElementById('sheetTotalRemaining').textContent = `${bal.balance.total} / ${bal.assigned.total} Days`;
+
+    document.getElementById('sheetTotalRecordsCount').textContent = `${empLeaves.length} Recorded Entries`;
+    document.getElementById('sheetViewDossierLink').href = `<?= base_url('reports') ?>?report_type=employee&employee_id=${empId}`;
+
+    // Populate table
+    const tbody = document.getElementById('sheetTableBody');
+    tbody.innerHTML = '';
+
+    if (empLeaves.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted"><i class="fa-regular fa-folder-open fa-2x mb-2 d-block opacity-50"></i>No leaves or outdoor duties recorded yet for this employee in <?= date('Y') ?>.</td></tr>`;
+    } else {
+        empLeaves.forEach((lv, index) => {
+            const isOd = lv.leave_type === 'On Duty' || lv.leave_type.includes('OD') || lv.leave_type.includes('Duty');
+            const badgeBg = isOd ? 'bg-primary-subtle text-primary border border-primary-subtle' : 
+                            (lv.leave_type.includes('Casual') ? 'bg-info-subtle text-info border border-info-subtle' : 
+                            (lv.leave_type.includes('Sick') ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle'));
+
+            const datePeriod = (lv.start_date === lv.end_date) ? 
+                `<strong>${formatDateStr(lv.start_date)}</strong>` : 
+                `<strong>${formatDateStr(lv.start_date)}</strong> to <strong>${formatDateStr(lv.end_date)}</strong>`;
+
+            let siteInfo = '—';
+            if (lv.target_site) {
+                siteInfo = `<span class="badge bg-light text-dark border"><i class="fa-solid fa-location-dot text-danger me-1"></i>${escapeHtml(lv.target_site)}</span>`;
+                if (lv.origin_site) {
+                    siteInfo += `<div class="text-muted small" style="font-size: 0.7rem;">From: ${escapeHtml(lv.origin_site)}</div>`;
+                }
+            }
+
+            let docLink = '<span class="text-muted">—</span>';
+            if (lv.attachment) {
+                const cleanAtt = lv.attachment.replace(/^uploads\//, '');
+                const isPdf = cleanAtt.toLowerCase().endsWith('.pdf');
+                docLink = `<a href="<?= base_url('uploads/') ?>${encodeURIComponent(cleanAtt)}" target="_blank" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'} rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+                    <i class="fa-solid ${isPdf ? 'fa-file-pdf' : 'fa-paperclip'} me-1"></i>${isPdf ? 'PDF Sheet' : 'Attachment'}
+                </a>`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-3 text-muted">${index + 1}</td>
+                <td><span class="badge ${badgeBg} rounded-pill px-2 py-1">${escapeHtml(lv.leave_type)}</span></td>
+                <td>${datePeriod}</td>
+                <td><span class="badge bg-light text-dark border">${lv.days_count} Day(s)</span></td>
+                <td>${siteInfo}</td>
+                <td class="text-muted">${escapeHtml(lv.reason || 'Approved Leave')}</td>
+                <td>${docLink}</td>
+                <td class="pe-3 text-end"><span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-check me-1"></i>Approved</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('employeeLeaveSheetModal'));
+    modal.show();
+}
+
+function formatDateStr(str) {
+    if (!str) return '';
+    const parts = str.split('-');
+    if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    return str;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+    });
+}
+
+function printLeaveSheet() {
+    window.print();
+}
 
 function calcCompTotal() {
     const cl = parseFloat(document.getElementById('compClQuota').value) || 0;

@@ -289,6 +289,10 @@ class Database {
             $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
             $stmt->execute(['System Administrator', 'admin@attendance.com', $newHash]);
         }
+
+        try {
+            $pdo->exec("UPDATE settings SET setting_value = 'Gannon Dunkerley & Co. Ltd.' WHERE setting_key = 'company_name' AND (setting_value LIKE '%TechCorp%' OR setting_value LIKE '%Smart Attendance Management%' OR setting_value IS NULL);");
+        } catch (\Throwable $e) {}
     }
 
     private static function migratePgsql(PDO $pdo): void {
@@ -453,6 +457,10 @@ class Database {
                 $hStmt->execute($h);
             }
         }
+
+        try {
+            $pdo->exec("UPDATE settings SET setting_value = 'Gannon Dunkerley & Co. Ltd.' WHERE setting_key = 'company_name' AND (setting_value LIKE '%TechCorp%' OR setting_value LIKE '%Smart Attendance Management%' OR setting_value IS NULL);");
+        } catch (\Throwable $e) {}
     }
 
     private static function migrateSqlite(PDO $pdo): void {
@@ -667,15 +675,19 @@ class Database {
 
             // Default settings
             $pdo->exec("INSERT INTO settings (setting_key, setting_value) VALUES 
-                ('company_name', 'TechCorp Solutions Inc.'),
-                ('company_email', 'hr@techcorp.com'),
-                ('company_phone', '+1 (800) 555-0199'),
+                ('company_name', 'Gannon Dunkerley & Co. Ltd.'),
+                ('company_email', 'hr@gannondunkerley.com'),
+                ('company_phone', '+91 (040) 2345-6789'),
                 ('work_hours_per_day', '8'),
                 ('grace_period_minutes', '15'),
                 ('allow_geo_capture', '1'),
                 ('auto_calculate_hours', '1'),
-                ('site_logo_text', 'SmartAttendance')");
+                ('site_logo_text', 'Smart Attendance')");
         }
+
+        try {
+            $pdo->exec("UPDATE settings SET setting_value = 'Gannon Dunkerley & Co. Ltd.' WHERE setting_key = 'company_name' AND (setting_value LIKE '%TechCorp%' OR setting_value LIKE '%Smart Attendance Management%' OR setting_value IS NULL);");
+        } catch (\Throwable $e) {}
 
         // No sample employees seeded so database is completely clean for user
     }

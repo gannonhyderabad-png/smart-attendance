@@ -102,8 +102,8 @@ class ReportController extends Controller {
             'monthlyReport' => $monthlyReport,
             'monthlySummary' => $monthlySummary,
             'employeeReport' => $employeeReport,
-            'companyName' => Setting::get('company_name', 'TechCorp Solutions Inc.'),
-            'logoText' => Setting::get('site_logo_text', 'SmartAttendance')
+            'companyName' => Setting::get('company_name', 'Gannon Dunkerley & Co. Ltd.'),
+            'logoText' => Setting::get('site_logo_text', 'Smart Attendance')
         ], 'admin');
     }
 
@@ -489,8 +489,9 @@ class ReportController extends Controller {
      * Professional Table Spreadsheet Generator with Company Banner, Logo, Site Name, Download Date/Time
      */
     private function outputFormattedSpreadsheet(string $filename, string $reportTitle, string $periodLabel, ?string $siteName, array $headers, array $rows, array $kpis, string $format = 'excel'): void {
-        $companyName = Setting::get('company_name', 'TechCorp Solutions Inc.');
-        $logoText = Setting::get('site_logo_text', 'SmartAttendance');
+        $rawName = Setting::get('company_name', 'Gannon Dunkerley & Co. Ltd.');
+        $companyName = (!empty($rawName) && stripos($rawName, 'TechCorp') === false) ? $rawName : 'Gannon Dunkerley & Co. Ltd.';
+        $logoText = Setting::get('site_logo_text', 'Smart Attendance');
         $downloadTime = date('d M Y, h:i:s A');
         $siteDisplay = $siteName ?: 'All Operational Work Sites / Headquarters';
         $colsCount = max(count($headers), 6);
@@ -507,7 +508,7 @@ class ReportController extends Controller {
             echo '<style>
                 body { font-family: "Segoe UI", Calibri, Arial, sans-serif; font-size: 11pt; color: #1f2937; }
                 table { border-collapse: collapse; width: 100%; }
-                .banner-logo { background-color: #1e3a8a; color: #ffffff; font-size: 16pt; font-weight: bold; text-align: center; padding: 12px; height: 40px; }
+                .banner-logo { background-color: #1e3a8a; color: #ffffff; font-size: 16pt; font-weight: bold; text-align: center; padding: 12px; height: 40px; letter-spacing: 0.5px; }
                 .banner-title { background-color: #2563eb; color: #ffffff; font-size: 13pt; font-weight: bold; text-align: center; height: 30px; }
                 .meta-bar { background-color: #f1f5f9; color: #334155; font-size: 9.5pt; font-weight: 600; padding: 6px 10px; border: 1px solid #cbd5e1; }
                 .kpi-title { background-color: #e2e8f0; font-weight: bold; font-size: 10pt; color: #0f172a; text-align: center; border: 1px solid #94a3b8; }
@@ -522,8 +523,8 @@ class ReportController extends Controller {
 
             echo '<table>';
 
-            // 1. TOP HEADER: COMPANY LOGO & NAME BANNER
-            echo '<tr><td colspan="' . $colsCount . '" class="banner-logo">' . htmlspecialchars(strtoupper($companyName)) . ' — ' . htmlspecialchars($logoText) . '</td></tr>';
+            // 1. TOP HEADER: COMPANY NAME BANNER
+            echo '<tr><td colspan="' . $colsCount . '" class="banner-logo">' . htmlspecialchars(strtoupper($companyName)) . '</td></tr>';
             echo '<tr><td colspan="' . $colsCount . '" class="banner-title">' . htmlspecialchars($reportTitle) . '</td></tr>';
 
             // 2. SITE NAME, PERIOD & DOWNLOAD DATE / TIME
@@ -589,7 +590,7 @@ class ReportController extends Controller {
             fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             fputcsv($output, ['========================================================================================================']);
-            fputcsv($output, [strtoupper($companyName) . ' — ' . $logoText]);
+            fputcsv($output, [strtoupper($companyName)]);
             fputcsv($output, [$reportTitle]);
             fputcsv($output, ['Work Site:', $siteDisplay, 'Downloaded At:', $downloadTime]);
             fputcsv($output, ['Report Period:', $periodLabel, 'Document Status:', 'Official Verified Attendance Document']);

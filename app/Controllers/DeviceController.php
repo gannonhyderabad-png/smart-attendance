@@ -15,7 +15,7 @@ class DeviceController extends Controller {
         Auth::requireAuth();
         $devices = Device::all();
 
-        $this->render('devices/index', [
+        $this->view('devices/index', [
             'devices' => $devices,
             'title' => 'Biometric & FRM Devices Management'
         ], 'admin');

@@ -107,4 +107,8 @@ abstract class Controller {
         }
         $_SESSION['flash_' . $type] = $message;
     }
+
+    protected function render(string $viewPath, array $data = [], string $layout = 'admin'): void {
+        $this->view($viewPath, $data, $layout);
+    }
 }

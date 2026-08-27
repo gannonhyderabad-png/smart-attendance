@@ -146,6 +146,36 @@ class Attendance extends Model {
     }
 
     /**
+     * Create a manual or explicit attendance punch record
+     */
+    public static function create(array $data): int {
+        $pdo = self::db();
+        $stmt = $pdo->prepare("INSERT INTO attendance 
+            (employee_id, punch_type, punch_time, punch_date, project, site, ip_address, user_agent, device_info, latitude, longitude, distance_meters, location_verified, punch_photo, notes) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+        $stmt->execute([
+            $data['employee_id'],
+            $data['punch_type'],
+            $data['punch_time'],
+            $data['punch_date'] ?? date('Y-m-d', strtotime($data['punch_time'])),
+            $data['project'] ?? null,
+            $data['site'] ?? null,
+            $data['ip_address'] ?? 'Manual Admin',
+            $data['user_agent'] ?? null,
+            $data['device_info'] ?? 'Manual Entry',
+            $data['latitude'] ?? null,
+            $data['longitude'] ?? null,
+            $data['distance_meters'] ?? 0,
+            $data['location_verified'] ?? 1,
+            $data['punch_photo'] ?? null,
+            $data['notes'] ?? null
+        ]);
+
+        return (int) $pdo->lastInsertId();
+    }
+
+    /**
      * Get the single latest punch record for an employee
      */
     public static function getLatestPunch(int $employeeId, ?string $date = null): ?array {

@@ -940,7 +940,60 @@ function escapeHtml(text) {
 }
 
 function printLeaveSheet() {
-    window.print();
+    const content = document.getElementById('printableLeaveSheetArea');
+    if (!content) return;
+
+    const empName = document.getElementById('sheetEmpName')?.textContent || 'Employee';
+    const empCode = document.getElementById('sheetEmpCode')?.textContent || '';
+    const title = `Leave Statement - ${empName} (${empCode})`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${title}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+            <style>
+                @page { size: A4 portrait; margin: 10mm 15mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #fff !important; color: #111827; margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                .table { width: 100% !important; border-collapse: collapse !important; }
+                .table th, .table td { padding: 8px 10px !important; border: 1px solid #e5e7eb !important; font-size: 13px !important; }
+                .bg-light { background-color: #f8fafc !important; }
+                .bg-primary { background-color: #2563eb !important; color: #fff !important; }
+                .bg-success { background-color: #16a34a !important; color: #fff !important; }
+                .badge { border: 1px solid #ddd !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; font-size: 11px !important; }
+                .rounded-4 { border-radius: 10px !important; }
+                .border { border: 1px solid #e5e7eb !important; }
+            </style>
+        </head>
+        <body>
+            <div>
+                ${content.innerHTML}
+            </div>
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 600);
 }
 
 function calcCompTotal() {

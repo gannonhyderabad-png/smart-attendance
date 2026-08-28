@@ -323,6 +323,7 @@ $router->post('/api/punch', [\App\Controllers\ApiController::class, 'punch']);
 $router->get('/api/employee/{code}', [\App\Controllers\ApiController::class, 'employeeStatus']);
 $router->get('/api/attendance/summary', [\App\Controllers\ApiController::class, 'summary']);
 $router->get('/api/sync', [\App\Controllers\ApiController::class, 'sync']);
+$router->post('/api/device/sync-all', [\App\Controllers\ApiController::class, 'deviceSyncAll']);
 $router->post('/api/resolve-location', [\App\Controllers\ApiController::class, 'resolveLocation']);
 $router->get('/api/resolve-location', [\App\Controllers\ApiController::class, 'resolveLocation']);
 

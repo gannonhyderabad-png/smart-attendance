@@ -260,4 +260,124 @@ class ApiController extends Controller {
             'message' => 'Could not determine exact GPS coordinates from this input. Please copy and paste the decimal coordinates directly from Google Maps (e.g. 17.437462, 78.448251) or drag the pin on the map.'
         ], 422);
     }
+
+    /**
+     * Bulk Device Sync Endpoint for Local Python / Windows LAN Bridge
+     * POST /api/device/sync-all
+     * Receives enrolled employees & real-time attendance logs from local eSSL / ZKTeco machine
+     */
+    public function deviceSyncAll(): void {
+        $raw = file_get_contents('php://input');
+        $payload = json_decode($raw, true);
+        if (empty($payload)) {
+            $payload = $_POST;
+        }
+
+        $sn = trim((string)($payload['sn'] ?? ($payload['serial_number'] ?? 'LOCAL-DEVICE')));
+        $deviceIp = trim((string)($payload['device_ip'] ?? Request::getClientIp()));
+        $site = trim((string)($payload['site'] ?? 'Head Office'));
+        $project = trim((string)($payload['project'] ?? 'General'));
+
+        // 1. Update/Register device in portal
+        \App\Models\Device::registerOrHeartbeat($sn, [
+            'ip_address' => $deviceIp,
+            'device_name' => $payload['device_name'] ?? "eSSL FRM - {$sn}",
+            'device_model' => $payload['device_model'] ?? "eSSL Biometric Terminal",
+            'site' => $site,
+            'project' => $project
+        ]);
+
+        $users = $payload['users'] ?? ($payload['employees'] ?? []);
+        $punches = $payload['punches'] ?? ($payload['logs'] ?? []);
+
+        $syncedUsers = 0;
+        $syncedPunches = 0;
+
+        // 2. Sync Enrolled Employees from eSSL Machine to Portal
+        foreach ($users as $u) {
+            $userId = trim((string)($u['user_id'] ?? ($u['uid'] ?? ($u['employee_code'] ?? ''))));
+            $name = trim((string)($u['name'] ?? ''));
+            if (empty($userId)) continue;
+            if (empty($name)) $name = "Employee " . $userId;
+
+            $existing = Employee::findByCode($userId);
+            if (!$existing) {
+                // Auto-create enrolled employee in database
+                Employee::create([
+                    'employee_code' => $userId,
+                    'name' => $name,
+                    'department' => 'General',
+                    'designation' => 'Staff Member',
+                    'site' => $site,
+                    'project' => $project,
+                    'status' => 'active'
+                ]);
+                $syncedUsers++;
+            }
+        }
+
+        // 3. Sync Attendance Punches from eSSL Machine to Portal
+        $pdo = \Database\Database::getConnection();
+        foreach ($punches as $p) {
+            $userId = trim((string)($p['user_id'] ?? ($p['employee_code'] ?? ($p['pin'] ?? ''))));
+            $timestamp = trim((string)($p['timestamp'] ?? ($p['time'] ?? '')));
+            $type = strtoupper(trim((string)($p['punch_type'] ?? ($p['status'] ?? ''))));
+
+            if (empty($userId) || empty($timestamp)) continue;
+
+            $ts = strtotime($timestamp);
+            if (!$ts || $ts < 946684800) continue;
+            $punchTime = date('Y-m-d H:i:s', $ts);
+            $punchDate = date('Y-m-d', $ts);
+
+            $emp = Employee::findByCode($userId);
+            if (!$emp && is_numeric($userId)) {
+                $emp = Employee::find((int)$userId);
+            }
+            if (!$emp) {
+                $emp = Employee::findByCode(ltrim($userId, '0'));
+            }
+            if (!$emp) continue;
+
+            // Determine punch type:
+            if ($type === '0' || $type === 'CHECKIN' || $type === 'IN') {
+                $punchType = 'IN';
+            } elseif ($type === '1' || $type === 'CHECKOUT' || $type === 'OUT') {
+                $punchType = 'OUT';
+            } else {
+                $latest = Attendance::getLatestPunch($emp['id'], $punchDate);
+                $punchType = ($latest && $latest['punch_type'] === 'IN') ? 'OUT' : 'IN';
+            }
+
+            // Check duplicate
+            $chk = $pdo->prepare("SELECT id FROM attendance WHERE employee_id = ? AND punch_type = ? AND punch_time = ? LIMIT 1");
+            $chk->execute([$emp['id'], $punchType, $punchTime]);
+            if ($chk->fetch()) continue;
+
+            Attendance::create([
+                'employee_id' => $emp['id'],
+                'punch_type' => $punchType,
+                'punch_time' => $punchTime,
+                'punch_date' => $punchDate,
+                'project' => $emp['project'] ?? $project,
+                'site' => $emp['site'] ?? $site,
+                'latitude' => $emp['site_latitude'] ?? null,
+                'longitude' => $emp['site_longitude'] ?? null,
+                'distance_meters' => 0,
+                'location_verified' => 1,
+                'ip_address' => $deviceIp,
+                'device_info' => "eSSL Machine [{$sn}]",
+                'notes' => "Local LAN Sync (SN: {$sn})"
+            ]);
+            $syncedPunches++;
+        }
+
+        $this->json([
+            'success' => true,
+            'message' => "Successfully synced {$syncedUsers} new employee(s) and {$syncedPunches} attendance log(s).",
+            'synced_users' => $syncedUsers,
+            'synced_punches' => $syncedPunches,
+            'server_time' => date('Y-m-d H:i:s')
+        ]);
+    }
 }

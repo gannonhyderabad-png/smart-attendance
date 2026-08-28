@@ -377,16 +377,28 @@ $router->get('/reports/employee', [\App\Controllers\ReportController::class, 'em
 // Biometric & FRM Devices (eSSL / ZKTeco Cloud ADMS Push)
 $router->get('/iclock/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
 $router->post('/iclock/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/iclock/cdata.aspx', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/iclock/cdata.aspx', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/iclock/cdata.php', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/iclock/cdata.php', [\App\Controllers\AdmsController::class, 'cdata']);
 $router->get('/iclock/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
 $router->post('/iclock/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
 $router->get('/iclock/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);
 $router->post('/iclock/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);
 $router->get('/iclock/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
 $router->post('/iclock/fdata', [\App\Controllers\AdmsController::class, 'fdata']);
+$router->get('/iclock/registry', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/iclock/registry', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/iclock/ping', [\App\Controllers\AdmsController::class, 'getrequest']);
+$router->post('/iclock/ping', [\App\Controllers\AdmsController::class, 'getrequest']);
 
 // Root path fallback aliases for older firmware
 $router->get('/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
 $router->post('/cdata', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/cdata.aspx', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/cdata.aspx', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->get('/cdata.php', [\App\Controllers\AdmsController::class, 'cdata']);
+$router->post('/cdata.php', [\App\Controllers\AdmsController::class, 'cdata']);
 $router->get('/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
 $router->post('/getrequest', [\App\Controllers\AdmsController::class, 'getrequest']);
 $router->get('/devicecmd', [\App\Controllers\AdmsController::class, 'devicecmd']);

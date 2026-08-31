@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Request;
+use App\Core\Logger;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Attendance;
@@ -71,13 +72,13 @@ class AdmsController extends Controller {
         $table = strtoupper(trim((string)Request::input('table', ($_GET['table'] ?? 'ATTLOG'))));
         $rawBody = file_get_contents('php://input');
 
-        if ($table === 'ATTLOG' || str_contains($rawBody, "\t") || !empty($rawBody)) {
+        if ($table === 'ATTLOG' || str_contains($rawBody, "\t") || !empty(trim($rawBody))) {
             $processedCount = $this->parseAndSaveAttLog($rawBody, $sn, $clientIp);
             echo "OK: {$processedCount}\n";
             exit;
         }
 
-        if ($table === 'OPERLOG' || $table === 'ATTPHOTO' || $table === 'OPERLOG') {
+        if ($table === 'OPERLOG' || $table === 'ATTPHOTO') {
             echo "OK\n";
             exit;
         }
@@ -181,7 +182,7 @@ class AdmsController extends Controller {
             }
             $punchDate = date('Y-m-d', strtotime($punchTime));
 
-            // Look up employee by code or ID
+            // Look up employee by code or numeric ID
             $emp = Employee::findByCode($empCode);
             if (!$emp && is_numeric($empCode)) {
                 $emp = Employee::find((int)$empCode);
@@ -196,6 +197,15 @@ class AdmsController extends Controller {
             }
 
             if (!$emp) {
+                // Search by phone or code partial match
+                $pdo = Database::getConnection();
+                $s = $pdo->prepare("SELECT * FROM employees WHERE employee_code LIKE ? OR phone LIKE ? LIMIT 1");
+                $s->execute(["%{$empCode}%", "%{$empCode}%"]);
+                $emp = $s->fetch() ?: null;
+            }
+
+            if (!$emp) {
+                Logger::log(1, 'DEVICE_PUNCH_UNMAPPED', "Received biometric punch from FRM [{$sn}] for PIN/Code [{$empCode}] at {$punchTime}, but no matching employee found in database.");
                 continue;
             }
 
@@ -238,6 +248,7 @@ class AdmsController extends Controller {
                 'notes' => "eSSL Biometric Push (SN: {$sn})"
             ]);
 
+            Logger::log(1, 'BIOMETRIC_PUNCH', "Biometric {$punchType} recorded for {$emp['name']} ({$emp['employee_code']}) via FRM [{$sn}]");
             $count++;
         }
 

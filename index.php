@@ -320,6 +320,7 @@ $router->get('/p/{code}/status', [\App\Controllers\PunchController::class, 'stat
 
 // REST API Endpoints
 $router->post('/api/punch', [\App\Controllers\ApiController::class, 'punch']);
+$router->post('/api/biometric/push', [\App\Controllers\ApiController::class, 'pushBiometric']);
 $router->get('/api/employee/{code}', [\App\Controllers\ApiController::class, 'employeeStatus']);
 $router->get('/api/attendance/summary', [\App\Controllers\ApiController::class, 'summary']);
 $router->get('/api/sync', [\App\Controllers\ApiController::class, 'sync']);

@@ -260,4 +260,104 @@ class ApiController extends Controller {
             'message' => 'Could not determine exact GPS coordinates from this input. Please copy and paste the decimal coordinates directly from Google Maps (e.g. 17.437462, 78.448251) or drag the pin on the map.'
         ], 422);
     }
+
+    /**
+     * Bulk Biometric Push from Local eSSL Sync Service / Python Bridge
+     * POST /api/biometric/push
+     */
+    public function pushBiometric(): void {
+        $raw = file_get_contents('php://input');
+        $payload = json_decode($raw, true);
+
+        if (empty($payload)) {
+            $payload = $_POST;
+        }
+
+        $sn = trim($payload['serial_number'] ?? ($payload['sn'] ?? ''));
+        $ip = trim($payload['device_ip'] ?? ($payload['ip'] ?? Request::getClientIp()));
+        $punches = $payload['punches'] ?? [];
+
+        // If single punch sent
+        if (empty($punches) && !empty($payload['employee_code'])) {
+            $punches = [$payload];
+        }
+
+        if (empty($punches)) {
+            $this->json(['success' => false, 'message' => 'No punches provided'], 400);
+            return;
+        }
+
+        if (!empty($sn) || !empty($ip)) {
+            \App\Models\Device::registerOrHeartbeat($sn ?: 'DEV-' . str_replace('.', '', $ip), [
+                'ip_address' => $ip,
+                'device_name' => "eSSL Device ({$ip})"
+            ]);
+        }
+
+        $device = !empty($sn) ? \App\Models\Device::findBySN($sn) : null;
+        $site = $device['site'] ?? 'Head Office';
+        $project = $device['project'] ?? 'General';
+
+        $saved = 0;
+        $pdo = \Database\Database::getConnection();
+
+        foreach ($punches as $p) {
+            $code = trim($p['employee_code'] ?? ($p['user_id'] ?? ($p['pin'] ?? '')));
+            $time = trim($p['punch_time'] ?? ($p['timestamp'] ?? date('Y-m-d H:i:s')));
+            $type = strtoupper(trim($p['punch_type'] ?? ''));
+
+            if (empty($code)) continue;
+
+            $emp = Employee::findByCode($code);
+            if (!$emp && is_numeric($code)) {
+                $emp = Employee::find((int)$code);
+            }
+            if (!$emp) {
+                $unpadded = ltrim($code, '0');
+                if (!empty($unpadded)) {
+                    $emp = Employee::findByCode($unpadded);
+                }
+            }
+
+            if (!$emp) continue;
+
+            $date = date('Y-m-d', strtotime($time));
+
+            if (empty($type) || !in_array($type, ['IN', 'OUT'])) {
+                $latest = Attendance::getLatestPunch($emp['id'], $date);
+                $type = ($latest && $latest['punch_type'] === 'IN') ? 'OUT' : 'IN';
+            }
+
+            // Check duplicate
+            $chk = $pdo->prepare("SELECT id FROM attendance WHERE employee_id = ? AND punch_type = ? AND punch_time = ? LIMIT 1");
+            $chk->execute([$emp['id'], $type, $time]);
+            if ($chk->fetch()) {
+                $saved++;
+                continue;
+            }
+
+            Attendance::create([
+                'employee_id' => $emp['id'],
+                'punch_type' => $type,
+                'punch_time' => $time,
+                'punch_date' => $date,
+                'project' => $emp['project'] ?? $project,
+                'site' => $emp['site'] ?? $site,
+                'latitude' => $emp['site_latitude'] ?? null,
+                'longitude' => $emp['site_longitude'] ?? null,
+                'distance_meters' => 0,
+                'location_verified' => 1,
+                'ip_address' => $ip,
+                'device_info' => "eSSL Biometric [{$ip}]",
+                'notes' => "eSSL LAN Sync (Device: {$ip})"
+            ]);
+            $saved++;
+        }
+
+        $this->json([
+            'success' => true,
+            'message' => "Successfully processed {$saved} biometric punches",
+            'saved_count' => $saved
+        ]);
+    }
 }

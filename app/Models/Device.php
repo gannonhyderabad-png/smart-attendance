@@ -60,12 +60,14 @@ class Device extends Model {
         $stmt = self::db()->prepare("UPDATE devices SET 
             device_name = ?, 
             device_model = ?, 
+            ip_address = COALESCE(?, ip_address),
             site = ?, 
             project = ? 
             WHERE id = ?");
         return $stmt->execute([
             $data['device_name'] ?? 'eSSL Terminal',
             $data['device_model'] ?? 'Face Recognition',
+            $data['ip_address'] ?? null,
             $data['site'] ?? 'General',
             $data['project'] ?? null,
             $id

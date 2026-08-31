@@ -268,14 +268,21 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold text-muted">Device Serial Number (SN) <span class="text-danger">*</span></label>
-                    <input type="text" name="serial_number" class="form-control font-monospace" placeholder="e.g. ABCD123456789 (from device back sticker/menu)" required>
-                    <small class="text-muted" style="font-size: 0.7rem;">Found in Menu &gt; System Info &gt; Device Info &gt; Serial Number</small>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Device Serial Number (SN)</label>
+                        <input type="text" name="serial_number" class="form-control font-monospace" placeholder="e.g. ABCD123456789">
+                        <small class="text-muted" style="font-size: 0.68rem;">From back sticker or Menu &gt; System Info</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Device IP Address</label>
+                        <input type="text" name="ip_address" class="form-control font-monospace" placeholder="e.g. 192.168.1.201">
+                        <small class="text-muted" style="font-size: 0.68rem;">Static LAN IP / Wi-Fi IP</small>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold text-muted">Device Friendly Name</label>
-                    <input type="text" name="device_name" class="form-control" placeholder="e.g. Main Gate Face Machine">
+                    <input type="text" name="device_name" class="form-control" placeholder="e.g. Main Gate Face Machine" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold text-muted">Device Model / Brand</label>
@@ -283,13 +290,16 @@
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-md-6">
-                        <label class="form-label small fw-semibold text-muted">Assigned Work Site</label>
-                        <input type="text" name="site" class="form-control" placeholder="e.g. Hyderabad Office">
+                        <label class="form-label small fw-semibold text-muted">Default Work Site <span class="text-primary">*</span></label>
+                        <input type="text" name="site" class="form-control" placeholder="e.g. Hyderabad Office" required>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small fw-semibold text-muted">Project Name</label>
+                        <label class="form-label small fw-semibold text-muted">Default Project</label>
                         <input type="text" name="project" class="form-control" placeholder="e.g. Metro Line 1">
                     </div>
+                </div>
+                <div class="alert alert-info border-0 rounded-3 p-2 small mb-0">
+                    <i class="fa-solid fa-circle-info me-1"></i> When employees punch on this FRM machine, punches will automatically register under the <strong>Default Work Site</strong> in their attendance sheet.
                 </div>
             </div>
             <div class="modal-footer border-top bg-light py-3 px-4">
@@ -311,9 +321,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold text-muted">Device Serial Number</label>
-                    <input type="text" id="editDeviceSN" class="form-control bg-light font-monospace" readonly>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Device Serial Number</label>
+                        <input type="text" id="editDeviceSN" class="form-control bg-light font-monospace" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Device IP Address</label>
+                        <input type="text" name="ip_address" id="editDeviceIP" class="form-control font-monospace" placeholder="e.g. 192.168.1.201">
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold text-muted">Device Name</label>
@@ -346,6 +362,7 @@
 function openEditDeviceModal(d) {
     document.getElementById('editDeviceId').value = d.id;
     document.getElementById('editDeviceSN').value = d.serial_number;
+    document.getElementById('editDeviceIP').value = d.ip_address || '';
     document.getElementById('editDeviceName').value = d.device_name || '';
     document.getElementById('editDeviceModel').value = d.device_model || '';
     document.getElementById('editDeviceSite').value = d.site || '';

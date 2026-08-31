@@ -6,8 +6,8 @@ use App\Core\Controller;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Csrf;
+use App\Core\Logger;
 use App\Models\Device;
-use App\Models\Logger;
 
 class DeviceController extends Controller {
 

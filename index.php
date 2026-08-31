@@ -324,6 +324,7 @@ $router->post('/api/biometric/push', [\App\Controllers\ApiController::class, 'pu
 $router->get('/api/employee/{code}', [\App\Controllers\ApiController::class, 'employeeStatus']);
 $router->get('/api/attendance/summary', [\App\Controllers\ApiController::class, 'summary']);
 $router->get('/api/sync', [\App\Controllers\ApiController::class, 'sync']);
+$router->get('/api/payroll', [\App\Controllers\ApiController::class, 'payroll']);
 $router->post('/api/resolve-location', [\App\Controllers\ApiController::class, 'resolveLocation']);
 $router->get('/api/resolve-location', [\App\Controllers\ApiController::class, 'resolveLocation']);
 

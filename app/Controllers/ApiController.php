@@ -362,4 +362,60 @@ class ApiController extends Controller {
             'saved_count' => $saved
         ]);
     }
+
+    /**
+     * Payroll Integration API Endpoint
+     * GET /api/payroll?year=2026&month=8
+     */
+    public function payroll(): void {
+        $year = (int) Request::input('year', date('Y'));
+        $month = (int) Request::input('month', date('n'));
+        $site = Request::input('site', '');
+
+        $monthlyReport = Attendance::getMonthlyReport($year, $month, null, $site ?: null);
+        $daysInMonth = $monthlyReport['days_in_month'] ?? 30;
+        $holidays = \App\Models\Holiday::getForMonth((string)$year, (string)$month);
+        $holidaysCount = count($holidays);
+
+        $payrollRecords = [];
+        foreach ($monthlyReport['data'] ?? [] as $r) {
+            $present = (int) ($r['present_days'] ?? 0);
+            $halfDays = (int) ($r['half_days'] ?? 0);
+            $paidLeaves = (float) ($r['approved_leaves'] ?? 0);
+            $effectivePresent = $present - ($halfDays * 0.5);
+            $payableDays = min($daysInMonth, $effectivePresent + $paidLeaves + $holidaysCount);
+            $absentDays = max(0, $daysInMonth - $payableDays);
+
+            $payrollRecords[] = [
+                'employee_id' => $r['employee_id'],
+                'employee_code' => $r['employee_code'],
+                'name' => $r['name'],
+                'department' => $r['department'],
+                'designation' => $r['designation'],
+                'site' => $r['site'] ?? 'Head Office',
+                'project' => $r['project'] ?? 'General',
+                'total_days_in_month' => $daysInMonth,
+                'present_days' => $present,
+                'half_days' => $halfDays,
+                'paid_leaves' => $paidLeaves,
+                'public_holidays' => $holidaysCount,
+                'payable_salary_days' => $payableDays,
+                'unpaid_absent_days' => $absentDays,
+                'total_hours_worked' => round((float)($r['total_hours'] ?? 0), 2)
+            ];
+        }
+
+        $this->json([
+            'success' => true,
+            'period' => [
+                'year' => $year,
+                'month' => $month,
+                'month_name' => date('F Y', mktime(0, 0, 0, $month, 1, $year)),
+                'days_in_month' => $daysInMonth,
+                'public_holidays_count' => $holidaysCount
+            ],
+            'total_employees' => count($payrollRecords),
+            'payroll_data' => $payrollRecords
+        ]);
+    }
 }

@@ -35,7 +35,7 @@ class BackupController extends Controller {
             $sqlDump = "-- Smart Attendance System Complete SQL Backup\n";
             $sqlDump .= "-- Generated on: " . date('Y-m-d H:i:s') . "\n\n";
 
-            $tables = ['users', 'departments', 'employees', 'attendance', 'activity_logs', 'settings'];
+            $tables = ['users', 'departments', 'employees', 'attendance', 'holidays', 'leaves', 'devices', 'device_logs', 'activity_logs', 'settings'];
             foreach ($tables as $table) {
                 try {
                     $stmt = $pdo->query("SELECT * FROM `$table`");

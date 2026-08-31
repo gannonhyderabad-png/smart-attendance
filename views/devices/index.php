@@ -172,6 +172,67 @@
             </div>
         </div>
 
+        <!-- Live Device Communication Activity Log -->
+        <div class="border rounded-4 overflow-hidden shadow-sm mb-4">
+            <div class="bg-light py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-satellite-dish me-2 text-success fa-beat-fade"></i>Live FRM Server Requests &amp; Communication Stream</h6>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small">Auto-Logging</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="location.reload();">
+                    <i class="fa-solid fa-rotate me-1"></i> Refresh Stream
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-muted text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4">Timestamp</th>
+                            <th>Device SN / Identifier</th>
+                            <th>IP Address</th>
+                            <th>Endpoint / Action</th>
+                            <th>HTTP Method</th>
+                            <th>Server Response</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small font-monospace" style="font-size: 0.8rem;">
+                        <?php if (empty($logs)): ?>
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    <i class="fa-solid fa-tower-broadcast fa-2x mb-2 d-block text-secondary opacity-50"></i>
+                                    <span class="d-block fw-semibold text-dark">No direct server requests recorded yet</span>
+                                    <small class="text-muted">Once your machine pushes a heartbeat or punch, the raw packet details will appear here immediately.</small>
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($logs as $l): ?>
+                                <tr>
+                                    <td class="ps-4 text-dark"><?= date('H:i:s d M', strtotime($l['created_at'])) ?></td>
+                                    <td>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                            <?= e($l['serial_number'] ?: 'Unknown') ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-muted"><?= e($l['ip_address'] ?: '—') ?></td>
+                                    <td><code class="text-dark bg-light px-2 py-1 rounded"><?= e($l['endpoint']) ?></code></td>
+                                    <td>
+                                        <span class="badge <?= $l['method'] === 'POST' ? 'bg-warning text-dark' : 'bg-info text-dark' ?>">
+                                            <?= e($l['method']) ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <?= e(trim($l['response'] ?? 'OK')) ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
 

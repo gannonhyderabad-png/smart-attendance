@@ -78,4 +78,30 @@ class Device extends Model {
         $stmt = self::db()->prepare("DELETE FROM devices WHERE id = ?");
         return $stmt->execute([$id]);
     }
+
+    public static function logCommunication(?string $sn, ?string $ip, string $endpoint, string $method, ?string $payload, ?string $response, int $statusCode = 200): void {
+        try {
+            $pdo = self::db();
+            $stmt = $pdo->prepare("INSERT INTO device_logs (serial_number, ip_address, endpoint, method, payload, response, status_code) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $sn,
+                $ip,
+                substr($endpoint, 0, 250),
+                substr($method, 0, 10),
+                $payload ? substr($payload, 0, 2000) : null,
+                $response ? substr($response, 0, 2000) : null,
+                $statusCode
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    public static function recentLogs(int $limit = 50): array {
+        try {
+            $stmt = self::db()->prepare("SELECT * FROM device_logs ORDER BY created_at DESC LIMIT " . (int)$limit);
+            $stmt->execute();
+            return $stmt->fetchAll();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
 }

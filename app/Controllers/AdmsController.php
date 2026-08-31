@@ -14,7 +14,7 @@ class AdmsController extends Controller {
 
     /**
      * Primary Handshake (GET) and Data Push (POST) handler for eSSL / ZKTeco ADMS
-     * URLs: /iclock/cdata, /cdata
+     * URLs: /iclock/cdata, /cdata, /iclock/cdata.aspx, /cdata.aspx
      */
     public function cdata(): void {
         header('Content-Type: text/plain; charset=utf-8');
@@ -47,7 +47,9 @@ class AdmsController extends Controller {
         // 1. HANDSHAKE / INITIAL REGISTRATION (GET)
         if ($method === 'GET') {
             if (empty($sn)) {
-                echo "OK\n";
+                $resp = "OK\n";
+                Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/cdata', 'GET', '', $resp, 200);
+                echo $resp;
                 exit;
             }
 
@@ -63,7 +65,11 @@ class AdmsController extends Controller {
                         "TransFlag=1111000000\n" .
                         "TimeZone=330\n" .
                         "Realtime=1\n" .
-                        "Encrypt=0\n";
+                        "Encrypt=0\n" .
+                        "ServerVersion=3.4.1\n" .
+                        "PushProtVer=2.4.1\n";
+
+            Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/cdata', 'GET', $_SERVER['QUERY_STRING'] ?? '', $response, 200);
             echo $response;
             exit;
         }
@@ -74,52 +80,71 @@ class AdmsController extends Controller {
 
         if ($table === 'ATTLOG' || str_contains($rawBody, "\t") || !empty(trim($rawBody))) {
             $processedCount = $this->parseAndSaveAttLog($rawBody, $sn, $clientIp);
-            echo "OK: {$processedCount}\n";
+            $resp = "OK: {$processedCount}\n";
+            Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/cdata', 'POST', $rawBody, $resp, 200);
+            echo $resp;
             exit;
         }
 
-        if ($table === 'OPERLOG' || $table === 'ATTPHOTO') {
-            echo "OK\n";
+        if ($table === 'OPERLOG' || $table === 'ATTPHOTO' || $table === 'BIOPHOTO') {
+            $resp = "OK\n";
+            Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/cdata', 'POST', $rawBody, $resp, 200);
+            echo $resp;
             exit;
         }
 
-        echo "OK\n";
+        $resp = "OK\n";
+        Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/cdata', 'POST', $rawBody, $resp, 200);
+        echo $resp;
         exit;
     }
 
     /**
      * Heartbeat & Command Queue
-     * URLs: /iclock/getrequest, /getrequest
+     * URLs: /iclock/getrequest, /getrequest, /iclock/getrequest.aspx
      */
     public function getrequest(): void {
         header('Content-Type: text/plain; charset=utf-8');
         $sn = trim((string)Request::input('SN', ($_GET['sn'] ?? '')));
+        $clientIp = Request::getClientIp();
         if (!empty($sn)) {
             Device::registerOrHeartbeat($sn, [
-                'ip_address' => Request::getClientIp()
+                'ip_address' => $clientIp
             ]);
         }
-        echo "OK\n";
+        $resp = "OK\n";
+        Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/getrequest', $_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['QUERY_STRING'] ?? '', $resp, 200);
+        echo $resp;
         exit;
     }
 
     /**
      * Device Command Response
-     * URLs: /iclock/devicecmd, /devicecmd
+     * URLs: /iclock/devicecmd, /devicecmd, /iclock/devicecmd.aspx
      */
     public function devicecmd(): void {
         header('Content-Type: text/plain; charset=utf-8');
-        echo "OK\n";
+        $sn = trim((string)Request::input('SN', ($_GET['sn'] ?? '')));
+        $clientIp = Request::getClientIp();
+        $raw = file_get_contents('php://input');
+        $resp = "OK\n";
+        Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/devicecmd', 'POST', $raw, $resp, 200);
+        echo $resp;
         exit;
     }
 
     /**
      * Face / Fingerprint Photo and Template upload
-     * URLs: /iclock/fdata, /fdata
+     * URLs: /iclock/fdata, /fdata, /iclock/fdata.aspx
      */
     public function fdata(): void {
         header('Content-Type: text/plain; charset=utf-8');
-        echo "OK\n";
+        $sn = trim((string)Request::input('SN', ($_GET['sn'] ?? '')));
+        $clientIp = Request::getClientIp();
+        $raw = file_get_contents('php://input');
+        $resp = "OK\n";
+        Device::logCommunication($sn, $clientIp, $_SERVER['REQUEST_URI'] ?? '/iclock/fdata', 'POST', "FDATA len: " . strlen($raw), $resp, 200);
+        echo $resp;
         exit;
     }
 

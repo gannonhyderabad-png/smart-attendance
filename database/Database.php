@@ -264,6 +264,19 @@ class Database {
                 INDEX `idx_device_sn` (`serial_number`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `device_logs` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `serial_number` VARCHAR(100) NULL,
+                `ip_address` VARCHAR(50) NULL,
+                `endpoint` VARCHAR(255) NULL,
+                `method` VARCHAR(10) NULL,
+                `payload` TEXT NULL,
+                `response` TEXT NULL,
+                `status_code` INT DEFAULT 200,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_dlog_sn` (`serial_number`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `origin_site` VARCHAR(150) NULL AFTER `days_count`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `target_site` VARCHAR(150) NULL AFTER `origin_site`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `attachment` VARCHAR(255) NULL AFTER `target_site`;"); } catch (\Throwable $e) {}
@@ -416,6 +429,33 @@ class Database {
             setting_key VARCHAR(100) PRIMARY KEY,
             setting_value TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS devices (
+            id SERIAL PRIMARY KEY,
+            serial_number VARCHAR(100) NOT NULL UNIQUE,
+            device_name VARCHAR(150) NULL,
+            device_model VARCHAR(100) NULL,
+            ip_address VARCHAR(50) NULL,
+            site VARCHAR(150) NULL,
+            project VARCHAR(150) NULL,
+            firmware_version VARCHAR(100) NULL,
+            push_version VARCHAR(50) NULL,
+            status VARCHAR(20) DEFAULT 'ONLINE',
+            last_heartbeat TIMESTAMP NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS device_logs (
+            id SERIAL PRIMARY KEY,
+            serial_number VARCHAR(100) NULL,
+            ip_address VARCHAR(50) NULL,
+            endpoint VARCHAR(255) NULL,
+            method VARCHAR(10) NULL,
+            payload TEXT NULL,
+            response TEXT NULL,
+            status_code INT DEFAULT 200,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
         // Add columns if missing in PostgreSQL
@@ -665,6 +705,18 @@ class Database {
             push_version TEXT NULL,
             status TEXT DEFAULT 'ONLINE',
             last_heartbeat DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS device_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            serial_number TEXT NULL,
+            ip_address TEXT NULL,
+            endpoint TEXT NULL,
+            method TEXT NULL,
+            payload TEXT NULL,
+            response TEXT NULL,
+            status_code INTEGER DEFAULT 200,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
 

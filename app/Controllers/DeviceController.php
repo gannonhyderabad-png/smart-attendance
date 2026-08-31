@@ -14,9 +14,11 @@ class DeviceController extends Controller {
     public function index(): void {
         Auth::requireAuth();
         $devices = Device::all();
+        $logs = Device::recentLogs(30);
 
         $this->view('devices/index', [
             'devices' => $devices,
+            'logs' => $logs,
             'title' => 'Biometric & FRM Devices Management'
         ], 'admin');
     }

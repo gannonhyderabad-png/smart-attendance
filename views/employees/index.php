@@ -153,8 +153,13 @@
                                             </div>
                                         <?php endif; ?>
                                         <div>
-                                            <div class="fw-bold text-dark">
+                                            <div class="fw-bold text-dark d-flex align-items-center flex-wrap gap-1">
                                                 <?= e($emp['name']) ?>
+                                                <?php if (str_starts_with($emp['name'], 'FRM User') || ($emp['designation'] ?? '') === 'Biometric Device User'): ?>
+                                                    <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-0 rounded-pill" style="font-size: 0.65rem;">
+                                                        <i class="fa-solid fa-fingerprint me-1 text-warning"></i>FRM Machine Auto-Created
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                             <div class="text-muted small">
                                                 <?= e($emp['email'] ?? 'No email') ?> &bull; <?= e($emp['phone'] ?? 'No phone') ?>

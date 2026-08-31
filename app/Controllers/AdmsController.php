@@ -207,7 +207,7 @@ class AdmsController extends Controller {
             }
             $punchDate = date('Y-m-d', strtotime($punchTime));
 
-            // Look up employee by code or numeric ID
+            // Look up employee or auto-create default placeholder
             $emp = Employee::findByCode($empCode);
             if (!$emp && is_numeric($empCode)) {
                 $emp = Employee::find((int)$empCode);
@@ -230,8 +230,9 @@ class AdmsController extends Controller {
             }
 
             if (!$emp) {
-                Logger::log(1, 'DEVICE_PUNCH_UNMAPPED', "Received biometric punch from FRM [{$sn}] for PIN/Code [{$empCode}] at {$punchTime}, but no matching employee found in database.");
-                continue;
+                // Auto-create default employee profile under device site so punch is NEVER lost
+                $emp = Employee::getOrCreateForBiometric($empCode, $site, $project);
+                Logger::log(1, 'DEVICE_PUNCH_DEFAULT_CREATED', "Created default employee profile for PIN [{$empCode}] from device [{$sn}]");
             }
 
             // Determine punch type:

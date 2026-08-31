@@ -319,7 +319,9 @@ class ApiController extends Controller {
                 }
             }
 
-            if (!$emp) continue;
+            if (!$emp) {
+                $emp = Employee::getOrCreateForBiometric($code, $site, $project);
+            }
 
             $date = date('Y-m-d', strtotime($time));
 

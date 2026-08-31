@@ -349,6 +349,7 @@ $router->get('/attendance', [\App\Controllers\AttendanceController::class, 'inde
 $router->get('/attendance/export', [\App\Controllers\AttendanceController::class, 'exportCsv']);
 $router->get('/attendance/employee-summary', [\App\Controllers\AttendanceController::class, 'employeeSummary']);
 $router->post('/attendance/manual', [\App\Controllers\AttendanceController::class, 'manualStore']);
+$router->post('/attendance/reassign', [\App\Controllers\AttendanceController::class, 'reassign']);
 $router->post('/attendance/delete', [\App\Controllers\AttendanceController::class, 'delete']);
 
 // Public Holidays Management

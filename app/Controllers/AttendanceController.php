@@ -351,4 +351,24 @@ class AttendanceController extends Controller {
         ]);
         exit;
     }
+
+    public function reassign(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $punchId = (int) Request::input('punch_id', 0);
+        $targetEmployeeId = (int) Request::input('target_employee_id', 0);
+        $site = trim((string)Request::input('site', ''));
+        $project = trim((string)Request::input('project', ''));
+
+        if ($punchId > 0 && $targetEmployeeId > 0) {
+            $pdo = \Database\Database::getConnection();
+            $stmt = $pdo->prepare("UPDATE attendance SET employee_id = ?, site = COALESCE(NULLIF(?, ''), site), project = COALESCE(NULLIF(?, ''), project) WHERE id = ?");
+            $stmt->execute([$targetEmployeeId, $site, $project, $punchId]);
+            Logger::log(Auth::id(), 'ATTENDANCE_REASSIGNED', "Reassigned punch #{$punchId} to employee #{$targetEmployeeId}");
+            $_SESSION['flash_success'] = "Punch successfully shifted to company employee!";
+        }
+
+        redirect('attendance');
+    }
 }

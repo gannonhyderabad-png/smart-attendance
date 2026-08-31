@@ -146,6 +146,36 @@ class Employee extends Model {
         return $stmt->fetch() ?: null;
     }
 
+    /**
+     * Finds employee for biometric punch, or auto-creates a default placeholder profile
+     * so no punch from physical FRM machines is ever lost.
+     */
+    public static function getOrCreateForBiometric(string $code, string $site = 'Head Office', string $project = 'General'): array {
+        $emp = self::findByCode($code);
+        if ($emp) {
+            return $emp;
+        }
+
+        $cleanCode = trim($code);
+        $name = "FRM User (" . $cleanCode . ")";
+        $token = bin2hex(random_bytes(16));
+
+        $pdo = self::db();
+        $stmt = $pdo->prepare("INSERT INTO employees 
+            (employee_code, name, designation, site, project, punch_token, status) 
+            VALUES (?, ?, 'Biometric Device User', ?, ?, ?, 'active')");
+        $stmt->execute([$cleanCode, $name, $site, $project, $token]);
+        $newId = (int) $pdo->lastInsertId();
+
+        return self::find($newId) ?: [
+            'id' => $newId,
+            'employee_code' => $cleanCode,
+            'name' => $name,
+            'site' => $site,
+            'project' => $project
+        ];
+    }
+
     public static function generateNextCode(string $prefix = ''): string {
         $stmt = self::db()->query("SELECT employee_code FROM employees ORDER BY id DESC LIMIT 1");
         $lastCode = $stmt->fetchColumn();

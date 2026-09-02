@@ -106,12 +106,30 @@
             </div>
         </form>
 
+        <!-- Filter Count Summary Indicator -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 bg-light rounded-3 px-3 py-2 border">
+            <div class="small text-dark d-flex align-items-center gap-2 flex-wrap">
+                <span class="fw-bold"><i class="fa-solid fa-list-ol text-primary me-1"></i> Total Listed: <span class="badge bg-primary text-white rounded-pill px-2"><?= count($employees) ?></span></span>
+                <?php if (!empty($filters['site'])): ?>
+                    <span class="badge bg-info-subtle text-dark border border-info px-2 py-1"><i class="fa-solid fa-location-dot text-primary me-1"></i> Site: <strong><?= e($filters['site']) ?></strong></span>
+                <?php endif; ?>
+                <?php if (!empty($filters['department'])): ?>
+                    <span class="badge bg-secondary-subtle text-dark border border-secondary px-2 py-1"><i class="fa-solid fa-building text-secondary me-1"></i> Department: <strong><?= e($filters['department']) ?></strong></span>
+                <?php endif; ?>
+                <?php if (!empty($filters['search'])): ?>
+                    <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1"><i class="fa-solid fa-magnifying-glass me-1"></i> Search: <strong><?= e($filters['search']) ?></strong></span>
+                <?php endif; ?>
+            </div>
+            <small class="text-muted font-monospace">Count updates dynamically based on site filter</small>
+        </div>
+
         <!-- Employees Table -->
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light text-muted small text-uppercase">
                     <tr>
-                        <th class="ps-3">Code</th>
+                        <th class="ps-3 text-center" style="width: 50px;">S.No</th>
+                        <th>Code</th>
                         <th>Employee</th>
                         <th>Department & Role</th>
                         <th>Project & Site</th>
@@ -128,17 +146,22 @@
                 <tbody class="small">
                     <?php if (empty($employees)): ?>
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="8" class="text-center py-5 text-muted">
                                 <i class="fa-solid fa-<?= $currentView === 'trash' ? 'trash-can' : 'user-slash' ?> fs-2 d-block mb-2 text-secondary opacity-50"></i>
                                 <?= $currentView === 'trash' ? 'Recycle Bin is completely empty.' : 'No active employees found matching the filters.' ?>
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($employees as $emp): 
+                        <?php 
+                        $serialNum = 1;
+                        foreach ($employees as $emp): 
                             $empPunchUrl = punch_url($emp['employee_code']);
                         ?>
                             <tr class="<?= $currentView === 'trash' ? 'table-light opacity-75' : '' ?>">
-                                <td class="ps-3">
+                                <td class="ps-3 text-center fw-bold text-muted" style="width: 50px;">
+                                    <span class="badge bg-light text-secondary border font-monospace"><?= $serialNum++ ?></span>
+                                </td>
+                                <td>
                                     <span class="badge bg-light text-dark border font-monospace px-2 py-1 shadow-sm">
                                         <i class="fa-solid fa-id-badge me-1 text-primary"></i><?= e($emp['employee_code']) ?>
                                     </span>

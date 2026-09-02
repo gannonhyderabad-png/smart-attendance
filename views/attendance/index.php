@@ -95,12 +95,30 @@
         </form>
 
         <div id="attendanceLiveContent">
+        <!-- Filter Count Summary Indicator -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 bg-light rounded-3 px-3 py-2 border">
+            <div class="small text-dark d-flex align-items-center gap-2 flex-wrap">
+                <span class="fw-bold"><i class="fa-solid fa-list-ol text-primary me-1"></i> Total Sessions: <span class="badge bg-primary text-white rounded-pill px-2"><?= $totalRecords ?></span></span>
+                <?php if (!empty($filters['site'])): ?>
+                    <span class="badge bg-info-subtle text-dark border border-info px-2 py-1"><i class="fa-solid fa-location-dot text-primary me-1"></i> Site: <strong><?= e($filters['site']) ?></strong></span>
+                <?php endif; ?>
+                <?php if (!empty($filters['department_id'])): ?>
+                    <span class="badge bg-secondary-subtle text-dark border border-secondary px-2 py-1"><i class="fa-solid fa-building text-secondary me-1"></i> Department Filtered</span>
+                <?php endif; ?>
+                <?php if (!empty($filters['search'])): ?>
+                    <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1"><i class="fa-solid fa-magnifying-glass me-1"></i> Search: <strong><?= e($filters['search']) ?></strong></span>
+                <?php endif; ?>
+            </div>
+            <small class="text-muted font-monospace">Showing <?= count($records) ?> logs on this page (updates with site filter)</small>
+        </div>
+
         <!-- Attendance Records Table (Paired IN & OUT in one row) -->
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light text-muted small text-uppercase">
                     <tr>
-                        <th class="ps-3">Employee</th>
+                        <th class="ps-3 text-center" style="width: 50px;">S.No</th>
+                        <th>Employee</th>
                         <th>Project</th>
                         <th>Site</th>
                         <th>Date</th>
@@ -114,15 +132,22 @@
                 <tbody class="small">
                     <?php if (empty($records)): ?>
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="fa-regular fa-calendar-xmark fs-3 d-block mb-2 text-secondary"></i>
                                 No attendance sessions match the selected criteria.
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($records as $row): ?>
+                        <?php 
+                        $pageVal = max(1, (int)($page ?? 1));
+                        $serialNum = ($pageVal - 1) * 50 + 1;
+                        foreach ($records as $row): 
+                        ?>
                             <tr>
-                                <td class="ps-3">
+                                <td class="ps-3 text-center fw-bold text-muted" style="width: 50px;">
+                                    <span class="badge bg-light text-secondary border font-monospace"><?= $serialNum++ ?></span>
+                                </td>
+                                <td>
                                     <div class="d-flex align-items-center">
                                         <a href="javascript:void(0)" onclick="openEmployeeAttendanceSummary(<?= $row['employee_id'] ?>)" class="text-decoration-none">
                                             <?php if (!empty($row['employee_photo'])): ?>

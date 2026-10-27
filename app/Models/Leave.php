@@ -32,8 +32,12 @@ class Leave extends Model {
             $params[] = $conditions['leave_type'];
         }
         if (!empty($conditions['status'])) {
-            $sql .= " AND l.status = ?";
-            $params[] = $conditions['status'];
+            if ($conditions['status'] === 'PENDING') {
+                $sql .= " AND (l.status = 'PENDING' OR l.status LIKE 'PENDING_%')";
+            } else {
+                $sql .= " AND l.status = ?";
+                $params[] = $conditions['status'];
+            }
         }
         if (!empty($conditions['month_start']) && !empty($conditions['month_end'])) {
             $sql .= " AND ((l.start_date BETWEEN ? AND ?) OR (l.end_date BETWEEN ? AND ?) OR (l.start_date <= ? AND l.end_date >= ?))";
@@ -126,7 +130,7 @@ class Leave extends Model {
 
     public static function create(array $data): int {
         $pdo = self::db();
-        $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, attachment, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, attachment, reason, status, approval_step) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         $startDate = $data['start_date'];
         $endDate = !empty($data['end_date']) ? $data['end_date'] : $startDate;
@@ -140,6 +144,9 @@ class Leave extends Model {
             $daysCount = max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
         }
 
+        $status = $data['status'] ?? 'APPROVED';
+        $approvalStep = isset($data['approval_step']) ? (int) $data['approval_step'] : ($status === 'APPROVED' ? 4 : 1);
+
         $stmt->execute([
             (int) $data['employee_id'],
             trim($data['leave_type']),
@@ -150,7 +157,8 @@ class Leave extends Model {
             !empty($data['target_site']) ? trim($data['target_site']) : null,
             !empty($data['attachment']) ? trim($data['attachment']) : null,
             trim($data['reason'] ?? ''),
-            $data['status'] ?? 'APPROVED'
+            $status,
+            $approvalStep
         ]);
 
         return (int) $pdo->lastInsertId();

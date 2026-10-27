@@ -291,6 +291,19 @@ class Database {
             // Department Head / Approving Authority columns
             try { $pdo->exec("ALTER TABLE `departments` ADD COLUMN `head_name` VARCHAR(150) NULL AFTER `name`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `departments` ADD COLUMN `head_email` VARCHAR(150) NULL AFTER `head_name`;"); } catch (\Throwable $e) {}
+            // 3-Step Hierarchical Approval Workflow columns
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `approval_step` INT DEFAULT 1;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step1_approved_by` INT NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step1_approved_by_name` VARCHAR(150) NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step1_approved_at` DATETIME NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step2_approved_by` INT NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step2_approved_by_name` VARCHAR(150) NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step2_approved_at` DATETIME NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step3_approved_by` INT NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step3_approved_by_name` VARCHAR(150) NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `step3_approved_at` DATETIME NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `rejected_at_step` INT NULL;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("UPDATE `leaves` SET `approval_step` = 1, `status` = 'PENDING_LEVEL_1' WHERE `status` = 'PENDING' AND (`approval_step` IS NULL OR `approval_step` = 0);"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -493,11 +506,23 @@ class Database {
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS sl_quota NUMERIC(4,1)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pl_quota NUMERIC(4,1)",
             "ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_name VARCHAR(150)",
-            "ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_email VARCHAR(150)"
+            "ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_email VARCHAR(150)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS approval_step INT DEFAULT 1",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step1_approved_by INT",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step1_approved_by_name VARCHAR(150)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step1_approved_at TIMESTAMP",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step2_approved_by INT",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step2_approved_by_name VARCHAR(150)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step2_approved_at TIMESTAMP",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step3_approved_by INT",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step3_approved_by_name VARCHAR(150)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS step3_approved_at TIMESTAMP",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS rejected_at_step INT"
         ];
         foreach ($columns as $c) {
             try { $pdo->exec($c); } catch (\Throwable $e) {}
         }
+        try { $pdo->exec("UPDATE leaves SET approval_step = 1, status = 'PENDING_LEVEL_1' WHERE status = 'PENDING' AND (approval_step IS NULL OR approval_step = 0)"); } catch (\Throwable $e) {}
 
         // Seed initial admin user if empty
         $userCount = (int) ($pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?? 0);
@@ -749,6 +774,18 @@ class Database {
         try { $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE departments ADD COLUMN head_name TEXT;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE departments ADD COLUMN head_email TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN approval_step INTEGER DEFAULT 1;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step1_approved_by INTEGER;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step1_approved_by_name TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step1_approved_at DATETIME;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step2_approved_by INTEGER;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step2_approved_by_name TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step2_approved_at DATETIME;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step3_approved_by INTEGER;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step3_approved_by_name TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step3_approved_at DATETIME;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN rejected_at_step INTEGER;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("UPDATE leaves SET approval_step = 1, status = 'PENDING_LEVEL_1' WHERE status = 'PENDING' AND (approval_step IS NULL OR approval_step = 0);"); } catch (\Throwable $e) {}
 
         // Seed standard public holidays in SQLite if empty
         $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();

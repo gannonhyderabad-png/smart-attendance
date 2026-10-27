@@ -237,30 +237,107 @@ class LeaveController extends Controller {
     }
 
     /**
-     * Approve a pending leave request (HR / Dept Head)
+     * 3-Step Hierarchical Leave Approval
+     * Step 1: Department Head -> Step 2: HR Manager -> Step 3: Final Management
      */
     public function approve(): void {
         Auth::requireAuth();
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
-        if ($id > 0) {
-            $pdo = \Database\Database::getConnection();
-            $nowStr = date('Y-m-d H:i:s');
-            $stmt = $pdo->prepare("UPDATE leaves SET status = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'");
-            $stmt->execute([Auth::id(), $nowStr, $id]);
+        $directApprove = (int) Request::input('direct_approve', 0);
 
-            $leave = Leave::find($id);
-            if ($leave) {
-                Logger::log(Auth::id(), 'LEAVE_APPROVED', "Approved leave #{$id} for {$leave['employee_name']} ({$leave['leave_type']})");
-                $_SESSION['flash_success'] = "Leave request for {$leave['employee_name']} has been Approved!";
+        if ($id <= 0) {
+            redirect('leaves');
+        }
+
+        $leave = Leave::find($id);
+        if (!$leave) {
+            redirect('leaves');
+        }
+
+        $pdo = \Database\Database::getConnection();
+        $nowStr = date('Y-m-d H:i:s');
+        $userId = Auth::id();
+        $user = Auth::user();
+        $userName = $user['name'] ?? 'Administrator';
+
+        if ($directApprove === 1) {
+            // Fast-track / Direct approve all 3 steps at once (Super Admin privilege)
+            $stmt = $pdo->prepare("UPDATE leaves SET 
+                status = 'APPROVED', 
+                approval_step = 4, 
+                step1_approved_by = COALESCE(step1_approved_by, ?),
+                step1_approved_by_name = COALESCE(step1_approved_by_name, ?),
+                step1_approved_at = COALESCE(step1_approved_at, ?),
+                step2_approved_by = COALESCE(step2_approved_by, ?),
+                step2_approved_by_name = COALESCE(step2_approved_by_name, ?),
+                step2_approved_at = COALESCE(step2_approved_at, ?),
+                step3_approved_by = COALESCE(step3_approved_by, ?),
+                step3_approved_by_name = COALESCE(step3_approved_by_name, ?),
+                step3_approved_at = COALESCE(step3_approved_at, ?),
+                approved_by = ?, 
+                approved_at = ? 
+                WHERE id = ?");
+            $stmt->execute([
+                $userId, $userName, $nowStr,
+                $userId, $userName, $nowStr,
+                $userId, $userName, $nowStr,
+                $userId, $nowStr, $id
+            ]);
+
+            Logger::log($userId, 'LEAVE_DIRECT_APPROVED', "Directly approved all steps for leave #{$id} ({$leave['employee_name']})");
+            $_SESSION['flash_success'] = "Leave for {$leave['employee_name']} has been Direct Approved (All 3 Steps Cleared)!";
+        } else {
+            $currentStep = (int) ($leave['approval_step'] ?? 1);
+            if ($currentStep <= 1) {
+                // Step 1: Department Head Review & Approval -> Moves to Step 2 (HR)
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    approval_step = 2, 
+                    status = 'PENDING_LEVEL_2',
+                    step1_approved_by = ?,
+                    step1_approved_by_name = ?,
+                    step1_approved_at = ?
+                    WHERE id = ?");
+                $stmt->execute([$userId, $userName, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_STEP1_APPROVED', "Department Head ({$userName}) approved Step 1 for leave #{$id} ({$leave['employee_name']}). Now forwarded to HR.");
+                $_SESSION['flash_success'] = "✓ Step 1 Approved by Department Head ({$userName})! Request forwarded to Step 2: HR Review.";
+            } elseif ($currentStep === 2) {
+                // Step 2: HR Manager Approval -> Moves to Step 3 (Final Management)
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    approval_step = 3, 
+                    status = 'PENDING_LEVEL_3',
+                    step2_approved_by = ?,
+                    step2_approved_by_name = ?,
+                    step2_approved_at = ?
+                    WHERE id = ?");
+                $stmt->execute([$userId, $userName, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_STEP2_APPROVED', "HR ({$userName}) approved Step 2 for leave #{$id} ({$leave['employee_name']}). Now forwarded to Management.");
+                $_SESSION['flash_success'] = "✓ Step 2 Approved by HR ({$userName})! Request forwarded to Step 3: Final Management Sign-off.";
+            } else {
+                // Step 3: Final Management Sign-off -> Status becomes fully APPROVED
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    approval_step = 4, 
+                    status = 'APPROVED',
+                    step3_approved_by = ?,
+                    step3_approved_by_name = ?,
+                    step3_approved_at = ?,
+                    approved_by = ?,
+                    approved_at = ?
+                    WHERE id = ?");
+                $stmt->execute([$userId, $userName, $nowStr, $userId, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_STEP3_APPROVED', "Final Authority ({$userName}) approved Step 3 for leave #{$id} ({$leave['employee_name']}). Fully Approved.");
+                $_SESSION['flash_success'] = "✓ Final Step 3 Approved! Leave request for {$leave['employee_name']} is now Fully Approved and recorded.";
             }
         }
         redirect('leaves');
     }
 
     /**
-     * Reject a pending leave request (HR / Dept Head)
+     * Reject a pending leave request at the current approval level
      */
     public function reject(): void {
         Auth::requireAuth();
@@ -270,15 +347,24 @@ class LeaveController extends Controller {
         $rejectReason = trim((string) Request::input('reject_reason', 'Not approved'));
 
         if ($id > 0) {
-            $pdo = \Database\Database::getConnection();
-            $nowStr = date('Y-m-d H:i:s');
-            $stmt = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reject_reason = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'");
-            $stmt->execute([$rejectReason, Auth::id(), $nowStr, $id]);
-
             $leave = Leave::find($id);
             if ($leave) {
-                Logger::log(Auth::id(), 'LEAVE_REJECTED', "Rejected leave #{$id} for {$leave['employee_name']}: {$rejectReason}");
-                $_SESSION['flash_error'] = "Leave request for {$leave['employee_name']} has been Rejected.";
+                $pdo = \Database\Database::getConnection();
+                $nowStr = date('Y-m-d H:i:s');
+                $userId = Auth::id();
+                $currentStep = (int) ($leave['approval_step'] ?? 1);
+
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    status = 'REJECTED', 
+                    reject_reason = ?, 
+                    rejected_at_step = ?, 
+                    approved_by = ?, 
+                    approved_at = ? 
+                    WHERE id = ?");
+                $stmt->execute([$rejectReason, $currentStep, $userId, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_REJECTED', "Rejected leave #{$id} at Step {$currentStep} for {$leave['employee_name']}: {$rejectReason}");
+                $_SESSION['flash_error'] = "Leave request for {$leave['employee_name']} has been Rejected at Step {$currentStep}.";
             }
         }
         redirect('leaves');
@@ -286,7 +372,7 @@ class LeaveController extends Controller {
 
     /**
      * Employee self-service leave application (from mobile punch page)
-     * Saves as PENDING status for approval workflow
+     * Starts at Level 1 (Step 1 / 3: Awaiting Department Head)
      */
     public function applyLeave(string $code = ''): void {
         header('Content-Type: application/json; charset=utf-8');
@@ -329,7 +415,8 @@ class LeaveController extends Controller {
                 'target_site' => $targetSite,
                 'attachment' => null,
                 'reason' => $reason,
-                'status' => 'PENDING'
+                'status' => 'PENDING_LEVEL_1',
+                'approval_step' => 1
             ]);
 
             // Mark applied_by_employee
@@ -338,11 +425,11 @@ class LeaveController extends Controller {
                 $pdo->prepare("UPDATE leaves SET applied_by_employee = 1 WHERE id = ?")->execute([$leaveId]);
             } catch (\Throwable $e) {}
 
-            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}. Pending approval.");
+            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}. Level 1 approval pending.");
 
             echo json_encode([
                 'success' => true,
-                'message' => "Your {$leaveType} request for " . ($daysCount == 1 ? "1 day" : "{$daysCount} days") . " has been submitted successfully!\n\nStatus: ⏳ Pending Approval from HR / Department Head."
+                'message' => "Your {$leaveType} request for " . ($daysCount == 1 ? "1 day" : "{$daysCount} days") . " has been submitted successfully!\n\nStatus: ⏳ Step 1 / 3: Awaiting Department Head Approval."
             ]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => 'Failed to submit request: ' . $e->getMessage()]);

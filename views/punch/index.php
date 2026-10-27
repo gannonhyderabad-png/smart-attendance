@@ -455,11 +455,32 @@
                                 <div class="d-flex flex-column gap-2" id="myLeavesList">
                                     <?php foreach ($myLeaves as $lv): 
                                         $st = strtoupper($lv['status'] ?? 'PENDING');
+                                        $step = (int)($lv['approval_step'] ?? 1);
                                         $badgeClass = 'bg-secondary';
                                         $badgeIcon = 'fa-regular fa-clock';
-                                        if ($st === 'APPROVED') { $badgeClass = 'bg-success'; $badgeIcon = 'fa-solid fa-check'; }
-                                        elseif ($st === 'PENDING') { $badgeClass = 'bg-warning text-dark'; $badgeIcon = 'fa-solid fa-hourglass-half'; }
-                                        elseif ($st === 'REJECTED') { $badgeClass = 'bg-danger'; $badgeIcon = 'fa-solid fa-xmark'; }
+                                        $badgeLabel = $st;
+
+                                        if ($st === 'APPROVED') {
+                                            $badgeClass = 'bg-success';
+                                            $badgeIcon = 'fa-solid fa-check-double';
+                                            $badgeLabel = 'Fully Approved (3/3)';
+                                        } elseif ($st === 'PENDING_LEVEL_1' || ($st === 'PENDING' && $step <= 1)) {
+                                            $badgeClass = 'bg-warning text-dark border border-warning-subtle';
+                                            $badgeIcon = 'fa-solid fa-hourglass-half';
+                                            $badgeLabel = 'Step 1/3: Dept Head';
+                                        } elseif ($st === 'PENDING_LEVEL_2' || ($st === 'PENDING' && $step === 2)) {
+                                            $badgeClass = 'bg-info text-white';
+                                            $badgeIcon = 'fa-solid fa-spinner fa-spin';
+                                            $badgeLabel = 'Step 2/3: HR Review';
+                                        } elseif ($st === 'PENDING_LEVEL_3' || ($st === 'PENDING' && $step === 3)) {
+                                            $badgeClass = 'bg-primary text-white';
+                                            $badgeIcon = 'fa-solid fa-stamp';
+                                            $badgeLabel = 'Step 3/3: Management';
+                                        } elseif ($st === 'REJECTED') {
+                                            $badgeClass = 'bg-danger text-white';
+                                            $badgeIcon = 'fa-solid fa-xmark';
+                                            $badgeLabel = !empty($lv['rejected_at_step']) ? 'Rejected (Step ' . $lv['rejected_at_step'] . ')' : 'Rejected';
+                                        }
                                     ?>
                                         <div class="p-2 rounded-3 border bg-light d-flex justify-content-between align-items-center">
                                             <div>
@@ -468,12 +489,18 @@
                                                     <?= date('d M', strtotime($lv['start_date'])) ?> <?= $lv['start_date'] !== $lv['end_date'] ? 'to ' . date('d M', strtotime($lv['end_date'])) : '' ?>
                                                     (<?= e($lv['days_count']) ?> d)
                                                 </div>
+                                                <?php if (!empty($lv['step1_approved_by_name']) && ($step > 1 || $st === 'APPROVED')): ?>
+                                                    <div class="text-success" style="font-size: 0.65rem;"><i class="fa-solid fa-check me-1"></i>HOD Approved: <?= e($lv['step1_approved_by_name']) ?></div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($lv['step2_approved_by_name']) && ($step > 2 || $st === 'APPROVED')): ?>
+                                                    <div class="text-primary" style="font-size: 0.65rem;"><i class="fa-solid fa-check me-1"></i>HR Approved: <?= e($lv['step2_approved_by_name']) ?></div>
+                                                <?php endif; ?>
                                                 <?php if (!empty($lv['reject_reason']) && $st === 'REJECTED'): ?>
                                                     <div class="text-danger" style="font-size: 0.68rem;"><i class="fa-solid fa-circle-exclamation me-1"></i><?= e($lv['reject_reason']) ?></div>
                                                 <?php endif; ?>
                                             </div>
                                             <span class="badge <?= $badgeClass ?> rounded-pill" style="font-size: 0.68rem;">
-                                                <i class="<?= $badgeIcon ?> me-1"></i><?= e($st) ?>
+                                                <i class="<?= $badgeIcon ?> me-1"></i><?= e($badgeLabel) ?>
                                             </span>
                                         </div>
                                     <?php endforeach; ?>

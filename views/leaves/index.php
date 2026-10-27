@@ -103,14 +103,17 @@
                             <th class="ps-4">Employee</th>
                             <th>Request Type</th>
                             <th>Duration / Dates</th>
-                            <th>Target Site / Client</th>
-                            <th>Reason / Note</th>
+                            <th>3-Step Approval Status</th>
+                            <th>Reason / Notes</th>
                             <th>Applied Date</th>
-                            <th class="text-end pe-4">Approval Decision</th>
+                            <th class="text-end pe-4">Step Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($pendingLeaves as $pl): ?>
+                        <?php foreach ($pendingLeaves as $pl): 
+                            $step = (int) ($pl['approval_step'] ?? 1);
+                            if ($step < 1) $step = 1;
+                        ?>
                             <tr>
                                 <td class="ps-4">
                                     <div class="d-flex align-items-center gap-2">
@@ -124,7 +127,7 @@
                                             </div>
                                             <div class="mt-1">
                                                 <span class="badge bg-light text-primary border" style="font-size: 0.68rem;" title="Designated Department Approving Authority">
-                                                    <i class="fa-solid fa-user-shield me-1"></i>Authority: <strong><?= e($pl['department_head'] ?: 'HR / Admin') ?></strong>
+                                                    <i class="fa-solid fa-user-shield me-1"></i>HOD: <strong><?= e($pl['department_head'] ?: 'HR / Admin') ?></strong>
                                                 </span>
                                             </div>
                                         </div>
@@ -146,34 +149,79 @@
                                     <span class="badge bg-warning-subtle text-dark border border-warning-subtle font-monospace mt-1" style="font-size: 0.72rem;">
                                         <?= e($pl['days_count']) ?> Day(s)
                                     </span>
+                                    <?php if (!empty($pl['target_site'])): ?>
+                                        <div class="mt-1 text-muted" style="font-size: 0.68rem;"><i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($pl['target_site']) ?></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if (!empty($pl['target_site'])): ?>
-                                        <span class="badge bg-light text-dark border">
-                                            <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($pl['target_site']) ?>
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="text-muted small">—</span>
-                                    <?php endif; ?>
+                                    <!-- 3-Step Visual Progress Tracker -->
+                                    <div class="d-flex flex-column gap-1" style="min-width: 220px;">
+                                        <div class="d-flex align-items-center justify-content-between small">
+                                            <span class="fw-bold <?= $step === 1 ? 'text-warning' : ($step > 1 ? 'text-success' : 'text-muted') ?>" style="font-size: 0.72rem;">
+                                                <?= $step > 1 ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : ($step === 1 ? '<i class="fa-solid fa-spinner fa-spin text-warning me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
+                                                1. Dept Head
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
+                                            <span class="fw-bold <?= $step === 2 ? 'text-primary' : ($step > 2 ? 'text-success' : 'text-muted') ?>" style="font-size: 0.72rem;">
+                                                <?= $step > 2 ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : ($step === 2 ? '<i class="fa-solid fa-spinner fa-spin text-primary me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
+                                                2. HR Audit
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
+                                            <span class="fw-bold <?= $step === 3 ? 'text-dark' : 'text-muted' ?>" style="font-size: 0.72rem;">
+                                                <?= $step === 3 ? '<i class="fa-solid fa-spinner fa-spin text-dark me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
+                                                3. Management
+                                            </span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar <?= $step === 1 ? 'bg-warning' : ($step === 2 ? 'bg-primary' : 'bg-dark') ?>" 
+                                                 role="progressbar" 
+                                                 style="width: <?= $step === 1 ? '33%' : ($step === 2 ? '66%' : '100%') ?>;">
+                                            </div>
+                                        </div>
+                                        <div class="text-muted" style="font-size: 0.68rem;">
+                                            <?php if ($step === 1): ?>
+                                                <i class="fa-solid fa-hourglass-half text-warning me-1"></i><strong>Step 1 / 3:</strong> Awaiting Department Head Approval
+                                            <?php elseif ($step === 2): ?>
+                                                <i class="fa-solid fa-check text-success me-1"></i>HOD Approved (<?= e($pl['step1_approved_by_name'] ?? 'HOD') ?>) &bull; <strong class="text-primary">Step 2: HR Review</strong>
+                                            <?php else: ?>
+                                                <i class="fa-solid fa-check text-success me-1"></i>HOD & HR Approved &bull; <strong class="text-dark">Step 3: Final Sign-off</strong>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="text-dark small"><?= e($pl['reason'] ?: 'No notes provided') ?></span>
                                 </td>
                                 <td>
-                                    <span class="text-muted small"><?= date('d M Y, h:i A', strtotime($pl['created_at'])) ?></span>
+                                    <span class="text-muted small"><?= date('d M, h:i A', strtotime($pl['created_at'])) ?></span>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <div class="d-inline-flex gap-2">
-                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline" onsubmit="return confirm('Approve leave for <?= addslashes($pl['employee_name'] ?? 'employee') ?>?');">
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="id" value="<?= $pl['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold">
-                                                <i class="fa-solid fa-check me-1"></i> Approve
+                                            
+                                            <?php if ($step === 1): ?>
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Head)">
+                                                    <i class="fa-solid fa-check me-1"></i> Step 1: Approve as HOD
+                                                </button>
+                                            <?php elseif ($step === 2): ?>
+                                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 2 (HR Manager Review)">
+                                                    <i class="fa-solid fa-check-double me-1"></i> Step 2: Approve as HR
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 3 (Final Management Sign-off)">
+                                                    <i class="fa-solid fa-stamp me-1"></i> Step 3: Final Sign-off
+                                                </button>
+                                            <?php endif; ?>
+
+                                            <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 ms-1" title="Fast-Track: Direct Approve All 3 Steps (Super Admin)" onclick="return confirm('Fast-track and directly approve all 3 steps for <?= addslashes($pl['employee_name'] ?? '') ?>?');">
+                                                <i class="fa-solid fa-bolt"></i> Direct
                                             </button>
                                         </form>
 
-                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')">
-                                            <i class="fa-solid fa-xmark me-1"></i> Reject
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')" title="Reject Request">
+                                            <i class="fa-solid fa-xmark"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -519,31 +567,53 @@
                             <td>
                                 <?php 
                                     $st = strtoupper($lv['status'] ?? 'APPROVED');
+                                    $step = (int)($lv['approval_step'] ?? 1);
                                     if ($st === 'APPROVED'): ?>
                                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
-                                            <i class="fa-solid fa-check me-1"></i> Approved
+                                            <i class="fa-solid fa-check-double me-1"></i> Fully Approved (3/3)
                                         </span>
                                         <div class="mt-1" style="font-size: 0.72rem;">
-                                            <span class="text-dark fw-semibold">
-                                                <i class="fa-solid fa-user-check text-success me-1"></i>By: <strong><?= e($lv['approver_name'] ?: ($lv['department_head'] ?: 'HR / Admin')) ?></strong>
-                                            </span>
-                                            <?php if (!empty($lv['approver_role'])): ?>
-                                                <span class="badge bg-light text-secondary border px-1" style="font-size: 0.65rem;"><?= strtoupper(e($lv['approver_role'])) ?></span>
+                                            <?php if (!empty($lv['step1_approved_by_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-check text-success me-1"></i>HOD: <strong class="text-dark"><?= e($lv['step1_approved_by_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['step2_approved_by_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-check text-success me-1"></i>HR: <strong class="text-dark"><?= e($lv['step2_approved_by_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['step3_approved_by_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-stamp text-success me-1"></i>Mgmt: <strong class="text-dark"><?= e($lv['step3_approved_by_name']) ?></strong></div>
+                                            <?php elseif (!empty($lv['approver_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-user-check text-success me-1"></i>By: <strong class="text-dark"><?= e($lv['approver_name']) ?></strong></div>
                                             <?php endif; ?>
                                             <?php if (!empty($lv['approved_at'])): ?>
                                                 <div class="text-muted" style="font-size: 0.68rem;"><?= date('d M Y, h:i A', strtotime($lv['approved_at'])) ?></div>
                                             <?php endif; ?>
                                         </div>
-                                    <?php elseif ($st === 'PENDING'): ?>
+                                    <?php elseif ($st === 'PENDING_LEVEL_1' || ($st === 'PENDING' && $step <= 1)): ?>
                                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1">
-                                            <i class="fa-solid fa-hourglass-half me-1"></i> Pending Approval
+                                            <i class="fa-solid fa-hourglass-half me-1"></i> Step 1/3: Dept Head
                                         </span>
                                         <div class="mt-1 text-muted" style="font-size: 0.72rem;">
-                                            <i class="fa-solid fa-user-shield text-warning me-1"></i>Authority: <strong class="text-dark"><?= e($lv['department_head'] ?: 'Dept Head / HR') ?></strong>
+                                            <i class="fa-solid fa-user-shield text-warning me-1"></i>Authority: <strong class="text-dark"><?= e($lv['department_head'] ?: 'Dept Head') ?></strong>
+                                        </div>
+                                    <?php elseif ($st === 'PENDING_LEVEL_2' || ($st === 'PENDING' && $step === 2)): ?>
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Step 2/3: HR Review
+                                        </span>
+                                        <div class="mt-1 text-muted" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-check text-success me-1"></i>HOD Approved: <strong class="text-dark"><?= e($lv['step1_approved_by_name'] ?? 'Done') ?></strong>
+                                            <div class="text-primary mt-1"><i class="fa-solid fa-user-gear me-1"></i>Awaiting HR Manager</div>
+                                        </div>
+                                    <?php elseif ($st === 'PENDING_LEVEL_3' || ($st === 'PENDING' && $step === 3)): ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-stamp me-1"></i> Step 3/3: Management
+                                        </span>
+                                        <div class="mt-1 text-muted" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-check-double text-success me-1"></i>HOD & HR Approved
+                                            <div class="text-dark fw-semibold mt-1"><i class="fa-solid fa-user-tie me-1"></i>Awaiting Final Sign-off</div>
                                         </div>
                                     <?php elseif ($st === 'REJECTED'): ?>
                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1" title="<?= e($lv['reject_reason'] ?? 'Rejected') ?>">
-                                            <i class="fa-solid fa-xmark me-1"></i> Rejected
+                                            <i class="fa-solid fa-xmark me-1"></i> Rejected <?= !empty($lv['rejected_at_step']) ? '(Step ' . $lv['rejected_at_step'] . ')' : '' ?>
                                         </span>
                                         <div class="mt-1" style="font-size: 0.72rem;">
                                             <?php if (!empty($lv['approver_name'])): ?>
@@ -559,12 +629,29 @@
                             </td>
                             <td class="text-end pe-4">
                                 <div class="d-inline-flex gap-1">
-                                    <?php if ($st === 'PENDING'): ?>
-                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline" onsubmit="return confirm('Approve this request?');">
+                                    <?php 
+                                        $isPending = str_starts_with($st, 'PENDING');
+                                        if ($isPending): 
+                                            $currStep = (int)($lv['approval_step'] ?? 1);
+                                    ?>
+                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="id" value="<?= $lv['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Leave">
-                                                <i class="fa-solid fa-check"></i>
+                                            <?php if ($currStep === 1): ?>
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Head)">
+                                                    <i class="fa-solid fa-check me-1"></i> Step 1
+                                                </button>
+                                            <?php elseif ($currStep === 2): ?>
+                                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR Review)">
+                                                    <i class="fa-solid fa-check-double me-1"></i> Step 2
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (Management Sign-off)">
+                                                    <i class="fa-solid fa-stamp me-1"></i> Step 3
+                                                </button>
+                                            <?php endif; ?>
+                                            <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" title="Direct Approve (All Steps)" onclick="return confirm('Directly approve all 3 steps?');">
+                                                <i class="fa-solid fa-bolt"></i>
                                             </button>
                                         </form>
                                         <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $lv['id'] ?>, '<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lv['leave_type'] ?? '') ?>')" title="Reject Leave">

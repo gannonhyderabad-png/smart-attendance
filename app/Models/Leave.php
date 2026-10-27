@@ -9,10 +9,13 @@ class Leave extends Model {
 
     public static function all(array $conditions = [], string $orderBy = 'l.start_date DESC'): array {
         $pdo = self::db();
-        $sql = "SELECT l.*, e.name as employee_name, e.employee_code, e.department_id, e.project, e.site, d.name as department_name
+        $sql = "SELECT l.*, e.name as employee_name, e.employee_code, e.department_id, e.project, e.site, 
+                       d.name as department_name, d.head_name as department_head,
+                       u.name as approver_name, u.role as approver_role
                 FROM " . static::$table . " l
                 JOIN employees e ON l.employee_id = e.id
                 LEFT JOIN departments d ON e.department_id = d.id
+                LEFT JOIN users u ON l.approved_by = u.id
                 WHERE 1=1";
         $params = [];
 
@@ -50,7 +53,14 @@ class Leave extends Model {
 
     public static function find(int $id): ?array {
         $pdo = self::db();
-        $stmt = $pdo->prepare("SELECT l.*, e.name as employee_name, e.employee_code FROM " . static::$table . " l JOIN employees e ON l.employee_id = e.id WHERE l.id = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT l.*, e.name as employee_name, e.employee_code, e.department_id,
+                                      d.name as department_name, d.head_name as department_head,
+                                      u.name as approver_name, u.role as approver_role
+                               FROM " . static::$table . " l 
+                               JOIN employees e ON l.employee_id = e.id 
+                               LEFT JOIN departments d ON e.department_id = d.id
+                               LEFT JOIN users u ON l.approved_by = u.id
+                               WHERE l.id = ? LIMIT 1");
         $stmt->execute([$id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;

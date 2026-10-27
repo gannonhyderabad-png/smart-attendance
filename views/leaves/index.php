@@ -5,7 +5,10 @@
         </h4>
         <p class="text-muted small mb-0">Record and manage approved leaves, sick days, on-duty visits, and custom time-offs for employees.</p>
     </div>
-    <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end">
+    <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end">
+        <button type="button" class="btn btn-outline-info rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#deptAuthoritiesModal">
+            <i class="fa-solid fa-user-shield me-1"></i> Department Authorities
+        </button>
         <button type="button" class="btn btn-outline-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#editCompanyQuotaModal">
             <i class="fa-solid fa-sliders me-1"></i> Edit Company Leave Quota
         </button>
@@ -118,6 +121,11 @@
                                             <div class="fw-bold text-dark"><?= e($pl['employee_name'] ?? 'Employee') ?></div>
                                             <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
                                                 <?= e($pl['employee_code'] ?? '') ?> &bull; <?= e($pl['department_name'] ?? ($pl['department'] ?? 'General')) ?>
+                                            </div>
+                                            <div class="mt-1">
+                                                <span class="badge bg-light text-primary border" style="font-size: 0.68rem;" title="Designated Department Approving Authority">
+                                                    <i class="fa-solid fa-user-shield me-1"></i>Authority: <strong><?= e($pl['department_head'] ?: 'HR / Admin') ?></strong>
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -300,7 +308,18 @@
 
 <!-- Filter Bar -->
 <form method="GET" action="<?= base_url('leaves') ?>" class="row g-2 mb-4 p-3 bg-light rounded-4 border">
-    <div class="col-md-4">
+    <div class="col-md-3">
+        <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-sitemap me-1 text-primary"></i> Department</label>
+        <select name="department_id" class="form-select form-select-sm bg-white" onchange="this.form.submit()">
+            <option value="">All Departments</option>
+            <?php foreach ($departments as $dept): ?>
+                <option value="<?= $dept['id'] ?>" <?= (($filters['department_id'] ?? '') == $dept['id']) ? 'selected' : '' ?>>
+                    <?= e($dept['name']) ?> <?= !empty($dept['head_name']) ? '— Head: ' . e($dept['head_name']) : '' ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-3">
         <label class="form-label small text-muted fw-semibold mb-1">Staff Member</label>
         <select name="employee_id" class="form-select form-select-sm bg-white">
             <option value="">All Employees</option>
@@ -311,7 +330,7 @@
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label small text-muted fw-semibold mb-1">Leave Type</label>
         <select name="leave_type" class="form-select form-select-sm bg-white">
             <option value="">All Leave Types</option>
@@ -324,11 +343,44 @@
             <option value="Special Holiday" <?= (($filters['leave_type'] ?? '') === 'Special Holiday') ? 'selected' : '' ?>>Special Holiday / Restricted Off</option>
         </select>
     </div>
-    <div class="col-md-4 d-flex align-items-end gap-2">
+    <div class="col-md-3 d-flex align-items-end gap-2">
         <button type="submit" class="btn btn-dark btn-sm rounded-pill px-4"><i class="fa-solid fa-filter me-1"></i> Filter</button>
         <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm rounded-pill px-3 border"><i class="fa-solid fa-arrow-rotate-left me-1"></i> Reset</a>
     </div>
 </form>
+
+<!-- Department Approving Authority Info Card (Shown when Department is Selected) -->
+<?php if (!empty($selectedDepartment)): ?>
+    <div class="card border-0 rounded-4 shadow-sm mb-4 border-start border-4 border-primary" style="background: linear-gradient(to right, #eff6ff, #ffffff);">
+        <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 44px; height: 44px; font-size: 1.1rem;">
+                    <i class="fa-solid fa-sitemap"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark fs-6">
+                        Department: <span class="text-primary"><?= e($selectedDepartment['name']) ?></span>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <span class="me-3">
+                            <i class="fa-solid fa-user-tie text-success me-1"></i> Approving Authority (Dept Head): 
+                            <strong class="text-dark"><?= e($selectedDepartment['head_name'] ?: 'Not Assigned (Defaults to HR / Administrator)') ?></strong>
+                            <?php if (!empty($selectedDepartment['head_email'])): ?>
+                                <span class="text-muted">(<?= e($selectedDepartment['head_email']) ?>)</span>
+                            <?php endif; ?>
+                        </span>
+                        <span>
+                            <i class="fa-solid fa-building-shield text-primary me-1"></i> Final Authority: <strong class="text-dark">HR & Administrator</strong>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" onclick="openEditDeptHeadModal(<?= $selectedDepartment['id'] ?>, '<?= addslashes($selectedDepartment['name']) ?>', '<?= addslashes($selectedDepartment['head_name'] ?? '') ?>', '<?= addslashes($selectedDepartment['head_email'] ?? '') ?>')">
+                <i class="fa-solid fa-user-pen me-1"></i> Change Department Authority
+            </button>
+        </div>
+    </div>
+<?php endif; ?>
 
 <!-- Leaves Table -->
 <div class="card border-0 rounded-4 shadow-sm bg-white overflow-hidden mb-4">
@@ -471,17 +523,36 @@
                                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
                                             <i class="fa-solid fa-check me-1"></i> Approved
                                         </span>
+                                        <div class="mt-1" style="font-size: 0.72rem;">
+                                            <span class="text-dark fw-semibold">
+                                                <i class="fa-solid fa-user-check text-success me-1"></i>By: <strong><?= e($lv['approver_name'] ?: ($lv['department_head'] ?: 'HR / Admin')) ?></strong>
+                                            </span>
+                                            <?php if (!empty($lv['approver_role'])): ?>
+                                                <span class="badge bg-light text-secondary border px-1" style="font-size: 0.65rem;"><?= strtoupper(e($lv['approver_role'])) ?></span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['approved_at'])): ?>
+                                                <div class="text-muted" style="font-size: 0.68rem;"><?= date('d M Y, h:i A', strtotime($lv['approved_at'])) ?></div>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php elseif ($st === 'PENDING'): ?>
                                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1">
-                                            <i class="fa-solid fa-hourglass-half me-1"></i> Pending
+                                            <i class="fa-solid fa-hourglass-half me-1"></i> Pending Approval
                                         </span>
+                                        <div class="mt-1 text-muted" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-user-shield text-warning me-1"></i>Authority: <strong class="text-dark"><?= e($lv['department_head'] ?: 'Dept Head / HR') ?></strong>
+                                        </div>
                                     <?php elseif ($st === 'REJECTED'): ?>
                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1" title="<?= e($lv['reject_reason'] ?? 'Rejected') ?>">
                                             <i class="fa-solid fa-xmark me-1"></i> Rejected
                                         </span>
-                                        <?php if (!empty($lv['reject_reason'])): ?>
-                                            <div class="text-danger small mt-1" style="font-size: 0.68rem;"><?= e($lv['reject_reason']) ?></div>
-                                        <?php endif; ?>
+                                        <div class="mt-1" style="font-size: 0.72rem;">
+                                            <?php if (!empty($lv['approver_name'])): ?>
+                                                <div class="text-dark"><i class="fa-solid fa-user-xmark text-danger me-1"></i>By: <strong><?= e($lv['approver_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['reject_reason'])): ?>
+                                                <div class="text-danger small" style="font-size: 0.68rem;"><i class="fa-solid fa-circle-exclamation me-1"></i><?= e($lv['reject_reason']) ?></div>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php else: ?>
                                         <span class="badge bg-secondary rounded-pill"><?= e($st) ?></span>
                                     <?php endif; ?>
@@ -1042,7 +1113,19 @@ function openEmployeeLeaveSheet(empId) {
                 <td>${siteInfo}</td>
                 <td class="text-muted">${escapeHtml(lv.reason || 'Approved Leave')}</td>
                 <td>${docLink}</td>
-                <td class="pe-3 text-end"><span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-check me-1"></i>Approved</span></td>
+                <td class="pe-3 text-end">
+                    ${(() => {
+                        const statusUpper = (lv.status || 'APPROVED').toUpperCase();
+                        const approverDisplay = escapeHtml(lv.approver_name || lv.department_head || 'Admin/HR');
+                        if (statusUpper === 'PENDING') {
+                            return `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-hourglass-half me-1"></i>Pending</span><div class="text-muted small mt-1" style="font-size:0.68rem;">Auth: ${escapeHtml(lv.department_head || 'HR / Dept Head')}</div>`;
+                        } else if (statusUpper === 'REJECTED') {
+                            return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-xmark me-1"></i>Rejected</span><div class="text-danger small mt-1" style="font-size:0.68rem;">${escapeHtml(lv.reject_reason || 'Not approved')}</div>`;
+                        } else {
+                            return `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-check me-1"></i>Approved</span><div class="text-dark small mt-1" style="font-size:0.68rem;">By: <strong>${approverDisplay}</strong></div>`;
+                        }
+                    })()}
+                </td>
             `;
             tbody.appendChild(tr);
         });
@@ -1249,6 +1332,14 @@ function openRejectModal(id, empName, leaveType) {
     document.getElementById('rejectLeaveType').textContent = leaveType;
     new bootstrap.Modal(document.getElementById('rejectLeaveModal')).show();
 }
+
+function openEditDeptHeadModal(id, name, headName, headEmail) {
+    document.getElementById('editDeptId').value = id;
+    document.getElementById('editDeptNameDisplay').textContent = name;
+    document.getElementById('editDeptHeadName').value = headName || '';
+    document.getElementById('editDeptHeadEmail').value = headEmail || '';
+    new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
+}
 </script>
 
 <!-- Reject Leave Modal -->
@@ -1276,6 +1367,123 @@ function openRejectModal(id, empName, leaveType) {
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Rejection</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Department Authorities Hub Modal -->
+<div class="modal fade" id="deptAuthoritiesModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                        <i class="fa-solid fa-user-shield fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Department Approving Authorities</h5>
+                        <small class="text-muted">Set and view who approves leaves and outdoor duties for each department</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                            <tr>
+                                <th>Department Name</th>
+                                <th>Code</th>
+                                <th>Designated Dept Head (Authority)</th>
+                                <th>Contact Email</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($departments as $dept): ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark"><i class="fa-solid fa-sitemap text-primary me-2"></i><?= e($dept['name']) ?></div>
+                                        <small class="text-muted"><?= e($dept['description'] ?? 'No description') ?></small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border font-monospace"><?= e($dept['code'] ?: '—') ?></span>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($dept['head_name'])): ?>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
+                                                <i class="fa-solid fa-user-check me-1"></i><?= e($dept['head_name']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary-subtle text-muted border border-secondary-subtle rounded-pill px-2 py-1">
+                                                <i class="fa-solid fa-building-shield me-1"></i>HR / Admin (Default)
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small"><?= e($dept['head_email'] ?: '—') ?></span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openEditDeptHeadModal(<?= $dept['id'] ?>, '<?= addslashes($dept['name']) ?>', '<?= addslashes($dept['head_name'] ?? '') ?>', '<?= addslashes($dept['head_email'] ?? '') ?>')">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> Edit Authority
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Department Head Modal -->
+<div class="modal fade" id="editDeptHeadModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="<?= base_url('leaves/update-department-head') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="department_id" id="editDeptId" value="">
+                
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">
+                        <i class="fa-solid fa-user-pen text-primary me-2"></i>Assign Approving Authority
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                
+                <div class="modal-body p-4">
+                    <div class="alert alert-primary bg-primary-subtle border-0 rounded-3 py-2 px-3 small mb-3">
+                        <i class="fa-solid fa-sitemap me-1"></i> Department: <strong id="editDeptNameDisplay" class="text-primary"></strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            Approving Authority / Department Head Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="head_name" id="editDeptHeadName" class="form-control rounded-3" placeholder="e.g. Rajesh Sharma (HOD / General Manager)" required>
+                        <div class="form-text small">This person's name will appear on all leave approvals and mobile requests for this department.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">Authority Official Email</label>
+                        <input type="email" name="head_email" id="editDeptHeadEmail" class="form-control rounded-3" placeholder="e.g. rajesh.hod@company.com">
+                    </div>
+
+                    <div class="alert alert-light border small text-muted rounded-3 mb-0">
+                        <i class="fa-solid fa-circle-info text-primary me-1"></i> <strong>Note:</strong> HR & System Administrators always retain full authority to approve or reject any employee request across all departments.
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Save Authority</button>
                 </div>
             </form>
         </div>

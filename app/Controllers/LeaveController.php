@@ -56,12 +56,18 @@ class LeaveController extends Controller {
         // Fetch all pending leave applications for Dept Heads & HR approval
         $pendingLeaves = Leave::all(['status' => 'PENDING'], 'l.id DESC');
 
+        $selectedDepartment = null;
+        if (!empty($departmentId)) {
+            $selectedDepartment = Department::find((int) $departmentId);
+        }
+
         $this->view('leaves.index', [
             'title' => 'Employee Leave Management',
             'leaves' => $leaves,
             'pendingLeaves' => $pendingLeaves,
             'employees' => $employees,
             'departments' => $departments,
+            'selectedDepartment' => $selectedDepartment,
             'siteList' => $siteList,
             'companyQuotas' => $companyQuotas,
             'employeeBalances' => $employeeBalances,
@@ -342,5 +348,24 @@ class LeaveController extends Controller {
             echo json_encode(['success' => false, 'message' => 'Failed to submit request: ' . $e->getMessage()]);
         }
         exit;
+    }
+
+    /**
+     * Update Approving Authority / Head for a Department
+     */
+    public function updateDepartmentHead(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $deptId = (int) Request::input('department_id', 0);
+        $headName = trim((string) Request::input('head_name', ''));
+        $headEmail = trim((string) Request::input('head_email', ''));
+
+        if ($deptId > 0 && !empty($headName)) {
+            Department::updateHead($deptId, $headName, $headEmail);
+            Logger::log(Auth::id(), 'DEPARTMENT_HEAD_UPDATED', "Updated approving authority for department #{$deptId} to {$headName}");
+            $_SESSION['flash_success'] = "Approving authority updated successfully to: {$headName}!";
+        }
+        redirect('leaves' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
     }
 }

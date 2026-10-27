@@ -21,4 +21,9 @@ class Department extends Model {
         $stmt->execute([$name, $code, $description]);
         return (int) self::db()->lastInsertId();
     }
+
+    public static function updateHead(int $id, string $headName, string $headEmail = ''): bool {
+        $stmt = self::db()->prepare("UPDATE departments SET head_name = ?, head_email = ? WHERE id = ?");
+        return $stmt->execute([$headName, $headEmail, $id]);
+    }
 }

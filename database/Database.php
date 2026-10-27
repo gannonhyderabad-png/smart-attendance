@@ -288,6 +288,9 @@ class Database {
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `approved_by` INT NULL AFTER `applied_by_employee`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `approved_at` DATETIME NULL AFTER `approved_by`;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `reject_reason` TEXT NULL AFTER `approved_at`;"); } catch (\Throwable $e) {}
+            // Department Head / Approving Authority columns
+            try { $pdo->exec("ALTER TABLE `departments` ADD COLUMN `head_name` VARCHAR(150) NULL AFTER `name`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `departments` ADD COLUMN `head_email` VARCHAR(150) NULL AFTER `head_name`;"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -488,7 +491,9 @@ class Database {
             "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS reject_reason TEXT",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS cl_quota NUMERIC(4,1)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS sl_quota NUMERIC(4,1)",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pl_quota NUMERIC(4,1)"
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pl_quota NUMERIC(4,1)",
+            "ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_name VARCHAR(150)",
+            "ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_email VARCHAR(150)"
         ];
         foreach ($columns as $c) {
             try { $pdo->exec($c); } catch (\Throwable $e) {}
@@ -742,6 +747,8 @@ class Database {
         try { $pdo->exec("ALTER TABLE employees ADD COLUMN cl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE employees ADD COLUMN sl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE departments ADD COLUMN head_name TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE departments ADD COLUMN head_email TEXT;"); } catch (\Throwable $e) {}
 
         // Seed standard public holidays in SQLite if empty
         $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();

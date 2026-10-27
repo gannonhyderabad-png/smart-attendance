@@ -16,14 +16,24 @@ class Department extends Model {
         return $stmt->fetch() ?: null;
     }
 
-    public static function create(string $name, ?string $code = null, ?string $description = null): int {
-        $stmt = self::db()->prepare("INSERT INTO departments (name, code, description) VALUES (?, ?, ?)");
-        $stmt->execute([$name, $code, $description]);
+    public static function create(string $name, ?string $code = null, ?string $description = null, ?string $headName = null, ?string $headEmail = null): int {
+        $stmt = self::db()->prepare("INSERT INTO departments (name, code, description, head_name, head_email) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $code, $description, $headName, $headEmail]);
         return (int) self::db()->lastInsertId();
+    }
+
+    public static function update(int $id, string $name, ?string $code = null, ?string $description = null, ?string $headName = null, ?string $headEmail = null): bool {
+        $stmt = self::db()->prepare("UPDATE departments SET name = ?, code = ?, description = ?, head_name = ?, head_email = ? WHERE id = ?");
+        return $stmt->execute([$name, $code, $description, $headName, $headEmail, $id]);
     }
 
     public static function updateHead(int $id, string $headName, string $headEmail = ''): bool {
         $stmt = self::db()->prepare("UPDATE departments SET head_name = ?, head_email = ? WHERE id = ?");
         return $stmt->execute([$headName, $headEmail, $id]);
+    }
+
+    public static function delete(int $id): bool {
+        $stmt = self::db()->prepare("DELETE FROM departments WHERE id = ?");
+        return $stmt->execute([$id]);
     }
 }

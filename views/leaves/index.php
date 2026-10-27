@@ -1420,12 +1420,42 @@ function openRejectModal(id, empName, leaveType) {
     new bootstrap.Modal(document.getElementById('rejectLeaveModal')).show();
 }
 
-function openEditDeptHeadModal(id, name, headName, headEmail) {
-    document.getElementById('editDeptId').value = id;
-    document.getElementById('editDeptNameDisplay').textContent = name;
+function openEditDeptHeadModal(id, name, code, description, headName, headEmail) {
+    document.getElementById('editDeptId').value = id || '';
+    document.getElementById('editDeptModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Department & Authority';
+    document.getElementById('editDeptName').value = name || '';
+    document.getElementById('editDeptCode').value = code || '';
+    document.getElementById('editDeptDesc').value = description || '';
     document.getElementById('editDeptHeadName').value = headName || '';
     document.getElementById('editDeptHeadEmail').value = headEmail || '';
+    document.getElementById('btnSubmitDept').textContent = 'Update Department';
     new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
+}
+
+function openCreateDeptModal() {
+    document.getElementById('editDeptId').value = '';
+    document.getElementById('editDeptModalTitle').innerHTML = '<i class="fa-solid fa-plus text-primary me-2"></i>Add New Department';
+    document.getElementById('editDeptName').value = '';
+    document.getElementById('editDeptCode').value = '';
+    document.getElementById('editDeptDesc').value = '';
+    document.getElementById('editDeptHeadName').value = '';
+    document.getElementById('editDeptHeadEmail').value = '';
+    document.getElementById('btnSubmitDept').textContent = 'Create Department';
+    new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
+}
+
+function syncHeadEmail(val) {
+    if (!val) return;
+    const options = document.querySelectorAll('#staffHeadSuggestions option');
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].value.toLowerCase() === val.toLowerCase()) {
+            const email = options[i].getAttribute('data-email');
+            if (email) {
+                document.getElementById('editDeptHeadEmail').value = email;
+            }
+            break;
+        }
+    }
 }
 </script>
 
@@ -1464,26 +1494,32 @@ function openEditDeptHeadModal(id, name, headName, headEmail) {
 <div class="modal fade" id="deptAuthoritiesModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content rounded-4 border-0 shadow">
-            <div class="modal-header border-0 pb-0">
+            <div class="modal-header border-0 pb-0 d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2">
                     <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
                         <i class="fa-solid fa-user-shield fs-5"></i>
                     </div>
                     <div>
                         <h5 class="modal-title fw-bold text-dark mb-0">Department Approving Authorities</h5>
-                        <small class="text-muted">Set and view who approves leaves and outdoor duties for each department</small>
+                        <small class="text-muted">Manage departments, staff counts, and assigned approving authorities</small>
                     </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="openCreateDeptModal()">
+                        <i class="fa-solid fa-plus me-1"></i> Add Department
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <div class="modal-body p-4">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
                             <tr>
-                                <th>Department Name</th>
+                                <th>Department Details</th>
                                 <th>Code</th>
-                                <th>Designated Dept Head (Authority)</th>
+                                <th>Assigned Staff</th>
+                                <th>Designated Dept Head</th>
                                 <th>Contact Email</th>
                                 <th class="text-end">Action</th>
                             </tr>
@@ -1497,6 +1533,11 @@ function openEditDeptHeadModal(id, name, headName, headEmail) {
                                     </td>
                                     <td>
                                         <span class="badge bg-light text-dark border font-monospace"><?= e($dept['code'] ?: '—') ?></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-secondary border px-2 py-1">
+                                            <i class="fa-solid fa-users me-1"></i><?= (int)($dept['employee_count'] ?? 0) ?> Staff
+                                        </span>
                                     </td>
                                     <td>
                                         <?php if (!empty($dept['head_name'])): ?>
@@ -1513,9 +1554,20 @@ function openEditDeptHeadModal(id, name, headName, headEmail) {
                                         <span class="text-muted small"><?= e($dept['head_email'] ?: '—') ?></span>
                                     </td>
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openEditDeptHeadModal(<?= $dept['id'] ?>, '<?= addslashes($dept['name']) ?>', '<?= addslashes($dept['head_name'] ?? '') ?>', '<?= addslashes($dept['head_email'] ?? '') ?>')">
-                                            <i class="fa-solid fa-pen-to-square me-1"></i> Edit Authority
-                                        </button>
+                                        <div class="d-inline-flex align-items-center gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openEditDeptHeadModal(<?= $dept['id'] ?>, '<?= addslashes($dept['name']) ?>', '<?= addslashes($dept['code'] ?? '') ?>', '<?= addslashes($dept['description'] ?? '') ?>', '<?= addslashes($dept['head_name'] ?? '') ?>', '<?= addslashes($dept['head_email'] ?? '') ?>')">
+                                                <i class="fa-solid fa-pen-to-square me-1"></i> Edit Department
+                                            </button>
+                                            <?php if ((int)($dept['employee_count'] ?? 0) === 0): ?>
+                                                <form action="<?= base_url('leaves/delete-department') ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete department \'<?= addslashes($dept['name']) ?>\'?');">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="department_id" value="<?= $dept['id'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle p-1" style="width: 28px; height: 28px;" title="Delete empty department">
+                                                        <i class="fa-solid fa-trash-can" style="font-size: 0.72rem;"></i>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1530,33 +1582,56 @@ function openEditDeptHeadModal(id, name, headName, headEmail) {
     </div>
 </div>
 
-<!-- Edit Department Head Modal -->
+<!-- Edit / Create Department Modal -->
 <div class="modal fade" id="editDeptHeadModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
         <div class="modal-content rounded-4 border-0 shadow">
-            <form action="<?= base_url('leaves/update-department-head') ?>" method="POST">
+            <form action="<?= base_url('leaves/save-department') ?>" method="POST">
                 <?= csrf_field() ?>
                 <input type="hidden" name="department_id" id="editDeptId" value="">
                 
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-dark">
-                        <i class="fa-solid fa-user-pen text-primary me-2"></i>Assign Approving Authority
+                    <h5 class="modal-title fw-bold text-dark" id="editDeptModalTitle">
+                        <i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Department & Authority
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 
                 <div class="modal-body p-4">
-                    <div class="alert alert-primary bg-primary-subtle border-0 rounded-3 py-2 px-3 small mb-3">
-                        <i class="fa-solid fa-sitemap me-1"></i> Department: <strong id="editDeptNameDisplay" class="text-primary"></strong>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            Department Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="name" id="editDeptName" class="form-control rounded-3" placeholder="e.g. Engineering & Tech, Human Resources, Operations" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark mb-1">Code</label>
+                            <input type="text" name="code" id="editDeptCode" class="form-control rounded-3 font-monospace text-uppercase" placeholder="e.g. ENG">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-dark mb-1">Description / Notes</label>
+                            <input type="text" name="description" id="editDeptDesc" class="form-control rounded-3" placeholder="e.g. Software, QA & Site Support">
+                        </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-dark mb-1">
                             Approving Authority / Department Head Name <span class="text-danger">*</span>
                         </label>
-                        <input type="text" name="head_name" id="editDeptHeadName" class="form-control rounded-3" placeholder="e.g. Rajesh Sharma (HOD / General Manager)" required>
+                        <input type="text" name="head_name" id="editDeptHeadName" list="staffHeadSuggestions" class="form-control rounded-3" placeholder="Type name or select from employee list..." required oninput="syncHeadEmail(this.value)">
                         <div class="form-text small">This person's name will appear on all leave approvals and mobile requests for this department.</div>
                     </div>
+
+                    <!-- Staff autocomplete suggestions -->
+                    <datalist id="staffHeadSuggestions">
+                        <?php foreach ($employees ?? [] as $emp): ?>
+                            <option value="<?= e($emp['name']) ?>" data-email="<?= e($emp['email'] ?? '') ?>">
+                                <?= e($emp['employee_code']) ?> &bull; <?= e($emp['department_name'] ?? ($emp['department'] ?? 'Staff')) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </datalist>
 
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-dark mb-1">Authority Official Email</label>
@@ -1570,7 +1645,7 @@ function openEditDeptHeadModal(id, name, headName, headEmail) {
 
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Save Authority</button>
+                    <button type="submit" id="btnSubmitDept" class="btn btn-primary rounded-pill px-4 fw-bold">Save Department</button>
                 </div>
             </form>
         </div>

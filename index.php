@@ -370,6 +370,8 @@ $router->post('/leaves/delete', [\App\Controllers\LeaveController::class, 'delet
 $router->post('/leaves/update-company-quota', [\App\Controllers\LeaveController::class, 'updateCompanyQuota']);
 $router->post('/leaves/update-employee-quota', [\App\Controllers\LeaveController::class, 'updateEmployeeQuota']);
 $router->post('/leaves/update-department-head', [\App\Controllers\LeaveController::class, 'updateDepartmentHead']);
+$router->post('/leaves/save-department', [\App\Controllers\LeaveController::class, 'updateDepartmentHead']);
+$router->post('/leaves/delete-department', [\App\Controllers\LeaveController::class, 'deleteDepartment']);
 
 // Reports & Analytics
 $router->get('/reports', [\App\Controllers\ReportController::class, 'index']);

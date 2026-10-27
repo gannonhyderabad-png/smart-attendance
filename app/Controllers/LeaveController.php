@@ -438,21 +438,68 @@ class LeaveController extends Controller {
     }
 
     /**
-     * Update Approving Authority / Head for a Department
+     * Save / Update Department details and Approving Authority
      */
     public function updateDepartmentHead(): void {
         Auth::requireAuth();
         Csrf::verify();
 
         $deptId = (int) Request::input('department_id', 0);
+        $name = trim((string) Request::input('name', ''));
+        $code = trim((string) Request::input('code', ''));
+        $description = trim((string) Request::input('description', ''));
         $headName = trim((string) Request::input('head_name', ''));
         $headEmail = trim((string) Request::input('head_email', ''));
 
-        if ($deptId > 0 && !empty($headName)) {
-            Department::updateHead($deptId, $headName, $headEmail);
-            Logger::log(Auth::id(), 'DEPARTMENT_HEAD_UPDATED', "Updated approving authority for department #{$deptId} to {$headName}");
-            $_SESSION['flash_success'] = "Approving authority updated successfully to: {$headName}!";
+        if ($deptId > 0) {
+            $existing = Department::find($deptId);
+            if ($existing) {
+                $deptName = !empty($name) ? $name : $existing['name'];
+                $deptCode = !empty($code) ? $code : $existing['code'];
+                $deptDesc = $description !== '' ? $description : ($existing['description'] ?? '');
+                $head = !empty($headName) ? $headName : ($existing['head_name'] ?? '');
+                $email = $headEmail !== '' ? $headEmail : ($existing['head_email'] ?? '');
+
+                Department::update($deptId, $deptName, $deptCode, $deptDesc, $head, $email);
+                Logger::log(Auth::id(), 'DEPARTMENT_UPDATED', "Updated department #{$deptId} '{$deptName}' (Head: {$head})");
+                $_SESSION['flash_success'] = "Department '{$deptName}' & Approving Authority updated successfully!";
+            }
+        } else {
+            // New department creation
+            if (!empty($name)) {
+                $newId = Department::create($name, $code ?: null, $description ?: null, $headName ?: null, $headEmail ?: null);
+                Logger::log(Auth::id(), 'DEPARTMENT_CREATED', "Created new department '{$name}' (Head: {$headName})");
+                $_SESSION['flash_success'] = "New Department '{$name}' created successfully!";
+                $deptId = $newId;
+            } else {
+                $_SESSION['flash_error'] = "Department Name is required.";
+            }
         }
         redirect('leaves' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
+    }
+
+    /**
+     * Delete an unused department
+     */
+    public function deleteDepartment(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $deptId = (int) Request::input('department_id', 0);
+        if ($deptId > 0) {
+            $dept = Department::find($deptId);
+            if ($dept) {
+                $pdo = \Database\Database::getConnection();
+                $empCount = (int) $pdo->query("SELECT COUNT(*) FROM employees WHERE department_id = {$deptId}")->fetchColumn();
+                if ($empCount > 0) {
+                    $_SESSION['flash_error'] = "Cannot delete department '{$dept['name']}': {$empCount} employee(s) are assigned to it.";
+                } else {
+                    Department::delete($deptId);
+                    Logger::log(Auth::id(), 'DEPARTMENT_DELETED', "Deleted department #{$deptId} ({$dept['name']})");
+                    $_SESSION['flash_success'] = "Department '{$dept['name']}' deleted successfully.";
+                }
+            }
+        }
+        redirect('leaves');
     }
 }

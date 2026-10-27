@@ -168,7 +168,7 @@
                                             </span>
                                             <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
                                             <span class="fw-bold <?= $step === 3 ? 'text-dark' : 'text-muted' ?>" style="font-size: 0.72rem;">
-                                                <?= $step === 3 ? '<i class="fa-solid fa-spinner fa-spin text-dark me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
+                                                <?= $step === 3 ? '<i class="fa-solid fa-spinner fa-spin text-dark me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>' ?>
                                                 3. Management
                                             </span>
                                         </div>

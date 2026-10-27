@@ -317,6 +317,7 @@ $router->get('/logout', [\App\Controllers\AuthController::class, 'logout']);
 $router->get('/p/{code}', [\App\Controllers\PunchController::class, 'show']);
 $router->post('/p/{code}', [\App\Controllers\PunchController::class, 'record']);
 $router->get('/p/{code}/status', [\App\Controllers\PunchController::class, 'status']);
+$router->post('/p/{code}/leave-apply', [\App\Controllers\LeaveController::class, 'applyLeave']);
 
 // REST API Endpoints
 $router->post('/api/punch', [\App\Controllers\ApiController::class, 'punch']);
@@ -362,6 +363,8 @@ $router->post('/holidays/delete', [\App\Controllers\HolidayController::class, 'd
 // Employee Leave Management
 $router->get('/leaves', [\App\Controllers\LeaveController::class, 'index']);
 $router->post('/leaves/create', [\App\Controllers\LeaveController::class, 'store']);
+$router->post('/leaves/approve', [\App\Controllers\LeaveController::class, 'approve']);
+$router->post('/leaves/reject', [\App\Controllers\LeaveController::class, 'reject']);
 $router->post('/leaves/delete', [\App\Controllers\LeaveController::class, 'delete']);
 $router->post('/leaves/update-company-quota', [\App\Controllers\LeaveController::class, 'updateCompanyQuota']);
 $router->post('/leaves/update-employee-quota', [\App\Controllers\LeaveController::class, 'updateEmployeeQuota']);

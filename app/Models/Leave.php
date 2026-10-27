@@ -189,6 +189,10 @@ class Leave extends Model {
         $otherTaken = 0.0;
 
         foreach ($rows as $r) {
+            $status = strtoupper($r['status'] ?? 'APPROVED');
+            if ($status !== 'APPROVED' && $status !== '') {
+                continue;
+            }
             $code = self::getLeaveCode($r['leave_type']);
             $days = (float) $r['days_count'];
             if ($code === 'CL') $clTaken += $days;

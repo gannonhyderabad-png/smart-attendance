@@ -48,6 +48,11 @@ class PunchController extends Controller {
             $todayLeave = $activeLeaves[0];
         }
 
+        // Fetch recent leaves submitted by employee (last 5)
+        $myLeaves = \App\Models\Leave::all([
+            'employee_id' => $employee['id']
+        ], 'l.id DESC LIMIT 5');
+
         $this->view('punch.index', [
             'employee' => $employee,
             'latestPunch' => $latestPunch,
@@ -56,6 +61,7 @@ class PunchController extends Controller {
             'currentStatus' => $currentStatus,
             'isNoOutAutoClosed' => $isNoOutAutoClosed,
             'todayLeave' => $todayLeave,
+            'myLeaves' => $myLeaves,
             'clientIp' => Request::getClientIp(),
             'deviceInfo' => parse_user_agent_details(Request::getUserAgent())
         ], 'mobile');

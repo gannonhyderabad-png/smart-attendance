@@ -378,6 +378,113 @@
                 </div>
             </div>
 
+            <!-- Employee Mobile Leave / Outdoor Duty (OD) Application Card -->
+            <div class="card rounded-4 border-0 shadow-sm mb-3 mt-3 overflow-hidden text-start" style="background: #ffffff; border: 1px solid #e2e8f0 !important;">
+                <div class="card-header bg-white py-3 px-3 d-flex align-items-center justify-content-between border-bottom cursor-pointer" 
+                     data-bs-toggle="collapse" data-bs-target="#leaveApplyCollapse" aria-expanded="false" style="cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fa-solid fa-calendar-plus fs-5"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark" style="font-size: 0.92rem;">Apply Leave / OD</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Submit for Dept Head & HR Approval</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-dark border">
+                        <i class="fa-solid fa-chevron-down" id="leaveCollapseIcon"></i>
+                    </span>
+                </div>
+                
+                <div class="collapse" id="leaveApplyCollapse">
+                    <div class="card-body p-3">
+                        <div id="leaveFormAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
+
+                        <form id="mobileLeaveForm" onsubmit="window.submitMobileLeave(event)">
+                            <input type="hidden" name="employee_code" value="<?= e($employee['employee_code']) ?>">
+                            
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold text-muted mb-1">Application Type <span class="text-danger">*</span></label>
+                                <select name="leave_type" id="mLeaveType" class="form-select form-select-sm rounded-3 fw-semibold text-dark" required onchange="window.toggleTargetSiteField()">
+                                    <option value="Casual Leave">Casual Leave (CL)</option>
+                                    <option value="Sick Leave">Sick Leave (SL)</option>
+                                    <option value="Privilege Leave">Privilege / Paid Leave (PL)</option>
+                                    <option value="Outdoor Duty (OD)">Outdoor Duty (OD) / Client Visit</option>
+                                    <option value="Half Day Leave">Half Day Leave</option>
+                                    <option value="Work From Home">Work From Home (WFH)</option>
+                                    <option value="Compensatory Off">Compensatory Off</option>
+                                </select>
+                            </div>
+
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-muted mb-1">From Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" value="<?= date('Y-m-d') ?>" required onchange="document.getElementById('mEndDate').min = this.value; if(document.getElementById('mEndDate').value < this.value) document.getElementById('mEndDate').value = this.value;">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-muted mb-1">To Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="end_date" id="mEndDate" class="form-control form-control-sm rounded-3" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-2" id="mTargetSiteGroup" style="display: none;">
+                                <label class="form-label small fw-bold text-primary mb-1">
+                                    <i class="fa-solid fa-location-arrow me-1"></i> Destination / Client Site Name
+                                </label>
+                                <input type="text" name="target_site" id="mTargetSite" class="form-control form-control-sm rounded-3" placeholder="e.g. Client Office / Site B / Field Project">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted mb-1">Reason / Notes</label>
+                                <textarea name="reason" id="mReason" rows="2" class="form-control form-control-sm rounded-3" placeholder="Brief reason for your request..."></textarea>
+                            </div>
+
+                            <button type="submit" id="btnSubmitLeave" class="btn btn-primary btn-sm w-100 rounded-pill py-2 fw-bold shadow-sm">
+                                <i class="fa-solid fa-paper-plane me-1"></i> Submit for Approval
+                            </button>
+                        </form>
+
+                        <!-- Recent Requests History -->
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                <i class="fa-solid fa-clock-rotate-left me-1"></i> My Recent Requests
+                            </div>
+                            <?php if (empty($myLeaves)): ?>
+                                <div class="text-center py-2 text-muted small fst-italic">No leave requests found yet.</div>
+                            <?php else: ?>
+                                <div class="d-flex flex-column gap-2" id="myLeavesList">
+                                    <?php foreach ($myLeaves as $lv): 
+                                        $st = strtoupper($lv['status'] ?? 'PENDING');
+                                        $badgeClass = 'bg-secondary';
+                                        $badgeIcon = 'fa-regular fa-clock';
+                                        if ($st === 'APPROVED') { $badgeClass = 'bg-success'; $badgeIcon = 'fa-solid fa-check'; }
+                                        elseif ($st === 'PENDING') { $badgeClass = 'bg-warning text-dark'; $badgeIcon = 'fa-solid fa-hourglass-half'; }
+                                        elseif ($st === 'REJECTED') { $badgeClass = 'bg-danger'; $badgeIcon = 'fa-solid fa-xmark'; }
+                                    ?>
+                                        <div class="p-2 rounded-3 border bg-light d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold text-dark" style="font-size: 0.8rem;"><?= e($lv['leave_type']) ?></div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">
+                                                    <?= date('d M', strtotime($lv['start_date'])) ?> <?= $lv['start_date'] !== $lv['end_date'] ? 'to ' . date('d M', strtotime($lv['end_date'])) : '' ?>
+                                                    (<?= e($lv['days_count']) ?> d)
+                                                </div>
+                                                <?php if (!empty($lv['reject_reason']) && $st === 'REJECTED'): ?>
+                                                    <div class="text-danger" style="font-size: 0.68rem;"><i class="fa-solid fa-circle-exclamation me-1"></i><?= e($lv['reject_reason']) ?></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <span class="badge <?= $badgeClass ?> rounded-pill" style="font-size: 0.68rem;">
+                                                <i class="<?= $badgeIcon ?> me-1"></i><?= e($st) ?>
+                                            </span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
             <!-- Client Device Metadata -->
             <div class="mt-3 text-muted text-center" style="font-size: 0.72rem;">
                 <div class="d-flex align-items-center justify-content-center gap-2">
@@ -455,6 +562,64 @@
     let userAccuracy = null;
     let userDistance = null;
     let isWithinGeofence = true;
+
+    // --- Mobile Leave / OD Application Handlers ---
+    window.toggleTargetSiteField = function() {
+        const type = document.getElementById('mLeaveType').value;
+        const group = document.getElementById('mTargetSiteGroup');
+        if (group) {
+            if (type.includes('OD') || type.includes('Outdoor') || type.includes('Duty')) {
+                group.style.display = 'block';
+            } else {
+                group.style.display = 'none';
+            }
+        }
+    };
+
+    window.submitMobileLeave = function(e) {
+        e.preventDefault();
+        const form = document.getElementById('mobileLeaveForm');
+        const alertBox = document.getElementById('leaveFormAlert');
+        const btn = document.getElementById('btnSubmitLeave');
+        if (!form || !btn) return;
+        const origText = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
+        if (alertBox) alertBox.className = 'alert d-none';
+
+        const formData = new FormData(form);
+        const url = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/leave-apply')) ?>;
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+            if (alertBox) {
+                if (data.success) {
+                    alertBox.className = 'alert alert-success py-2 px-3 small rounded-3 mb-3 d-block';
+                    alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> ' + (data.message || 'Submitted successfully!').replace(/\n/g, '<br>');
+                    form.reset();
+                    setTimeout(function() { location.reload(); }, 2000);
+                } else {
+                    alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                    alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + (data.message || 'Submission failed.');
+                }
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+            if (alertBox) {
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Network error. Please try again.';
+            }
+        });
+    };
 
     // --- Camera Selfie Controller ---
     let mediaStream = null;

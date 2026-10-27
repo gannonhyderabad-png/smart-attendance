@@ -53,9 +53,13 @@ class LeaveController extends Controller {
             $leavesByEmployee[$l['employee_id']][] = $l;
         }
 
+        // Fetch all pending leave applications for Dept Heads & HR approval
+        $pendingLeaves = Leave::all(['status' => 'PENDING'], 'l.id DESC');
+
         $this->view('leaves.index', [
             'title' => 'Employee Leave Management',
             'leaves' => $leaves,
+            'pendingLeaves' => $pendingLeaves,
             'employees' => $employees,
             'departments' => $departments,
             'siteList' => $siteList,
@@ -72,7 +76,8 @@ class LeaveController extends Controller {
                 'cl' => $clCount,
                 'sl' => $slCount,
                 'pl' => $plCount,
-                'od' => $odCount
+                'od' => $odCount,
+                'pending' => count($pendingLeaves)
             ]
         ], 'admin');
     }
@@ -223,5 +228,111 @@ class LeaveController extends Controller {
         }
 
         redirect('leaves');
+    }
+
+    /**
+     * Approve a pending leave request (HR / Dept Head)
+     */
+    public function approve(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $id = (int) Request::input('id', 0);
+        if ($id > 0) {
+            $pdo = \Database\Database::getConnection();
+            $stmt = $pdo->prepare("UPDATE leaves SET status = 'APPROVED', approved_by = ?, approved_at = NOW() WHERE id = ? AND status = 'PENDING'");
+            $stmt->execute([Auth::id(), $id]);
+
+            $leave = Leave::find($id);
+            if ($leave) {
+                Logger::log(Auth::id(), 'LEAVE_APPROVED', "Approved leave #{$id} for {$leave['employee_name']} ({$leave['leave_type']})");
+                $_SESSION['flash_success'] = "Leave request for {$leave['employee_name']} has been Approved!";
+            }
+        }
+        redirect('leaves');
+    }
+
+    /**
+     * Reject a pending leave request (HR / Dept Head)
+     */
+    public function reject(): void {
+        Auth::requireAuth();
+        Csrf::verify();
+
+        $id = (int) Request::input('id', 0);
+        $rejectReason = trim((string) Request::input('reject_reason', 'Not approved'));
+
+        if ($id > 0) {
+            $pdo = \Database\Database::getConnection();
+            $stmt = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reject_reason = ?, approved_by = ?, approved_at = NOW() WHERE id = ? AND status = 'PENDING'");
+            $stmt->execute([$rejectReason, Auth::id(), $id]);
+
+            $leave = Leave::find($id);
+            if ($leave) {
+                Logger::log(Auth::id(), 'LEAVE_REJECTED', "Rejected leave #{$id} for {$leave['employee_name']}: {$rejectReason}");
+                $_SESSION['flash_error'] = "Leave request for {$leave['employee_name']} has been Rejected.";
+            }
+        }
+        redirect('leaves');
+    }
+
+    /**
+     * Employee self-service leave application (from mobile punch page)
+     * Saves as PENDING status for approval workflow
+     */
+    public function applyLeave(): void {
+        // This is a public endpoint — no Auth required, just validate the employee code
+        $code = trim((string) Request::input('employee_code', ''));
+        $emp = Employee::findByCode($code);
+
+        if (!$emp) {
+            echo json_encode(['success' => false, 'message' => 'Employee not found.']);
+            exit;
+        }
+
+        $leaveType = trim((string) Request::input('leave_type', 'Casual Leave'));
+        $startDate = trim((string) Request::input('start_date', date('Y-m-d')));
+        $endDate = trim((string) Request::input('end_date', $startDate));
+        $reason = trim((string) Request::input('reason', ''));
+        $targetSite = trim((string) Request::input('target_site', ''));
+
+        if (empty($startDate)) {
+            echo json_encode(['success' => false, 'message' => 'Start date is required.']);
+            exit;
+        }
+        if ($endDate < $startDate) {
+            $endDate = $startDate;
+        }
+
+        $startTs = strtotime($startDate);
+        $endTs = strtotime($endDate);
+        $daysCount = max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
+
+        try {
+            $pdo = \Database\Database::getConnection();
+            $stmt = $pdo->prepare("INSERT INTO leaves 
+                (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, reason, status, applied_by_employee, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 1, NOW())");
+            $stmt->execute([
+                $emp['id'],
+                $leaveType,
+                $startDate,
+                $endDate,
+                $daysCount,
+                $emp['site'] ?? '',
+                $targetSite,
+                $reason
+            ]);
+
+            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} from {$startDate} to {$endDate}. Pending approval.");
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Your {$leaveType} request for " . ($daysCount == 1 ? "1 day" : "{$daysCount} days") . " has been submitted successfully!\n\nStatus: ⏳ Pending Approval from HR / Department Head."
+            ]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Failed to submit request: ' . $e->getMessage()]);
+        }
+        exit;
     }
 }

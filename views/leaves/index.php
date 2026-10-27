@@ -77,6 +77,107 @@
     </div>
 </div>
 
+<!-- Pending Approvals for Department Heads & HR -->
+<?php if (!empty($pendingLeaves)): ?>
+    <div class="card border-0 rounded-4 shadow-sm mb-4 border-start border-4 border-warning overflow-hidden" style="background: #fffdf5;">
+        <div class="card-header bg-warning-subtle py-3 px-4 d-flex justify-content-between align-items-center border-bottom border-warning-subtle">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark fs-6 px-2 py-1"><i class="fa-solid fa-bell me-1"></i> <?= count($pendingLeaves) ?></span>
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark">Pending Leave & OD Approvals Required</h6>
+                    <small class="text-muted">Applications submitted by employees via mobile awaiting Department Head / HR approval</small>
+                </div>
+            </div>
+            <span class="badge bg-danger text-white px-3 py-2 rounded-pill small fw-semibold shadow-sm">
+                <i class="fa-solid fa-circle-exclamation me-1"></i> <?= count($pendingLeaves) ?> Action<?= count($pendingLeaves) > 1 ? 's' : '' ?> Pending
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4">Employee</th>
+                            <th>Request Type</th>
+                            <th>Duration / Dates</th>
+                            <th>Target Site / Client</th>
+                            <th>Reason / Note</th>
+                            <th>Applied Date</th>
+                            <th class="text-end pe-4">Approval Decision</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($pendingLeaves as $pl): ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-sm rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                            <?= strtoupper(substr($pl['employee_name'] ?? 'E', 0, 2)) ?>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark"><?= e($pl['employee_name'] ?? 'Employee') ?></div>
+                                            <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
+                                                <?= e($pl['employee_code'] ?? '') ?> &bull; <?= e($pl['department_name'] ?? ($pl['department'] ?? 'General')) ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 font-monospace">
+                                        <?= e($pl['leave_type']) ?>
+                                    </span>
+                                    <?php if (!empty($pl['applied_by_employee'])): ?>
+                                        <div class="mt-1"><span class="badge bg-light text-secondary border" style="font-size: 0.65rem;"><i class="fa-solid fa-mobile-screen me-1"></i>Mobile Self-Apply</span></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="small fw-semibold text-dark">
+                                        <i class="fa-regular fa-calendar me-1 text-primary"></i><?= date('d M Y', strtotime($pl['start_date'])) ?>
+                                        <?= $pl['start_date'] !== $pl['end_date'] ? ' to ' . date('d M Y', strtotime($pl['end_date'])) : '' ?>
+                                    </div>
+                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle font-monospace mt-1" style="font-size: 0.72rem;">
+                                        <?= e($pl['days_count']) ?> Day(s)
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if (!empty($pl['target_site'])): ?>
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($pl['target_site']) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted small">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="text-dark small"><?= e($pl['reason'] ?: 'No notes provided') ?></span>
+                                </td>
+                                <td>
+                                    <span class="text-muted small"><?= date('d M Y, h:i A', strtotime($pl['created_at'])) ?></span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-inline-flex gap-2">
+                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline" onsubmit="return confirm('Approve leave for <?= addslashes($pl['employee_name'] ?? 'employee') ?>?');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="id" value="<?= $pl['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold">
+                                                <i class="fa-solid fa-check me-1"></i> Approve
+                                            </button>
+                                        </form>
+
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')">
+                                            <i class="fa-solid fa-xmark me-1"></i> Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Collapsible Company Assigned Staff Leave Balances Hub -->
 <div class="card border-0 rounded-4 shadow-sm bg-white mb-4">
     <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#staffLeaveQuotaCollapse">
@@ -364,12 +465,41 @@
                                 <?= e($lv['reason'] ?: 'Approved Leave') ?>
                             </td>
                             <td>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
-                                    <i class="fa-solid fa-check me-1"></i> Approved
-                                </span>
+                                <?php 
+                                    $st = strtoupper($lv['status'] ?? 'APPROVED');
+                                    if ($st === 'APPROVED'): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-check me-1"></i> Approved
+                                        </span>
+                                    <?php elseif ($st === 'PENDING'): ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-hourglass-half me-1"></i> Pending
+                                        </span>
+                                    <?php elseif ($st === 'REJECTED'): ?>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1" title="<?= e($lv['reject_reason'] ?? 'Rejected') ?>">
+                                            <i class="fa-solid fa-xmark me-1"></i> Rejected
+                                        </span>
+                                        <?php if (!empty($lv['reject_reason'])): ?>
+                                            <div class="text-danger small mt-1" style="font-size: 0.68rem;"><?= e($lv['reject_reason']) ?></div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary rounded-pill"><?= e($st) ?></span>
+                                    <?php endif; ?>
                             </td>
                             <td class="text-end pe-4">
                                 <div class="d-inline-flex gap-1">
+                                    <?php if ($st === 'PENDING'): ?>
+                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline" onsubmit="return confirm('Approve this request?');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="id" value="<?= $lv['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Leave">
+                                                <i class="fa-solid fa-check"></i>
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $lv['id'] ?>, '<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lv['leave_type'] ?? '') ?>')" title="Reject Leave">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    <?php endif; ?>
                                     <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="View Complete Leave Sheet">
                                         <i class="fa-solid fa-file-lines"></i>
                                     </button>
@@ -1112,4 +1242,42 @@ function handleLeaveTypeChange(val) {
         }
     }
 }
+
+function openRejectModal(id, empName, leaveType) {
+    document.getElementById('rejectLeaveId').value = id;
+    document.getElementById('rejectEmpName').textContent = empName;
+    document.getElementById('rejectLeaveType').textContent = leaveType;
+    new bootstrap.Modal(document.getElementById('rejectLeaveModal')).show();
+}
 </script>
+
+<!-- Reject Leave Modal -->
+<div class="modal fade" id="rejectLeaveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="<?= base_url('leaves/reject') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="rejectLeaveId" value="">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="fa-solid fa-circle-xmark me-2"></i>Reject Leave Request
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Are you sure you want to reject this leave request for <strong id="rejectEmpName" class="text-dark"></strong> (<span id="rejectLeaveType"></span>)?
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea name="reject_reason" class="form-control rounded-3" rows="3" placeholder="e.g. Critical project deadline, shift replacement unavailable, insufficient notice" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Rejection</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -283,6 +283,11 @@ class Database {
             try { $pdo->exec("ALTER TABLE `employees` ADD COLUMN `cl_quota` DECIMAL(4,1) NULL DEFAULT NULL;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `employees` ADD COLUMN `sl_quota` DECIMAL(4,1) NULL DEFAULT NULL;"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `employees` ADD COLUMN `pl_quota` DECIMAL(4,1) NULL DEFAULT NULL;"); } catch (\Throwable $e) {}
+            // Approval workflow columns
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `applied_by_employee` TINYINT(1) DEFAULT 0 AFTER `attachment`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `approved_by` INT NULL AFTER `applied_by_employee`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `approved_at` DATETIME NULL AFTER `approved_by`;"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `leaves` ADD COLUMN `reject_reason` TEXT NULL AFTER `approved_at`;"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
 
         // Seed standard public holidays if table is empty
@@ -476,7 +481,14 @@ class Database {
             "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS punch_photo VARCHAR(255)",
             "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS origin_site VARCHAR(150)",
             "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS target_site VARCHAR(150)",
-            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS attachment VARCHAR(255)"
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS attachment VARCHAR(255)",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS applied_by_employee SMALLINT DEFAULT 0",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS approved_by INT",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP",
+            "ALTER TABLE leaves ADD COLUMN IF NOT EXISTS reject_reason TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS cl_quota NUMERIC(4,1)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS sl_quota NUMERIC(4,1)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pl_quota NUMERIC(4,1)"
         ];
         foreach ($columns as $c) {
             try { $pdo->exec($c); } catch (\Throwable $e) {}
@@ -723,6 +735,13 @@ class Database {
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN origin_site TEXT;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN target_site TEXT;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN attachment TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN applied_by_employee INTEGER DEFAULT 0;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN approved_by INTEGER;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN approved_at DATETIME;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE leaves ADD COLUMN reject_reason TEXT;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE employees ADD COLUMN cl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE employees ADD COLUMN sl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;"); } catch (\Throwable $e) {}
 
         // Seed standard public holidays in SQLite if empty
         $holCount = (int) $pdo->query("SELECT COUNT(*) FROM holidays")->fetchColumn();

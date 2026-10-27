@@ -240,8 +240,9 @@ class LeaveController extends Controller {
         $id = (int) Request::input('id', 0);
         if ($id > 0) {
             $pdo = \Database\Database::getConnection();
-            $stmt = $pdo->prepare("UPDATE leaves SET status = 'APPROVED', approved_by = ?, approved_at = NOW() WHERE id = ? AND status = 'PENDING'");
-            $stmt->execute([Auth::id(), $id]);
+            $nowStr = date('Y-m-d H:i:s');
+            $stmt = $pdo->prepare("UPDATE leaves SET status = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'");
+            $stmt->execute([Auth::id(), $nowStr, $id]);
 
             $leave = Leave::find($id);
             if ($leave) {
@@ -264,8 +265,9 @@ class LeaveController extends Controller {
 
         if ($id > 0) {
             $pdo = \Database\Database::getConnection();
-            $stmt = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reject_reason = ?, approved_by = ?, approved_at = NOW() WHERE id = ? AND status = 'PENDING'");
-            $stmt->execute([$rejectReason, Auth::id(), $id]);
+            $nowStr = date('Y-m-d H:i:s');
+            $stmt = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reject_reason = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'");
+            $stmt->execute([$rejectReason, Auth::id(), $nowStr, $id]);
 
             $leave = Leave::find($id);
             if ($leave) {
@@ -280,13 +282,15 @@ class LeaveController extends Controller {
      * Employee self-service leave application (from mobile punch page)
      * Saves as PENDING status for approval workflow
      */
-    public function applyLeave(): void {
-        // This is a public endpoint — no Auth required, just validate the employee code
-        $code = trim((string) Request::input('employee_code', ''));
+    public function applyLeave(string $code = ''): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        // This is a public endpoint — no Auth required, validate employee code from URL or body
+        $code = trim($code ?: (string) Request::input('employee_code', ''));
         $emp = Employee::findByCode($code);
 
         if (!$emp) {
-            echo json_encode(['success' => false, 'message' => 'Employee not found.']);
+            echo json_encode(['success' => false, 'message' => 'Employee code not recognized.']);
             exit;
         }
 
@@ -309,22 +313,26 @@ class LeaveController extends Controller {
         $daysCount = max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
 
         try {
-            $pdo = \Database\Database::getConnection();
-            $stmt = $pdo->prepare("INSERT INTO leaves 
-                (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, reason, status, applied_by_employee, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 1, NOW())");
-            $stmt->execute([
-                $emp['id'],
-                $leaveType,
-                $startDate,
-                $endDate,
-                $daysCount,
-                $emp['site'] ?? '',
-                $targetSite,
-                $reason
+            $leaveId = Leave::create([
+                'employee_id' => $emp['id'],
+                'leave_type' => $leaveType,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'days_count' => $daysCount,
+                'origin_site' => $emp['site'] ?? '',
+                'target_site' => $targetSite,
+                'attachment' => null,
+                'reason' => $reason,
+                'status' => 'PENDING'
             ]);
 
-            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} from {$startDate} to {$endDate}. Pending approval.");
+            // Mark applied_by_employee
+            try {
+                $pdo = \Database\Database::getConnection();
+                $pdo->prepare("UPDATE leaves SET applied_by_employee = 1 WHERE id = ?")->execute([$leaveId]);
+            } catch (\Throwable $e) {}
+
+            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}. Pending approval.");
 
             echo json_encode([
                 'success' => true,

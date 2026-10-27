@@ -586,16 +586,31 @@
 
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
-        if (alertBox) alertBox.className = 'alert d-none';
+        if (alertBox) {
+            alertBox.className = 'alert d-none';
+            alertBox.innerHTML = '';
+        }
 
         const formData = new FormData(form);
         const url = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/leave-apply')) ?>;
 
         fetch(url, {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) {
+            return res.text().then(function(text) {
+                try {
+                    return JSON.parse(text);
+                } catch(parseErr) {
+                    console.error('Server response:', text);
+                    return { success: false, message: 'Server error: ' + (text.substring(0, 120) || 'Empty response') };
+                }
+            });
+        })
         .then(function(data) {
             btn.disabled = false;
             btn.innerHTML = origText;
@@ -616,7 +631,7 @@
             btn.innerHTML = origText;
             if (alertBox) {
                 alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
-                alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Network error. Please try again.';
+                alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Request failed: ' + (err.message || 'Network error');
             }
         });
     };

@@ -318,6 +318,7 @@ $router->get('/p/{code}', [\App\Controllers\PunchController::class, 'show']);
 $router->post('/p/{code}', [\App\Controllers\PunchController::class, 'record']);
 $router->get('/p/{code}/status', [\App\Controllers\PunchController::class, 'status']);
 $router->post('/p/{code}/leave-apply', [\App\Controllers\LeaveController::class, 'applyLeave']);
+$router->post('/api/leave/apply', [\App\Controllers\LeaveController::class, 'applyLeave']);
 
 // REST API Endpoints
 $router->post('/api/punch', [\App\Controllers\ApiController::class, 'punch']);

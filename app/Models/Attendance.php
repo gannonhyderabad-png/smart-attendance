@@ -55,6 +55,29 @@ class Attendance extends Model {
             }
         }
 
+        // Validation 2: Mutual Exclusion - Cannot punch attendance if leave has been applied/approved for today
+        $pdo = self::db();
+        $leaveCheck = $pdo->prepare("
+            SELECT id, leave_type, status, start_date, end_date 
+            FROM leaves 
+            WHERE employee_id = ? 
+              AND status != 'REJECTED' 
+              AND (? >= start_date AND ? <= end_date)
+            LIMIT 1
+        ");
+        $leaveCheck->execute([$employeeId, $today, $today]);
+        $activeLeave = $leaveCheck->fetch();
+        if ($activeLeave) {
+            $leaveType = $activeLeave['leave_type'] ?: 'Leave';
+            $stText = ($activeLeave['status'] === 'APPROVED') ? 'approved' : 'applied for';
+            return [
+                'success' => false,
+                'message' => "Cannot punch attendance: {$leaveType} is already {$stText} for today (" . date('d M Y', strtotime($today)) . "). You cannot punch attendance on a leave date.",
+                'is_leave_conflict' => true,
+                'leave' => $activeLeave
+            ];
+        }
+
         // --- GEOFENCING & GPS VALIDATION ---
         $employee = Employee::find($employeeId);
         $distance = null;

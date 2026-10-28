@@ -258,25 +258,40 @@
                 </div>
             <?php endif; ?>
 
+            <?php 
+                $hasActiveLeaveToday = !empty($todayLeave);
+                $hasPunchesToday = !empty($todayPunches);
+            ?>
+
             <!-- Active Leave or OD (Outdoor Duty) Notification Banner -->
-            <?php if (!empty($todayLeave)): 
+            <?php if ($hasActiveLeaveToday): 
                 $isOdToday = str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'OD') || str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'OUTDOOR') || str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'DUTY');
+                $leaveSt = strtoupper($todayLeave['status'] ?? 'PENDING');
+                $isApproved = ($leaveSt === 'APPROVED');
             ?>
                 <div class="alert <?= $isOdToday ? 'alert-primary border-primary' : 'alert-warning border-warning' ?> rounded-4 text-start p-3 mb-3 shadow-sm">
                     <div class="d-flex align-items-center gap-2 mb-1">
-                        <i class="<?= $isOdToday ? 'fa-solid fa-briefcase text-primary' : 'fa-solid fa-plane-departure text-warning' ?> fs-5"></i>
-                        <h6 class="fw-bold mb-0 text-dark">
-                            <?= $isOdToday ? 'Active Outdoor Duty (OD)' : 'Approved Leave Active Today' ?>
-                        </h6>
+                        <i class="<?= $isOdToday ? 'fa-solid fa-briefcase text-primary' : 'fa-solid fa-calendar-xmark text-warning' ?> fs-4"></i>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">
+                                <?= $isOdToday ? 'Active Outdoor Duty (OD) Today' : 'Leave Active for Today' ?>
+                            </h6>
+                            <small class="text-muted">
+                                <?= e($todayLeave['leave_type']) ?> &bull; 
+                                <span class="badge <?= $isApproved ? 'bg-success' : 'bg-warning text-dark' ?> rounded-pill" style="font-size: 0.68rem;">
+                                    <?= $isApproved ? 'Approved' : 'Pending Approval' ?>
+                                </span>
+                            </small>
+                        </div>
                     </div>
-                    <div class="small text-muted mt-1">
-                        <strong>Type:</strong> <span class="badge <?= $isOdToday ? 'bg-primary text-white' : 'bg-warning text-dark' ?> ms-1"><?= e($todayLeave['leave_type']) ?></span>
-                        <?php if (!empty($todayLeave['target_site'])): ?>
-                            <div class="mt-1 text-dark"><i class="fa-solid fa-location-dot text-danger me-1"></i><strong>Assigned Target Site:</strong> <?= e($todayLeave['target_site']) ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($todayLeave['reason'])): ?>
-                            <div class="mt-1"><i class="fa-regular fa-comment-dots me-1"></i><strong>Notes:</strong> <?= e($todayLeave['reason']) ?></div>
-                        <?php endif; ?>
+                    <?php if (!empty($todayLeave['target_site'])): ?>
+                        <div class="mt-1 small text-dark"><i class="fa-solid fa-location-dot text-danger me-1"></i><strong>Assigned Site:</strong> <?= e($todayLeave['target_site']) ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($todayLeave['reason'])): ?>
+                        <div class="small text-muted mt-1"><i class="fa-regular fa-comment-dots me-1"></i><strong>Reason:</strong> <?= e($todayLeave['reason']) ?></div>
+                    <?php endif; ?>
+                    <div class="small text-danger fw-semibold mt-2 pt-2 border-top border-warning-subtle">
+                        <i class="fa-solid fa-ban me-1"></i> Attendance punch is disabled because leave is active today. You can take either Attendance Punch OR Leave on any given date, not both.
                     </div>
                 </div>
             <?php endif; ?>
@@ -315,30 +330,55 @@
 
             <!-- Punch Action Buttons -->
             <div class="d-grid gap-3 mb-3">
-                
-                <!-- PUNCH IN BUTTON -->
-                <button type="button" 
-                        id="punchInBtn" 
-                        class="btn-punch-action btn-punch-in-action <?= $currentStatus === 'IN' ? 'disabled-action' : '' ?>"
-                        onclick="executePunch('IN')">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-right-to-bracket fs-5"></i>
-                        <span class="fs-5">PUNCH IN</span>
-                    </div>
-                    <small class="fw-normal opacity-90" style="font-size: 0.75rem;">Start Work Session</small>
-                </button>
+                <?php if ($hasActiveLeaveToday): ?>
+                    <!-- Disabled Punch Buttons when on Leave -->
+                    <button type="button" 
+                            id="punchInBtn" 
+                            class="btn-punch-action disabled-action opacity-75"
+                            style="cursor: not-allowed; background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1;"
+                            onclick="window.showConflictModal('Punch Disabled: Leave Active', 'Cannot punch attendance while leave is applied for today.', 'You have already applied for <strong><?= addslashes(e($todayLeave['leave_type'])) ?></strong> on today\'s date (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both.')">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-ban fs-5 text-danger"></i>
+                            <span class="fs-5 text-secondary">PUNCH IN (DISABLED)</span>
+                        </div>
+                        <small class="fw-normal text-danger" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Leave Active for Today (<?= e($todayLeave['leave_type']) ?>)</small>
+                    </button>
 
-                <!-- PUNCH OUT BUTTON -->
-                <button type="button" 
-                        id="punchOutBtn" 
-                        class="btn-punch-action btn-punch-out-action <?= $currentStatus === 'OUT' ? 'disabled-action' : '' ?>"
-                        onclick="executePunch('OUT')">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-right-from-bracket fs-5"></i>
-                        <span class="fs-5">PUNCH OUT</span>
-                    </div>
-                    <small class="fw-normal opacity-90" style="font-size: 0.75rem;">End Work Session / Break</small>
-                </button>
+                    <button type="button" 
+                            id="punchOutBtn" 
+                            class="btn-punch-action disabled-action opacity-75"
+                            style="cursor: not-allowed; background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1;"
+                            onclick="window.showConflictModal('Punch Disabled: Leave Active', 'Cannot punch attendance while leave is applied for today.', 'You have already applied for <strong><?= addslashes(e($todayLeave['leave_type'])) ?></strong> on today\'s date (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both.')">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-ban fs-5 text-danger"></i>
+                            <span class="fs-5 text-secondary">PUNCH OUT (DISABLED)</span>
+                        </div>
+                        <small class="fw-normal text-danger" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Leave Active for Today (<?= e($todayLeave['leave_type']) ?>)</small>
+                    </button>
+                <?php else: ?>
+                    <!-- Standard Punch Buttons -->
+                    <button type="button" 
+                            id="punchInBtn" 
+                            class="btn-punch-action btn-punch-in-action <?= $currentStatus === 'IN' ? 'disabled-action' : '' ?>"
+                            onclick="executePunch('IN')">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-right-to-bracket fs-5"></i>
+                            <span class="fs-5">PUNCH IN</span>
+                        </div>
+                        <small class="fw-normal opacity-90" style="font-size: 0.75rem;">Start Work Session</small>
+                    </button>
+
+                    <button type="button" 
+                            id="punchOutBtn" 
+                            class="btn-punch-action btn-punch-out-action <?= $currentStatus === 'OUT' ? 'disabled-action' : '' ?>"
+                            onclick="executePunch('OUT')">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-right-from-bracket fs-5"></i>
+                            <span class="fs-5">PUNCH OUT</span>
+                        </div>
+                        <small class="fw-normal opacity-90" style="font-size: 0.75rem;">End Work Session / Break</small>
+                    </button>
+                <?php endif; ?>
             </div>
 
             <!-- Toast / Alert Feedback Message -->
@@ -399,6 +439,18 @@
                 <div class="collapse" id="leaveApplyCollapse">
                     <div class="card-body p-3">
                         <div id="leaveFormAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
+
+                        <?php if ($hasPunchesToday): ?>
+                            <div class="alert alert-warning border border-warning-subtle rounded-3 p-2 small mb-3 text-start">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <i class="fa-solid fa-clock-rotate-left text-warning"></i>
+                                    <span class="fw-bold text-dark">Attendance Punched Today</span>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.72rem;">
+                                    You have already recorded attendance punches today (<?= date('d M Y') ?>). Leave cannot be applied for today. If you need leave, please select a future date.
+                                </div>
+                            </div>
+                        <?php endif; ?>
 
                         <form id="mobileLeaveForm" onsubmit="window.submitMobileLeave(event)" enctype="multipart/form-data">
                             <input type="hidden" name="employee_code" value="<?= e($employee['employee_code']) ?>">
@@ -579,6 +631,41 @@
     </div>
 </div>
 
+<!-- Mutual Exclusion Conflict Dialog Modal (Punch vs Leave) -->
+<div class="modal fade" id="conflictAlertModal" tabindex="-1" aria-labelledby="conflictAlertModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
+            <div class="mb-3">
+                <div class="avatar-lg rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 76px; height: 76px; font-size: 2.2rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+            </div>
+            <h5 class="fw-bold text-dark mb-1" id="conflictModalTitle">Action Not Permitted</h5>
+            <p class="text-danger fw-semibold small mb-3" id="conflictModalSubtitle">Punch &amp; Leave cannot be taken on the same date.</p>
+            
+            <div class="p-3 bg-light rounded-4 border text-start small mb-3">
+                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                    <span class="text-muted fw-semibold">Employee:</span>
+                    <span class="text-dark fw-bold"><?= e($employee['name']) ?> (<?= e($employee['employee_code']) ?>)</span>
+                </div>
+                <div id="conflictDetailText" class="text-secondary small">
+                    You can take either Attendance Punch OR Leave on any given date, not both.
+                </div>
+            </div>
+
+            <div class="alert alert-info small text-start rounded-3 mb-4 py-2 px-3">
+                <i class="fa-solid fa-circle-info me-1 text-primary"></i> <strong>Company Rule:</strong> If you worked and punched attendance, leave cannot be applied for that date. If you have applied for leave, attendance punch is disabled.
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-dark rounded-pill py-2 fw-bold" data-bs-dismiss="modal">
+                    Understood
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 (function() {
     'use strict';
@@ -679,6 +766,20 @@
             }
         }
 
+        const sDate = document.getElementById('mStartDate') ? document.getElementById('mStartDate').value : '';
+        const eDate = document.getElementById('mEndDate') ? document.getElementById('mEndDate').value : '';
+        const todayStr = '<?= date('Y-m-d') ?>';
+        const hasPunches = <?= !empty($todayPunches) ? 'true' : 'false' ?>;
+
+        if (hasPunches && sDate <= todayStr && eDate >= todayStr) {
+            window.showConflictModal(
+                'Leave Blocked: Attendance Punched Today',
+                'Cannot apply for leave on a day you worked.',
+                'You have already recorded attendance punches today (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both. Please select a future date.'
+            );
+            return;
+        }
+
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
         if (alertBox) {
@@ -709,6 +810,20 @@
         .then(function(data) {
             btn.disabled = false;
             btn.innerHTML = origText;
+            if (data.is_punch_conflict) {
+                window.showConflictModal(
+                    'Leave Blocked: Attendance Punch Exists',
+                    'Cannot apply leave on a date with attendance punches.',
+                    data.message
+                );
+            } else if (data.is_leave_conflict) {
+                window.showConflictModal(
+                    'Leave Request Conflict',
+                    'Duplicate or overlapping leave already active.',
+                    data.message
+                );
+            }
+
             if (alertBox) {
                 if (data.success) {
                     alertBox.className = 'alert alert-success py-2 px-3 small rounded-3 mb-3 d-block';
@@ -1014,8 +1129,32 @@
         modal.show();
     }
 
+    // Modal for Punch vs Leave Conflict
+    window.showConflictModal = function(title, subtitle, detail) {
+        const modalEl = document.getElementById('conflictAlertModal');
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            alert((title ? title + "\n\n" : "") + (subtitle ? subtitle + "\n\n" : "") + (detail ? detail.replace(/<[^>]*>/g, '') : ""));
+            return;
+        }
+        if (title) document.getElementById('conflictModalTitle').textContent = title;
+        if (subtitle) document.getElementById('conflictModalSubtitle').textContent = subtitle;
+        if (detail) document.getElementById('conflictDetailText').innerHTML = detail;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    };
+
     // 7. Execute Punch Action with Selfie Capture
     window.executePunch = function(type) {
+        const hasLeaveToday = <?= !empty($todayLeave) ? 'true' : 'false' ?>;
+        if (hasLeaveToday) {
+            window.showConflictModal(
+                'Punch Blocked: Leave Active Today',
+                'Cannot punch attendance while leave is applied for today.',
+                'You have already applied for <strong><?= addslashes(e($todayLeave['leave_type'] ?? 'Leave')) ?></strong> on today\'s date (<?= date('d M Y') ?>).<br><br>The system allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both.'
+            );
+            return;
+        }
+
         if (type === currentStatus) {
             displayAlert('warning', `You are already punched ${type}.`);
             return;
@@ -1184,6 +1323,15 @@
                 displayAlert('danger', data.message || 'Unable to record punch.');
 
                 // If backend rejected due to geofence or location:
+                if (data.is_leave_conflict) {
+                    window.showConflictModal(
+                        'Punch Blocked: Leave Active',
+                        'Cannot punch attendance on a leave date.',
+                        data.message
+                    );
+                    return;
+                }
+
                 if (data.message && (data.message.includes('Punch Rejected') || data.message.includes('away from') || data.message.includes('Location permission'))) {
                     const distStr = data.distance ? (data.distance >= 1000 ? (data.distance/1000).toFixed(2) + ' km away' : Math.round(data.distance) + ' m away') : (userDistance ? (userDistance >= 1000 ? (userDistance/1000).toFixed(2) + ' km away' : userDistance + ' m away') : 'Outside perimeter');
                     showGeofenceModal(

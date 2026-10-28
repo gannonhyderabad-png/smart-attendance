@@ -130,6 +130,26 @@ class LeaveController extends Controller {
             redirect($returnUrl);
         }
 
+        // Mutual Exclusion: Cannot record leave if attendance punch exists on those dates
+        try {
+            $pdo = \Database\Database::getConnection();
+            $checkPunch = $pdo->prepare("
+                SELECT DATE(punch_time) as punch_date 
+                FROM attendance 
+                WHERE employee_id = ? 
+                  AND DATE(punch_time) >= ? 
+                  AND DATE(punch_time) <= ? 
+                LIMIT 1
+            ");
+            $checkPunch->execute([$employeeId, $startDate, $endDate]);
+            $existingPunch = $checkPunch->fetch(\PDO::FETCH_ASSOC);
+            if ($existingPunch) {
+                $punchDateFmt = date('d M Y', strtotime($existingPunch['punch_date']));
+                $_SESSION['flash_error'] = "Cannot record leave: Attendance punch already exists for {$emp['name']} on {$punchDateFmt}. Either Punch or Leave can be recorded for any given date, not both.";
+                redirect($returnUrl);
+            }
+        } catch (\Throwable $e) {}
+
         // If Origin site is empty and employee has a home site, default to it
         if (empty($originSite) && !empty($emp['site'])) {
             $originSite = $emp['site'];
@@ -459,6 +479,58 @@ class LeaveController extends Controller {
         $startTs = strtotime($startDate);
         $endTs = strtotime($endDate);
         $daysCount = max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
+
+        $pdo = \Database\Database::getConnection();
+
+        // Validation: Mutual Exclusion - Cannot apply leave on a date where attendance punch is already recorded
+        try {
+            $checkPunch = $pdo->prepare("
+                SELECT DATE(punch_time) as punch_date, punch_type, punch_time 
+                FROM attendance 
+                WHERE employee_id = ? 
+                  AND DATE(punch_time) >= ? 
+                  AND DATE(punch_time) <= ? 
+                ORDER BY punch_time ASC 
+                LIMIT 1
+            ");
+            $checkPunch->execute([$emp['id'], $startDate, $endDate]);
+            $existingPunch = $checkPunch->fetch(\PDO::FETCH_ASSOC);
+
+            if ($existingPunch) {
+                $punchDateFmt = date('d M Y', strtotime($existingPunch['punch_date']));
+                echo json_encode([
+                    'success' => false,
+                    'is_punch_conflict' => true,
+                    'punch_date' => $punchDateFmt,
+                    'message' => "Cannot apply for leave: Attendance punch is already recorded on {$punchDateFmt}! You cannot apply for leave on a date you worked. The system allows either Attendance Punch OR Leave on any given date, not both."
+                ]);
+                exit;
+            }
+
+            // Check for overlapping active leaves
+            $checkLeave = $pdo->prepare("
+                SELECT id, leave_type, start_date, end_date 
+                FROM leaves 
+                WHERE employee_id = ? 
+                  AND status != 'REJECTED' 
+                  AND ((start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?))
+                LIMIT 1
+            ");
+            $checkLeave->execute([$emp['id'], $endDate, $startDate, $startDate, $endDate]);
+            $dupLeave = $checkLeave->fetch(\PDO::FETCH_ASSOC);
+            if ($dupLeave) {
+                $dupType = $dupLeave['leave_type'];
+                $dupStart = date('d M Y', strtotime($dupLeave['start_date']));
+                $dupEnd = date('d M Y', strtotime($dupLeave['end_date']));
+                $dupDateStr = ($dupStart === $dupEnd) ? $dupStart : "{$dupStart} to {$dupEnd}";
+                echo json_encode([
+                    'success' => false,
+                    'is_leave_conflict' => true,
+                    'message' => "A leave request ({$dupType}) is already active for {$dupDateStr}. Cannot submit duplicate or overlapping leave applications."
+                ]);
+                exit;
+            }
+        } catch (\Throwable $e) {}
 
         // Handle document attachment upload (PDF / JPEG only, max 5MB)
         $attachmentPath = null;

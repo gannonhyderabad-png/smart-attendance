@@ -36,17 +36,20 @@ class PunchController extends Controller {
         $todayPunches = Attendance::getDayPunches($employee['id'], $today);
         $workedSeconds = Attendance::calculateWorkSeconds($employee['id'], $today);
 
-        // Check if employee has an active leave or OD entry today
+        // Check if employee has an active or pending leave/OD entry today
         $todayLeave = null;
-        $activeLeaves = \App\Models\Leave::all([
-            'employee_id' => $employee['id'],
-            'month_start' => $today,
-            'month_end' => $today,
-            'status' => 'APPROVED'
-        ]);
-        if (!empty($activeLeaves)) {
-            $todayLeave = $activeLeaves[0];
-        }
+        try {
+            $pdo = \Database\Database::getConnection();
+            $stmtLeave = $pdo->prepare("
+                SELECT * FROM leaves 
+                WHERE employee_id = ? 
+                  AND status != 'REJECTED' 
+                  AND (? >= start_date AND ? <= end_date) 
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmtLeave->execute([$employee['id'], $today, $today]);
+            $todayLeave = $stmtLeave->fetch(\PDO::FETCH_ASSOC) ?: null;
+        } catch (\Throwable $e) {}
 
         // Fetch recent leaves submitted by employee (last 5)
         $myLeaves = \App\Models\Leave::all([

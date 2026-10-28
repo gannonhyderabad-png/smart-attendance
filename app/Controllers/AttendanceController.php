@@ -212,6 +212,18 @@ class AttendanceController extends Controller {
             redirect('attendance');
         }
 
+        // Mutual Exclusion: Cannot create punch if leave is active on this date
+        try {
+            $pdo = \Database\Database::getConnection();
+            $checkLeave = $pdo->prepare("SELECT leave_type, status FROM leaves WHERE employee_id = ? AND status != 'REJECTED' AND (? >= start_date AND ? <= end_date) LIMIT 1");
+            $checkLeave->execute([$employeeId, $punchDate, $punchDate]);
+            $activeLeave = $checkLeave->fetch(\PDO::FETCH_ASSOC);
+            if ($activeLeave) {
+                $_SESSION['flash_error'] = "Cannot create manual punch: {$employee['name']} already has {$activeLeave['leave_type']} on {$punchDate}. An employee can have either Punch or Leave on any given date, not both.";
+                redirect('attendance');
+            }
+        } catch (\Throwable $e) {}
+
         // Use employee default project/site if not specified
         if (empty($project)) $project = $employee['project'] ?? 'General';
         if (empty($site)) $site = $employee['site'] ?? 'Office';

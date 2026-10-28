@@ -12,6 +12,18 @@ abstract class Controller {
         $flashError = $_SESSION['flash_error'] ?? null;
         unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
+        // Global Pending Leave Notifications for Admin Layout
+        $pendingLeavesCount = 0;
+        $pendingLeavesList = [];
+        if ($layout === 'admin') {
+            try {
+                $pendingLeavesCount = \App\Models\Leave::getPendingCount();
+                if ($pendingLeavesCount > 0) {
+                    $pendingLeavesList = \App\Models\Leave::getPendingRequests(6);
+                }
+            } catch (\Throwable $e) {}
+        }
+
         $viewFile = __DIR__ . '/../../views/' . str_replace('.', '/', $viewPath) . '.php';
         
         if (!file_exists($viewFile)) {

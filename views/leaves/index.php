@@ -1551,7 +1551,13 @@ function syncHeadEmail(val) {
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="text-muted small"><?= e($dept['head_email'] ?: '—') ?></span>
+                                        <?php if (!empty($dept['head_email'])): ?>
+                                            <span class="badge bg-light text-primary border font-monospace">
+                                                <i class="fa-regular fa-envelope me-1"></i><?= e($dept['head_email']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted small fst-italic"><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>No email set</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-end">
                                         <div class="d-inline-flex align-items-center gap-1">
@@ -1634,8 +1640,11 @@ function syncHeadEmail(val) {
                     </datalist>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-dark mb-1">Authority Official Email</label>
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-envelope text-primary me-1"></i> Authority Official Notification Email
+                        </label>
                         <input type="email" name="head_email" id="editDeptHeadEmail" class="form-control rounded-3" placeholder="e.g. rajesh.hod@company.com">
+                        <div class="form-text small text-muted">When staff apply for leave or OD, email notifications will be delivered directly to this mail ID for Step 1 approval.</div>
                     </div>
 
                     <div class="alert alert-light border small text-muted rounded-3 mb-0">

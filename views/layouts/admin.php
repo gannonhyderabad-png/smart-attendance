@@ -47,8 +47,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="<?= base_url('leaves') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                    <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                        <div>
+                            <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                        </div>
+                        <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                            <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 
@@ -114,6 +119,64 @@
                     </button>
                     <div class="d-flex align-items-center">
                         <h5 class="mb-0 fw-bold text-dark"><?= e($title ?? 'Dashboard') ?></h5>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 ms-auto">
+                        <!-- Notification Bell Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-light rounded-circle position-relative p-2" type="button" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: 40px; height: 40px;" title="Leave Approvals & Notifications">
+                                <i class="fa-solid fa-bell <?= !empty($pendingLeavesCount) ? 'text-warning' : 'text-secondary' ?> fs-5"></i>
+                                <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white" style="font-size: 0.65rem;">
+                                        <?= $pendingLeavesCount ?>
+                                        <span class="visually-hidden">unread notifications</span>
+                                    </span>
+                                <?php endif; ?>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0 mt-2" aria-labelledby="notifDropdown" style="width: 340px; max-width: 90vw; overflow: hidden;">
+                                <li class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold small text-dark"><i class="fa-solid fa-bell me-1 text-primary"></i> Notifications</span>
+                                    <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
+                                            <?= $pendingLeavesCount ?> Action Required
+                                        </span>
+                                    <?php endif; ?>
+                                </li>
+                                <li>
+                                    <div class="p-2" style="max-height: 320px; overflow-y: auto;">
+                                        <?php if (empty($pendingLeavesList)): ?>
+                                            <div class="text-center py-4 text-muted small">
+                                                <i class="fa-regular fa-bell-slash fs-4 d-block mb-2 text-secondary opacity-50"></i>
+                                                All caught up! No pending leave approvals.
+                                            </div>
+                                        <?php else: ?>
+                                            <?php foreach ($pendingLeavesList as $pnl): 
+                                                $pStep = (int)($pnl['approval_step'] ?? 1);
+                                                $stepText = ($pStep === 1) ? 'Step 1: Dept Head Review' : (($pStep === 2) ? 'Step 2: HR Quota Audit' : 'Step 3: Management Sign-off');
+                                                $stepBadge = ($pStep === 1) ? 'bg-warning text-dark' : (($pStep === 2) ? 'bg-primary text-white' : 'bg-dark text-white');
+                                            ?>
+                                                <a href="<?= base_url('leaves') ?>" class="dropdown-item p-2 rounded-3 text-wrap mb-1 d-flex gap-2 align-items-start" style="border: 1px solid #f1f5f9;">
+                                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                                        <?= strtoupper(substr($pnl['employee_name'] ?? 'E', 0, 2)) ?>
+                                                    </div>
+                                                    <div class="flex-grow-1" style="font-size: 0.78rem;">
+                                                        <div class="fw-bold text-dark"><?= e($pnl['employee_name']) ?> <small class="text-muted font-monospace">(<?= e($pnl['employee_code']) ?>)</small></div>
+                                                        <div class="text-secondary"><?= e($pnl['leave_type']) ?> &bull; <strong><?= $pnl['days_count'] ?> d</strong></div>
+                                                        <div class="mt-1">
+                                                            <span class="badge <?= $stepBadge ?> rounded-pill" style="font-size: 0.65rem;"><?= $stepText ?></span>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </li>
+                                <li class="border-top p-2 bg-light text-center">
+                                    <a href="<?= base_url('leaves') ?>" class="btn btn-sm btn-primary rounded-pill w-100 py-1 fw-semibold" style="font-size: 0.75rem;">
+                                        Open Leave Management &rarr;
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </header>

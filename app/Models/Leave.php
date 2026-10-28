@@ -9,8 +9,8 @@ class Leave extends Model {
 
     public static function all(array $conditions = [], string $orderBy = 'l.start_date DESC'): array {
         $pdo = self::db();
-        $sql = "SELECT l.*, e.name as employee_name, e.employee_code, e.department_id, e.project, e.site, 
-                       d.name as department_name, d.head_name as department_head,
+        $sql = "SELECT l.*, e.name as employee_name, e.employee_code, e.department_id, e.project, e.site, e.email as employee_email, 
+                       d.name as department_name, d.head_name as department_head, d.head_email as department_head_email, d.head_email as department_head_email,
                        u.name as approver_name, u.role as approver_role
                 FROM " . static::$table . " l
                 JOIN employees e ON l.employee_id = e.id
@@ -57,8 +57,8 @@ class Leave extends Model {
 
     public static function find(int $id): ?array {
         $pdo = self::db();
-        $stmt = $pdo->prepare("SELECT l.*, e.name as employee_name, e.employee_code, e.department_id,
-                                      d.name as department_name, d.head_name as department_head,
+        $stmt = $pdo->prepare("SELECT l.*, e.name as employee_name, e.employee_code, e.department_id, e.email as employee_email,
+                                      d.name as department_name, d.head_name as department_head, d.head_email as department_head_email,
                                       u.name as approver_name, u.role as approver_role
                                FROM " . static::$table . " l 
                                JOIN employees e ON l.employee_id = e.id 
@@ -68,6 +68,42 @@ class Leave extends Model {
         $stmt->execute([$id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    /**
+     * Get count of pending leave requests
+     */
+    public static function getPendingCount(): int {
+        $pdo = self::db();
+        return (int) $pdo->query("SELECT COUNT(*) FROM " . static::$table . " WHERE status = 'PENDING' OR status LIKE 'PENDING_%'")->fetchColumn();
+    }
+
+    /**
+     * Get recent pending leave requests
+     */
+    public static function getPendingRequests(int $limit = 5): array {
+        return self::all(['status' => 'PENDING'], "l.id DESC LIMIT {$limit}");
+    }
+
+    /**
+     * Get breakdown of pending leave requests by step
+     */
+    public static function getPendingBreakdown(): array {
+        $pdo = self::db();
+        $rows = $pdo->query("SELECT status, approval_step, COUNT(*) as cnt FROM " . static::$table . " WHERE status = 'PENDING' OR status LIKE 'PENDING_%' GROUP BY status, approval_step")->fetchAll(PDO::FETCH_ASSOC);
+        $res = ['step1' => 0, 'step2' => 0, 'step3' => 0, 'total' => 0];
+        foreach ($rows as $r) {
+            $step = (int)($r['approval_step'] ?? 1);
+            if ($step <= 1 || $r['status'] === 'PENDING_LEVEL_1') {
+                $res['step1'] += (int)$r['cnt'];
+            } elseif ($step === 2 || $r['status'] === 'PENDING_LEVEL_2') {
+                $res['step2'] += (int)$r['cnt'];
+            } elseif ($step === 3 || $r['status'] === 'PENDING_LEVEL_3') {
+                $res['step3'] += (int)$r['cnt'];
+            }
+            $res['total'] += (int)$r['cnt'];
+        }
+        return $res;
     }
 
     /**

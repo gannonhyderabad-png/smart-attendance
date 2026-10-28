@@ -51,6 +51,42 @@ $departments = $departments ?? [];
 
 <div id="dashboardLiveContent">
 
+<?php 
+$pendingBreakdown = ['step1' => 0, 'step2' => 0, 'step3' => 0, 'total' => 0];
+try {
+    $pendingBreakdown = \App\Models\Leave::getPendingBreakdown();
+} catch (\Throwable $e) {}
+?>
+
+<?php if ($pendingBreakdown['total'] > 0): ?>
+    <div class="alert alert-primary bg-primary-subtle border-0 rounded-4 shadow-sm p-3 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm flex-shrink-0" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                <i class="fa-solid fa-bell fa-shake"></i>
+            </div>
+            <div>
+                <div class="fw-bold text-dark fs-6 mb-1">
+                    <?= $pendingBreakdown['total'] ?> Leave & OD Request(s) Awaiting Review
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 small">
+                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1">
+                        <i class="fa-solid fa-hourglass-half me-1"></i> Step 1 (Dept Head): <?= $pendingBreakdown['step1'] ?>
+                    </span>
+                    <span class="badge bg-info text-white rounded-pill px-2 py-1">
+                        <i class="fa-solid fa-spinner fa-spin me-1"></i> Step 2 (HR Quota): <?= $pendingBreakdown['step2'] ?>
+                    </span>
+                    <span class="badge bg-dark text-white rounded-pill px-2 py-1">
+                        <i class="fa-solid fa-stamp me-1"></i> Step 3 (Management): <?= $pendingBreakdown['step3'] ?>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <a href="<?= base_url('leaves') ?>" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm" style="font-size: 0.85rem;">
+            Review Leave Approvals <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+    </div>
+<?php endif; ?>
+
 <?php if (!empty($stats['no_out_count']) && $stats['no_out_count'] > 0): ?>
     <div class="alert alert-warning border-0 rounded-4 shadow-sm py-2 px-3 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div class="d-flex align-items-center">

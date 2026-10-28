@@ -288,6 +288,7 @@ class LeaveController extends Controller {
 
             Logger::log($userId, 'LEAVE_DIRECT_APPROVED', "Directly approved all steps for leave #{$id} ({$leave['employee_name']})");
             $_SESSION['flash_success'] = "Leave for {$leave['employee_name']} has been Direct Approved (All 3 Steps Cleared)!";
+            try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
         } else {
             $currentStep = (int) ($leave['approval_step'] ?? 1);
             if ($currentStep <= 1) {
@@ -303,6 +304,7 @@ class LeaveController extends Controller {
 
                 Logger::log($userId, 'LEAVE_STEP1_APPROVED', "Department Head ({$userName}) approved Step 1 for leave #{$id} ({$leave['employee_name']}). Now forwarded to HR.");
                 $_SESSION['flash_success'] = "✓ Step 1 Approved by Department Head ({$userName})! Request forwarded to Step 2: HR Review.";
+                try { \App\Services\MailService::sendStepApproved($leave, 1, $userName); } catch (\Throwable $e) {}
             } elseif ($currentStep === 2) {
                 // Step 2: HR Manager Approval -> Moves to Step 3 (Final Management)
                 $stmt = $pdo->prepare("UPDATE leaves SET 
@@ -316,6 +318,7 @@ class LeaveController extends Controller {
 
                 Logger::log($userId, 'LEAVE_STEP2_APPROVED', "HR ({$userName}) approved Step 2 for leave #{$id} ({$leave['employee_name']}). Now forwarded to Management.");
                 $_SESSION['flash_success'] = "✓ Step 2 Approved by HR ({$userName})! Request forwarded to Step 3: Final Management Sign-off.";
+                try { \App\Services\MailService::sendStepApproved($leave, 2, $userName); } catch (\Throwable $e) {}
             } else {
                 // Step 3: Final Management Sign-off -> Status becomes fully APPROVED
                 $stmt = $pdo->prepare("UPDATE leaves SET 
@@ -331,6 +334,7 @@ class LeaveController extends Controller {
 
                 Logger::log($userId, 'LEAVE_STEP3_APPROVED', "Final Authority ({$userName}) approved Step 3 for leave #{$id} ({$leave['employee_name']}). Fully Approved.");
                 $_SESSION['flash_success'] = "✓ Final Step 3 Approved! Leave request for {$leave['employee_name']} is now Fully Approved and recorded.";
+                try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
             }
         }
         redirect('leaves');
@@ -365,6 +369,7 @@ class LeaveController extends Controller {
 
                 Logger::log($userId, 'LEAVE_REJECTED', "Rejected leave #{$id} at Step {$currentStep} for {$leave['employee_name']}: {$rejectReason}");
                 $_SESSION['flash_error'] = "Leave request for {$leave['employee_name']} has been Rejected at Step {$currentStep}.";
+                try { \App\Services\MailService::sendLeaveDecision($leave, 'REJECTED', Auth::user()['name'] ?? 'Admin', $rejectReason); } catch (\Throwable $e) {}
             }
         }
         redirect('leaves');
@@ -426,6 +431,16 @@ class LeaveController extends Controller {
             } catch (\Throwable $e) {}
 
             Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}. Level 1 approval pending.");
+
+            // Dispatch Email Notification to Department Head & HR
+            try {
+                $fullLeave = Leave::find($leaveId);
+                if ($fullLeave) {
+                    \App\Services\MailService::sendLeaveApplied($fullLeave);
+                }
+            } catch (\Throwable $e) {
+                Logger::log(null, 'MAIL_DISPATCH_FAIL', 'Failed to dispatch leave applied email: ' . $e->getMessage());
+            }
 
             echo json_encode([
                 'success' => true,

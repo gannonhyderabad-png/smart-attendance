@@ -13,6 +13,10 @@ class DeviceController extends Controller {
 
     public function index(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         $devices = Device::all();
         $logs = Device::recentLogs(30);
 
@@ -25,6 +29,10 @@ class DeviceController extends Controller {
 
     public function store(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $sn = strtoupper(trim((string)Request::input('serial_number', '')));
@@ -58,6 +66,10 @@ class DeviceController extends Controller {
 
     public function update(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
@@ -84,6 +96,10 @@ class DeviceController extends Controller {
 
     public function delete(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);

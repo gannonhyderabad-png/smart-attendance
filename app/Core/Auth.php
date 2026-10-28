@@ -92,4 +92,25 @@ class Auth {
             redirect('login');
         }
     }
+
+    public static function role(): string {
+        self::init();
+        return $_SESSION['user_role'] ?? 'admin';
+    }
+
+    public static function isRestricted(): bool {
+        $role = self::role();
+        return in_array($role, ['hr', 'account']);
+    }
+
+    public static function canAccess(string $page): bool {
+        $role = self::role();
+        if ($role === 'admin' || $role === 'superadmin') {
+            return true;
+        }
+        if ($role === 'hr' || $role === 'account') {
+            return in_array($page, ['leaves', 'employees', 'profile', 'logout']);
+        }
+        return false;
+    }
 }

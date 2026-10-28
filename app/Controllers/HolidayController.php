@@ -12,6 +12,10 @@ use App\Models\Holiday;
 class HolidayController extends Controller {
     public function index(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $selectedYear = Request::input('year', date('Y'));
         $holidays = Holiday::all([], 'holiday_date ASC');
@@ -34,6 +38,10 @@ class HolidayController extends Controller {
 
     public function store(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $title = trim(Request::input('title', ''));
@@ -70,6 +78,10 @@ class HolidayController extends Controller {
 
     public function update(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
@@ -100,6 +112,10 @@ class HolidayController extends Controller {
 
     public function delete(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);

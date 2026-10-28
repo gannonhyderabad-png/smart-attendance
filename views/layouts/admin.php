@@ -17,79 +17,106 @@
 </head>
 <body class="bg-body-tertiary">
     <div class="wrapper d-flex">
+<?php
+$userRole = $_SESSION['user_role'] ?? 'admin';
+$isRestricted = in_array($userRole, ['hr', 'account']);
+$homeUrl = $isRestricted ? base_url('leaves') : base_url('dashboard');
+$portalBadge = ($userRole === 'hr') ? 'HR PORTAL' : (($userRole === 'account') ? 'ACCOUNTS PORTAL' : 'ADMIN v2.0');
+$portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' : (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 'bg-primary-subtle text-primary border-primary-subtle');
+?>
         <!-- Sidebar Navigation -->
         <nav id="sidebar" class="sidebar bg-dark text-white d-flex flex-column flex-shrink-0 p-3">
-            <a href="<?= base_url('dashboard') ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none px-2 py-2">
+            <a href="<?= $homeUrl ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none px-2 py-2">
                 <div class="sidebar-brand-icon me-2 text-primary fs-3">
                     <i class="fa-solid fa-fingerprint"></i>
                 </div>
                 <div class="sidebar-brand-text">
                     <span class="fs-5 fw-bold tracking-tight">Smart<span class="text-primary">Punch</span></span>
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-block font-monospace" style="font-size: 0.65rem;">ADMIN v2.0</span>
+                    <span class="badge <?= $portalBadgeClass ?> border d-block font-monospace" style="font-size: 0.65rem;"><?= $portalBadge ?></span>
                 </div>
             </a>
             <hr class="text-secondary my-3">
 
             <ul class="nav nav-pills flex-column mb-auto gap-1">
-                <li class="nav-item">
-                    <a href="<?= base_url('dashboard') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'dashboard') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-gauge-high me-2 fa-fw"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-users me-2 fa-fw"></i> Employees
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('attendance') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'attendance') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-calendar-check me-2 fa-fw"></i> Attendance Logs
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
-                        <div>
-                            <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
-                        </div>
-                        <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
-                            <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-                
-                <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">Reports & Analytics</li>
-                <li class="nav-item">
-                    <a href="<?= base_url('reports') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-chart-column me-2 fa-fw text-info"></i> Attendance Reports
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('holidays') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'holidays') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-calendar-star me-2 fa-fw text-warning"></i> Public Holidays
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('devices') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'devices') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-fingerprint me-2 fa-fw text-info"></i> FRM Devices (eSSL/ZKT)
-                    </a>
-                </li>
+                <?php if ($isRestricted): ?>
+                    <!-- Restricted Sidebar: Only Leave Management & Employees -->
+                    <li class="nav-item">
+                        <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                            <div>
+                                <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Approvals
+                            </div>
+                            <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-users me-2 fa-fw text-info"></i> Employee Directory
+                        </a>
+                    </li>
+                <?php else: ?>
+                    <!-- Full Administrator Sidebar -->
+                    <li class="nav-item">
+                        <a href="<?= base_url('dashboard') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'dashboard') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-gauge-high me-2 fa-fw"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-users me-2 fa-fw"></i> Employees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('attendance') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'attendance') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-calendar-check me-2 fa-fw"></i> Attendance Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                            <div>
+                                <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                            </div>
+                            <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">Reports & Analytics</li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('reports') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-chart-column me-2 fa-fw text-info"></i> Attendance Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('holidays') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'holidays') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-calendar-star me-2 fa-fw text-warning"></i> Public Holidays
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('devices') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'devices') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-fingerprint me-2 fa-fw text-info"></i> FRM Devices (eSSL/ZKT)
+                        </a>
+                    </li>
 
-                <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">System</li>
-                <li class="nav-item">
-                    <a href="<?= base_url('logs') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'logs') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-shield-halved me-2 fa-fw"></i> Activity Logs
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('profile') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'profile') ? 'active' : 'text-white-50' ?>">
-                        <i class="fa-solid fa-user-gear me-2 fa-fw"></i> Admin Settings
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="<?= base_url('backup/download') ?>" class="nav-link text-white-50">
-                        <i class="fa-solid fa-cloud-arrow-down me-2 fa-fw text-success"></i> Backup Data & Photos
-                    </a>
-                </li>
+                    <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">System</li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('logs') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'logs') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-shield-halved me-2 fa-fw"></i> Activity Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('profile') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'profile') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-user-gear me-2 fa-fw"></i> Admin Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('backup/download') ?>" class="nav-link text-white-50">
+                            <i class="fa-solid fa-cloud-arrow-down me-2 fa-fw text-success"></i> Backup Data & Photos
+                        </a>
+                    </li>
+                <?php endif; ?>
             </ul>
 
             <hr class="text-secondary">
@@ -99,8 +126,17 @@
                         <i class="fa-solid fa-user-tie"></i>
                     </div>
                     <div class="user-info">
-                        <div class="fw-semibold text-white small text-truncate" style="max-width: 110px;"><?= e($user['name'] ?? 'Admin') ?></div>
+                        <div class="fw-semibold text-white small text-truncate" style="max-width: 120px;"><?= e($user['name'] ?? 'Admin') ?></div>
                         <div class="text-muted small text-truncate" style="font-size: 0.7rem;"><?= e($user['email'] ?? '') ?></div>
+                        <div class="mt-1">
+                            <?php if ($userRole === 'hr'): ?>
+                                <span class="badge bg-info text-white" style="font-size: 0.6rem;">HR Reviewer</span>
+                            <?php elseif ($userRole === 'account'): ?>
+                                <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">Accounts Reviewer</span>
+                            <?php else: ?>
+                                <span class="badge bg-primary text-white" style="font-size: 0.6rem;">Super Admin</span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
                 <a href="<?= base_url('logout') ?>" class="btn btn-outline-danger btn-sm" title="Logout">

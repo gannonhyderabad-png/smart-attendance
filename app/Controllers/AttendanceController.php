@@ -16,6 +16,10 @@ use App\Models\Holiday;
 class AttendanceController extends Controller {
     public function index(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $filters = [
             'employee_id' => Request::input('employee_id', ''),
@@ -59,6 +63,10 @@ class AttendanceController extends Controller {
 
     public function exportCsv(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $filters = [
             'employee_id' => Request::input('employee_id', ''),
@@ -104,6 +112,10 @@ class AttendanceController extends Controller {
 
     public function manualStore(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $entryType = trim(Request::input('entry_type', 'punch'));
@@ -256,6 +268,10 @@ class AttendanceController extends Controller {
 
     public function delete(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
@@ -287,6 +303,10 @@ class AttendanceController extends Controller {
      */
     public function employeeSummary(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         header('Content-Type: application/json');
 
         $employeeId = (int) Request::input('employee_id', 0);
@@ -354,6 +374,10 @@ class AttendanceController extends Controller {
 
     public function reassign(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $punchId = (int) Request::input('punch_id', 0);

@@ -12,6 +12,10 @@ class DashboardController extends Controller {
     public function index(): void {
         Auth::requireAuth();
 
+        if (Auth::isRestricted()) {
+            redirect('leaves');
+        }
+
         $stats = Attendance::getDashboardStats();
         $departments = Department::all();
 

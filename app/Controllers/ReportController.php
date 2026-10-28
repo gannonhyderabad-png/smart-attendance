@@ -17,6 +17,10 @@ class ReportController extends Controller {
      */
     public function index(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $reportType = Request::input('report_type', 'daily');
         $date = Request::input('date', date('Y-m-d'));
@@ -132,6 +136,10 @@ class ReportController extends Controller {
      */
     public function export(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $type = Request::input('type', 'daily');
         $format = Request::input('format', 'excel'); // 'excel' or 'csv'

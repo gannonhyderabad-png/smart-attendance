@@ -14,6 +14,10 @@ class BackupController extends Controller {
      */
     public function download(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $zipFileName = 'smart_attendance_backup_' . date('Y-m-d_H-i-s') . '.zip';
         $tempZipPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $zipFileName;
@@ -112,6 +116,10 @@ class BackupController extends Controller {
      */
     public function restore(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         if (empty($_FILES['backup_file']['tmp_name']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
             $this->setFlash('error', 'Please select a valid backup (.zip) file to upload and restore.');
@@ -198,6 +206,10 @@ class BackupController extends Controller {
      */
     public function cleanOldPhotos(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
         $days = (int) \App\Core\Request::input('days', 60);
         if ($days < 7) $days = 7;
 

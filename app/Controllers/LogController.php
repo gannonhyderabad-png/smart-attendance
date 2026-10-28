@@ -10,6 +10,10 @@ use App\Models\ActivityLog;
 class LogController extends Controller {
     public function index(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
+            redirect('leaves');
+        }
 
         $page = max(1, (int) Request::input('page', 1));
         $limit = 50;

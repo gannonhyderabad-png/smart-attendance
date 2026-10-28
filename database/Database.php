@@ -126,7 +126,59 @@ class Database {
             self::migrateMysql($pdo);
         }
 
+        self::seedDefaultLogins($pdo);
         $hasMigratedInProcess = true;
+    }
+
+    /**
+     * Ensure dedicated role logins exist: admin, hr, account
+     */
+    public static function seedDefaultLogins(PDO $pdo): void {
+        try { $pdo->exec("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'admin';"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50);"); } catch (\Throwable $e) {}
+
+        $defaultUsers = [
+            [
+                'email' => 'admin@attendance.local',
+                'name' => 'System Administrator',
+                'role' => 'admin',
+                'password' => 'admin123'
+            ],
+            [
+                'email' => 'admin@attendance.com',
+                'name' => 'System Administrator',
+                'role' => 'admin',
+                'password' => 'admin123'
+            ],
+            [
+                'email' => 'hr@attendance.local',
+                'name' => 'HR Manager',
+                'role' => 'hr',
+                'password' => 'admin123'
+            ],
+            [
+                'email' => 'account@attendance.local',
+                'name' => 'Accounts Approver',
+                'role' => 'account',
+                'password' => 'admin123'
+            ]
+        ];
+
+        foreach ($defaultUsers as $u) {
+            try {
+                $check = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                $check->execute([$u['email']]);
+                $id = $check->fetchColumn();
+                if (!$id) {
+                    $hash = password_hash($u['password'], PASSWORD_BCRYPT);
+                    $ins = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'active')");
+                    $ins->execute([$u['name'], $u['email'], $hash, $u['role']]);
+                } else {
+                    $upd = $pdo->prepare("UPDATE users SET role = ?, status = 'active' WHERE id = ?");
+                    $upd->execute([$u['role'], $id]);
+                }
+            } catch (\Throwable $e) {}
+        }
     }
 
     private static function migrateMysql(PDO $pdo): void {

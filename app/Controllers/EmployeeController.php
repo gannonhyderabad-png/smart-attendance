@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Controllers;
 
@@ -78,6 +78,10 @@ class EmployeeController extends Controller {
 
     public function store(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $this->setFlash('error', 'Access restricted: Your login cannot add or modify employee records.');
+            redirect('employees');
+        }
 
         if (!Csrf::validate(Request::input('_csrf_token'))) {
             $this->setFlash('error', 'Invalid security token.');
@@ -169,6 +173,10 @@ class EmployeeController extends Controller {
 
     public function update(string $id): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $this->setFlash('error', 'Access restricted: Your login cannot modify employee records.');
+            redirect('employees');
+        }
 
         if (!Csrf::validate(Request::input('_csrf_token'))) {
             $this->setFlash('error', 'Invalid security token.');
@@ -274,6 +282,10 @@ class EmployeeController extends Controller {
      */
     public function delete(string $id): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $this->setFlash('error', 'Access restricted: Your login cannot delete employee records.');
+            redirect('employees');
+        }
 
         $empId = (int) $id;
         $employee = Employee::find($empId);
@@ -291,6 +303,10 @@ class EmployeeController extends Controller {
      */
     public function restore(string $id): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $this->setFlash('error', 'Access restricted: Your login cannot restore employee records.');
+            redirect('employees');
+        }
 
         $empId = (int) $id;
         $employee = Employee::find($empId);
@@ -308,6 +324,10 @@ class EmployeeController extends Controller {
      */
     public function forceDelete(string $id): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $this->setFlash('error', 'Access restricted: Your login cannot delete employee records.');
+            redirect('employees');
+        }
 
         $empId = (int) $id;
         $employee = Employee::find($empId);
@@ -325,6 +345,10 @@ class EmployeeController extends Controller {
      */
     public function emptyTrash(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $this->setFlash('error', 'Access restricted: Your login cannot perform this action.');
+            redirect('employees');
+        }
 
         $count = Employee::emptyTrash();
         Logger::log(Auth::id(), 'TRASH_EMPTIED', "Emptied Recycle Bin, purged {$count} employee record(s)");
@@ -333,3 +357,5 @@ class EmployeeController extends Controller {
         redirect('employees');
     }
 }
+
+

@@ -1,4 +1,4 @@
-<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+﻿<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-body p-4">
         
         <!-- Action Header & Tabs -->
@@ -22,9 +22,11 @@
                         <i class="fa-solid fa-arrow-left me-1"></i> Back to Staff Directory
                     </a>
                 <?php else: ?>
+                    <?php if (!\App\Core\Auth::isRestricted()): ?>
                     <a href="<?= base_url('employees/create') ?>" class="btn btn-primary rounded-pill px-3 shadow-sm">
                         <i class="fa-solid fa-user-plus me-1"></i> Add New Employee
                     </a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -208,7 +210,7 @@
                                         </span>
                                     <?php endif; ?>
                                     <?php if (empty($emp['project']) && empty($emp['site'])): ?>
-                                        <span class="text-muted small">—</span>
+                                        <span class="text-muted small">â€”</span>
                                     <?php endif; ?>
                                 </td>
 
@@ -264,12 +266,14 @@
                                             <a href="<?= base_url('employees/view/' . $emp['id']) ?>" class="btn btn-light border text-primary" title="View Profile & Full QR Card">
                                                 <i class="fa-solid fa-id-card me-1"></i> Details
                                             </a>
+                                            <?php if (!\App\Core\Auth::isRestricted()): ?>
                                             <a href="<?= base_url('employees/edit/' . $emp['id']) ?>" class="btn btn-light border text-secondary" title="Edit Employee">
                                                 <i class="fa-solid fa-pen-to-square"></i>
                                             </a>
                                             <a href="<?= base_url('employees/delete/' . $emp['id']) ?>" class="btn btn-light border text-danger" onclick="return confirm('Move <?= e($emp['name']) ?> to Recycle Bin?')" title="Move to Recycle Bin">
                                                 <i class="fa-regular fa-trash-can"></i>
                                             </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 <?php endif; ?>
@@ -337,3 +341,4 @@ function showEmployeeQr(punchUrl, name, code) {
     modal.show();
 }
 </script>
+

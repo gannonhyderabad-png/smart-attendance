@@ -6,15 +6,18 @@
         <p class="text-muted small mb-0">Record and manage approved leaves, sick days, on-duty visits, and custom time-offs for employees.</p>
     </div>
     <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end">
+        <?php $hdrRole = $_SESSION['user_role'] ?? 'admin'; ?>
         <button type="button" class="btn btn-outline-info rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#deptAuthoritiesModal">
             <i class="fa-solid fa-user-shield me-1"></i> Department Authorities
         </button>
+        <?php if (!in_array($hdrRole, ['hr', 'account'])): ?>
         <button type="button" class="btn btn-outline-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#editCompanyQuotaModal">
             <i class="fa-solid fa-sliders me-1"></i> Edit Company Leave Quota
         </button>
         <button type="button" class="btn btn-primary rounded-pill shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addLeaveModal">
             <i class="fa-solid fa-plus me-1"></i> Add Leave Entry
         </button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -196,30 +199,47 @@
                                     <span class="text-muted small"><?= date('d M, h:i A', strtotime($pl['created_at'])) ?></span>
                                 </td>
                                 <td class="text-end pe-4">
+                                    <?php
+                                        $pendingUserRole = $_SESSION['user_role'] ?? 'admin';
+                                        $canActStep1 = in_array($pendingUserRole, ['admin', 'superadmin', 'account']);
+                                        $canActStep2 = in_array($pendingUserRole, ['admin', 'superadmin', 'hr']);
+                                        $canActStep3 = in_array($pendingUserRole, ['admin', 'superadmin']);
+                                        $canDirect   = in_array($pendingUserRole, ['admin', 'superadmin']);
+                                        $stepAllowed = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
+                                    ?>
                                     <div class="d-inline-flex align-items-center gap-1">
+                                        <?php if ($stepAllowed): ?>
                                         <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="id" value="<?= $pl['id'] ?>">
-                                            
-                                            <?php if ($step === 1): ?>
-                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Head)">
+                                            <?php if ($step === 1 && $canActStep1): ?>
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Head / Accounts)">
                                                     <i class="fa-solid fa-check me-1"></i> Step 1: Approve as HOD
                                                 </button>
-                                            <?php elseif ($step === 2): ?>
+                                            <?php elseif ($step === 2 && $canActStep2): ?>
                                                 <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 2 (HR Manager Review)">
                                                     <i class="fa-solid fa-check-double me-1"></i> Step 2: Approve as HR
                                                 </button>
-                                            <?php else: ?>
+                                            <?php elseif ($step >= 3 && $canActStep3): ?>
                                                 <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 3 (Final Management Sign-off)">
                                                     <i class="fa-solid fa-stamp me-1"></i> Step 3: Final Sign-off
                                                 </button>
                                             <?php endif; ?>
-
+                                            <?php if ($canDirect): ?>
                                             <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 ms-1" title="Fast-Track: Direct Approve All 3 Steps (Super Admin)" onclick="return confirm('Fast-track and directly approve all 3 steps for <?= addslashes($pl['employee_name'] ?? '') ?>?');">
                                                 <i class="fa-solid fa-bolt"></i> Direct
                                             </button>
+                                            <?php endif; ?>
                                         </form>
-
+                                        <?php else: ?>
+                                            <?php if ($step === 1 && !$canActStep1): ?>
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1 small"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HOD</span>
+                                            <?php elseif ($step === 2 && !$canActStep2): ?>
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1 small"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HR</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-dark-subtle text-dark border rounded-pill px-2 py-1 small"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Mgmt</span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                         <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')" title="Reject Request">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>
@@ -633,27 +653,45 @@
                                         $isPending = str_starts_with($st, 'PENDING');
                                         if ($isPending): 
                                             $currStep = (int)($lv['approval_step'] ?? 1);
+                                            $tblUserRole = $_SESSION['user_role'] ?? 'admin';
+                                            $tblCanStep1 = in_array($tblUserRole, ['admin', 'superadmin', 'account']);
+                                            $tblCanStep2 = in_array($tblUserRole, ['admin', 'superadmin', 'hr']);
+                                            $tblCanStep3 = in_array($tblUserRole, ['admin', 'superadmin']);
+                                            $tblCanDirect = in_array($tblUserRole, ['admin', 'superadmin']);
+                                            $tblStepAllowed = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
                                     ?>
+                                        <?php if ($tblStepAllowed): ?>
                                         <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="id" value="<?= $lv['id'] ?>">
-                                            <?php if ($currStep === 1): ?>
-                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Head)">
+                                            <?php if ($currStep === 1 && $tblCanStep1): ?>
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Head / Accounts)">
                                                     <i class="fa-solid fa-check me-1"></i> Step 1
                                                 </button>
-                                            <?php elseif ($currStep === 2): ?>
+                                            <?php elseif ($currStep === 2 && $tblCanStep2): ?>
                                                 <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR Review)">
                                                     <i class="fa-solid fa-check-double me-1"></i> Step 2
                                                 </button>
-                                            <?php else: ?>
+                                            <?php elseif ($currStep >= 3 && $tblCanStep3): ?>
                                                 <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (Management Sign-off)">
                                                     <i class="fa-solid fa-stamp me-1"></i> Step 3
                                                 </button>
                                             <?php endif; ?>
+                                            <?php if ($tblCanDirect): ?>
                                             <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" title="Direct Approve (All Steps)" onclick="return confirm('Directly approve all 3 steps?');">
                                                 <i class="fa-solid fa-bolt"></i>
                                             </button>
+                                            <?php endif; ?>
                                         </form>
+                                        <?php else: ?>
+                                            <?php if ($currStep === 1 && !$tblCanStep1): ?>
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1" style="font-size:0.65rem;"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HOD</span>
+                                            <?php elseif ($currStep === 2 && !$tblCanStep2): ?>
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1" style="font-size:0.65rem;"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HR</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-dark-subtle text-dark border rounded-pill px-2 py-1" style="font-size:0.65rem;"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Mgmt</span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                         <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $lv['id'] ?>, '<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lv['leave_type'] ?? '') ?>')" title="Reject Leave">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>

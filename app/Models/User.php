@@ -17,6 +17,43 @@ class User extends Model {
         return $stmt->fetch() ?: null;
     }
 
+    public static function all(): array {
+        $stmt = self::db()->query("SELECT id, name, email, role, status, last_login, created_at FROM users ORDER BY id ASC");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public static function create(array $data): int {
+        $hash = password_hash($data['password'], PASSWORD_BCRYPT);
+        $role = $data['role'] ?? 'account';
+        $status = $data['status'] ?? 'active';
+        $stmt = self::db()->prepare("INSERT INTO users (name, email, password_hash, role, status, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+        $stmt->execute([$data['name'], $data['email'], $hash, $role, $status]);
+        return (int) self::db()->lastInsertId();
+    }
+
+    public static function updateUser(int $id, array $data): bool {
+        $fields = [];
+        $params = [];
+        if (isset($data['name'])) { $fields[] = "name = ?"; $params[] = $data['name']; }
+        if (isset($data['email'])) { $fields[] = "email = ?"; $params[] = $data['email']; }
+        if (isset($data['role'])) { $fields[] = "role = ?"; $params[] = $data['role']; }
+        if (isset($data['status'])) { $fields[] = "status = ?"; $params[] = $data['status']; }
+        if (!empty($data['password'])) {
+            $fields[] = "password_hash = ?";
+            $params[] = password_hash($data['password'], PASSWORD_BCRYPT);
+        }
+        if (empty($fields)) return true;
+        $params[] = $id;
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
+        $stmt = self::db()->prepare($sql);
+        return $stmt->execute($params);
+    }
+
+    public static function delete(int $id): bool {
+        $stmt = self::db()->prepare("DELETE FROM users WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
     public static function updatePassword(int $id, string $newPassword): bool {
         $hash = password_hash($newPassword, PASSWORD_BCRYPT);
         $stmt = self::db()->prepare("UPDATE users SET password_hash = ? WHERE id = ?");

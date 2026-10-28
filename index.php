@@ -427,6 +427,9 @@ $router->post('/devices/delete', [\App\Controllers\DeviceController::class, 'del
 $router->get('/logs', [\App\Controllers\LogController::class, 'index']);
 $router->get('/profile', [\App\Controllers\AuthController::class, 'profile']);
 $router->post('/profile/update', [\App\Controllers\AuthController::class, 'updateProfile']);
+$router->post('/users/create', [\App\Controllers\AuthController::class, 'createUser']);
+$router->post('/users/update', [\App\Controllers\AuthController::class, 'updateUser']);
+$router->post('/users/delete', [\App\Controllers\AuthController::class, 'deleteUser']);
 $router->get('/backup/download', [\App\Controllers\BackupController::class, 'download']);
 $router->post('/backup/restore', [\App\Controllers\BackupController::class, 'restore']);
 $router->post('/backup/clean-photos', [\App\Controllers\BackupController::class, 'cleanOldPhotos']);

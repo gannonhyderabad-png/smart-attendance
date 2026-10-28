@@ -195,19 +195,39 @@
                                     <td>
                                         <?php if ($u['role'] === 'admin' || $u['role'] === 'superadmin'): ?>
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1">
-                                                <i class="fa-solid fa-user-shield me-1"></i> Administrator (Full System)
+                                                <i class="fa-solid fa-user-shield me-1"></i> System Administrator (Step 3)
                                             </span>
                                             <div class="text-muted small mt-1" style="font-size:0.68rem;">All modules, Step 3 &amp; Direct Fast-Track</div>
                                         <?php elseif ($u['role'] === 'hr'): ?>
                                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1">
-                                                <i class="fa-solid fa-id-badge me-1"></i> HR Manager (Step 2 Reviewer)
+                                                <i class="fa-solid fa-id-badge me-1"></i> HR &amp; Admin (Step 2 Authority)
                                             </span>
-                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Employees &amp; Step 2 Leave Approvals only</div>
-                                        <?php else: ?>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Employees &amp; Step 2 Leave Approvals</div>
+                                        <?php elseif ($u['role'] === 'account'): ?>
                                             <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1">
-                                                <i class="fa-solid fa-briefcase me-1"></i> Accounts / HOD (Step 1 Reviewer)
+                                                <i class="fa-solid fa-calculator me-1"></i> Accounts Head (Step 1)
                                             </span>
-                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Employees &amp; Step 1 Leave Approvals only</div>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Step 1 Approvals for Accounts Employees</div>
+                                        <?php elseif ($u['role'] === 'incharge'): ?>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1">
+                                                <i class="fa-solid fa-user-check me-1"></i> Incharge (Step 1)
+                                            </span>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Step 1 Approvals for Incharge &amp; General Staff</div>
+                                        <?php elseif ($u['role'] === 'coordinator'): ?>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-3 py-1">
+                                                <i class="fa-solid fa-diagram-project me-1"></i> Coordinator (Step 1)
+                                            </span>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Step 1 Approvals for Coordinator Staff</div>
+                                        <?php elseif ($u['role'] === 'tender'): ?>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-1">
+                                                <i class="fa-solid fa-file-contract me-1"></i> Tender Head (Step 1)
+                                            </span>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Step 1 Approvals for Tender Staff</div>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-1">
+                                                <i class="fa-solid fa-user me-1"></i> <?= e(ucfirst($u['role'])) ?>
+                                            </span>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Employees &amp; Leave Approvals</div>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -279,9 +299,12 @@
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
                         <select name="role" class="form-select bg-light" required>
-                            <option value="account" selected>Accounts / HOD (Step 1 Approvals &amp; Employee Directory)</option>
-                            <option value="hr">HR Manager (Step 2 Approvals &amp; Employee Directory)</option>
-                            <option value="admin">System Administrator (Full Access to Everything)</option>
+                            <option value="account" selected>Accounts Head (Step 1 Approvals for Accounts)</option>
+                            <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
+                            <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
+                            <option value="tender">Tender Head (Step 1 Approvals for Tender Staff)</option>
+                            <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
+                            <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
                         </select>
                     </div>
 
@@ -336,9 +359,12 @@
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
                         <select name="role" id="editUserRole" class="form-select bg-light" required>
-                            <option value="account">Accounts / HOD (Step 1 Approvals &amp; Employee Directory)</option>
-                            <option value="hr">HR Manager (Step 2 Approvals &amp; Employee Directory)</option>
-                            <option value="admin">System Administrator (Full Access to Everything)</option>
+                            <option value="account">Accounts Head (Step 1 Approvals for Accounts)</option>
+                            <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
+                            <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
+                            <option value="tender">Tender Head (Step 1 Approvals for Tender Staff)</option>
+                            <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
+                            <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
                         </select>
                     </div>
 

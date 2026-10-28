@@ -19,10 +19,18 @@
     <div class="wrapper d-flex">
 <?php
 $userRole = $_SESSION['user_role'] ?? 'admin';
-$isRestricted = in_array($userRole, ['hr', 'account']);
+$isRestricted = in_array($userRole, ['hr', 'account', 'incharge', 'coordinator', 'tender']);
 $homeUrl = $isRestricted ? base_url('leaves') : base_url('dashboard');
-$portalBadge = ($userRole === 'hr') ? 'HR PORTAL' : (($userRole === 'account') ? 'ACCOUNTS PORTAL' : 'ADMIN v2.0');
-$portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' : (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 'bg-primary-subtle text-primary border-primary-subtle');
+$portalBadge = ($userRole === 'hr') ? 'HR PORTAL' : 
+               (($userRole === 'account') ? 'ACCOUNTS PORTAL' : 
+               (($userRole === 'incharge') ? 'INCHARGE PORTAL' : 
+               (($userRole === 'coordinator') ? 'COORDINATOR PORTAL' : 
+               (($userRole === 'tender') ? 'TENDER PORTAL' : 'ADMIN v2.0'))));
+$portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' : 
+                    (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 
+                    (($userRole === 'incharge') ? 'bg-success-subtle text-success border-success-subtle' : 
+                    (($userRole === 'coordinator') ? 'bg-primary-subtle text-primary border-primary-subtle' : 
+                    (($userRole === 'tender') ? 'bg-danger-subtle text-danger border-danger-subtle' : 'bg-primary-subtle text-primary border-primary-subtle'))));
 ?>
         <!-- Sidebar Navigation -->
         <nav id="sidebar" class="sidebar bg-dark text-white d-flex flex-column flex-shrink-0 p-3">

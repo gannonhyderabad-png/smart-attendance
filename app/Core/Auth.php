@@ -100,7 +100,7 @@ class Auth {
 
     public static function isRestricted(): bool {
         $role = self::role();
-        return in_array($role, ['hr', 'account']);
+        return in_array($role, ['hr', 'account', 'incharge', 'coordinator', 'tender']);
     }
 
     public static function canAccess(string $page): bool {
@@ -108,7 +108,7 @@ class Auth {
         if ($role === 'admin' || $role === 'superadmin') {
             return true;
         }
-        if ($role === 'hr' || $role === 'account') {
+        if (in_array($role, ['hr', 'account', 'incharge', 'coordinator', 'tender'])) {
             return in_array($page, ['leaves', 'employees', 'profile', 'logout']);
         }
         return false;

@@ -55,6 +55,12 @@ class LeaveController extends Controller {
         }
 
         // Fetch all pending leave applications for Dept Heads & HR approval
+                // Reset any leave that was previously skipped to Step 2 back to Step 1 so authority can approve it
+        try {
+            $pdo = \Database\Database::getConnection();
+            $pdo->exec("UPDATE leaves SET approval_step = 1, status = 'PENDING_LEVEL_1', step1_approved_by_name = NULL WHERE approval_step = 2 AND (step1_approved_by_name LIKE '%Direct HR Route%' OR step1_approved_by IS NULL)");
+        } catch (\Throwable $e) {}
+
         $pendingLeaves = Leave::all(['status' => 'PENDING'], 'l.id DESC');
 
         $selectedDepartment = null;
@@ -266,10 +272,8 @@ class LeaveController extends Controller {
         $userRole = strtolower(trim(Auth::role()));
         $userEmail = strtolower(trim($_SESSION['user_email'] ?? ''));
         $currentStep = (int) ($leave['approval_step'] ?? 1);
-        $deptHeadEmail = strtolower(trim($leave['department_head_email'] ?? ''));
-        $deptHeadName = trim($leave['department_head'] ?? 'HR / Admin');
         $deptName = trim($leave['department_name'] ?? 'General');
-        $hasIncharge = !empty($deptHeadEmail);
+        $authInfo = getLeaveStep1Authority($leave);
 
         if ($directApprove === 1) {
             if ($userRole !== 'admin' && $userRole !== 'superadmin') {
@@ -303,115 +307,66 @@ class LeaveController extends Controller {
             $_SESSION['flash_success'] = "Leave for {$leave['employee_name']} has been Direct Approved (All 3 Steps Cleared)!";
             try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
         } else {
-            if ($hasIncharge) {
-                // DEPARTMENT HAS A DESIGNATED INCHARGE (e.g. Account Head for Accounts Dept)
-                // Step 1: ONLY the designated incharge can approve
-                if ($currentStep <= 1) {
-                    if ($userEmail !== $deptHeadEmail) {
-                        $_SESSION['flash_error'] = "Access Error: This employee belongs to the {$deptName} department. Step 1 requires approval from the designated incharge: {$deptHeadName} ({$deptHeadEmail}) only!";
-                        redirect('leaves');
-                    }
-
-                    $stmt = $pdo->prepare("UPDATE leaves SET 
-                        approval_step = 2, 
-                        status = 'PENDING_LEVEL_2',
-                        step1_approved_by = ?,
-                        step1_approved_by_name = ?,
-                        step1_approved_at = ?
-                        WHERE id = ?");
-                    $stmt->execute([$userId, $userName, $nowStr, $id]);
-
-                    Logger::log($userId, 'LEAVE_STEP1_APPROVED', "Department Incharge ({$userName}) approved Step 1 for leave #{$id} ({$leave['employee_name']}). Now forwarded to HR.");
-                    $_SESSION['flash_success'] = "✓ Step 1 Approved by Department Incharge ({$userName})! Request forwarded to Step 2: HR Review.";
-                    try { \App\Services\MailService::sendStepApproved($leave, 1, $userName); } catch (\Throwable $e) {}
-                } elseif ($currentStep === 2) {
-                    // Step 2: HR Manager Approval -> Moves to Step 3 (Final Management)
-                    if ($userRole !== 'hr' && $userRole !== 'admin' && $userRole !== 'superadmin') {
-                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 2! Only HR Managers can review and approve Step 2.";
-                        redirect('leaves');
-                    }
-
-                    $stmt = $pdo->prepare("UPDATE leaves SET 
-                        approval_step = 3, 
-                        status = 'PENDING_LEVEL_3',
-                        step2_approved_by = ?,
-                        step2_approved_by_name = ?,
-                        step2_approved_at = ?
-                        WHERE id = ?");
-                    $stmt->execute([$userId, $userName, $nowStr, $id]);
-
-                    Logger::log($userId, 'LEAVE_STEP2_APPROVED', "HR ({$userName}) approved Step 2 for leave #{$id} ({$leave['employee_name']}). Forwarded to Management.");
-                    $_SESSION['flash_success'] = "✓ Step 2 Approved by HR ({$userName})! Request forwarded to Step 3: Final Management Sign-off.";
-                    try { \App\Services\MailService::sendStepApproved($leave, 2, $userName); } catch (\Throwable $e) {}
-                } else {
-                    // Step 3: Final Management Sign-off -> Status becomes fully APPROVED
-                    if ($userRole !== 'admin' && $userRole !== 'superadmin') {
-                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only Senior Management / Administrator can perform final sign-off.";
-                        redirect('leaves');
-                    }
-
-                    $stmt = $pdo->prepare("UPDATE leaves SET 
-                        approval_step = 4, 
-                        status = 'APPROVED',
-                        step3_approved_by = ?,
-                        step3_approved_by_name = ?,
-                        step3_approved_at = ?,
-                        approved_by = ?,
-                        approved_at = ?
-                        WHERE id = ?");
-                    $stmt->execute([$userId, $userName, $nowStr, $userId, $nowStr, $id]);
-
-                    Logger::log($userId, 'LEAVE_STEP3_APPROVED', "Final Authority ({$userName}) approved Step 3 for leave #{$id} ({$leave['employee_name']}). Fully Approved.");
-                    $_SESSION['flash_success'] = "✓ Final Step 3 Approved! Leave request for {$leave['employee_name']} is now Fully Approved and recorded.";
-                    try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
+            if ($currentStep <= 1) {
+                // STEP 1: Department Head / Authority Review (Accounts, Incharge, Coordinator, Tender Head)
+                if (!canUserApproveStep1($authInfo, $userRole, $userEmail)) {
+                    $_SESSION['flash_error'] = "Access Error: This employee belongs to {$deptName}. Step 1 requires approval from {$authInfo['title']} ({$authInfo['head_name']} - {$authInfo['head_email']}) only!";
+                    redirect('leaves');
                 }
+
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    approval_step = 2, 
+                    status = 'PENDING_LEVEL_2',
+                    step1_approved_by = ?,
+                    step1_approved_by_name = ?,
+                    step1_approved_at = ?
+                    WHERE id = ?");
+                $stmt->execute([$userId, $userName, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_STEP1_APPROVED', "{$authInfo['title']} ({$userName}) approved Step 1 for leave #{$id} ({$leave['employee_name']}). Forwarded to Step 2: HR & Admin.");
+                $_SESSION['flash_success'] = "✓ Step 1 Approved by {$authInfo['title']} ({$userName})! Request forwarded to Step 2: HR & Admin Review.";
+                try { \App\Services\MailService::sendStepApproved($leave, 1, $userName); } catch (\Throwable $e) {}
+            } elseif ($currentStep === 2) {
+                // STEP 2: HR & Admin Review
+                $canHR = ($userRole === 'hr' || $userRole === 'admin' || $userRole === 'superadmin' || str_contains($userEmail, 'hr@'));
+                if (!$canHR) {
+                    $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 2! Only HR & Admin can review and approve Step 2.";
+                    redirect('leaves');
+                }
+
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    approval_step = 3, 
+                    status = 'PENDING_LEVEL_3',
+                    step2_approved_by = ?,
+                    step2_approved_by_name = ?,
+                    step2_approved_at = ?
+                    WHERE id = ?");
+                $stmt->execute([$userId, $userName, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_STEP2_APPROVED', "HR ({$userName}) approved Step 2 for leave #{$id} ({$leave['employee_name']}). Forwarded to Step 3: System Administrator.");
+                $_SESSION['flash_success'] = "✓ Step 2 Approved by HR ({$userName})! Forwarded to Step 3: System Administrator Sign-off.";
+                try { \App\Services\MailService::sendStepApproved($leave, 2, $userName); } catch (\Throwable $e) {}
             } else {
-                // REMAINING EMPLOYEES — no department incharge assigned
-                // "remain employees approve directly hr only directly"
-                if ($currentStep <= 2) {
-                    // HR approves directly (skips Step 1 incharge requirement)
-                    if ($userRole !== 'hr' && $userRole !== 'admin' && $userRole !== 'superadmin') {
-                        $_SESSION['flash_error'] = "Access Error: This employee belongs to the {$deptName} department which has no designated incharge. Leave requests for these employees must be approved directly by HR only.";
-                        redirect('leaves');
-                    }
-
-                    $stmt = $pdo->prepare("UPDATE leaves SET 
-                        approval_step = 3, 
-                        status = 'PENDING_LEVEL_3',
-                        step1_approved_by = ?,
-                        step1_approved_by_name = 'Direct HR Route (No Incharge)',
-                        step1_approved_at = ?,
-                        step2_approved_by = ?,
-                        step2_approved_by_name = ?,
-                        step2_approved_at = ?
-                        WHERE id = ?");
-                    $stmt->execute([$userId, $nowStr, $userId, $userName, $nowStr, $id]);
-
-                    Logger::log($userId, 'LEAVE_HR_DIRECT_APPROVED', "HR ({$userName}) directly approved leave #{$id} ({$leave['employee_name']}) — no dept incharge. Forwarded to Management.");
-                    $_SESSION['flash_success'] = "✓ Directly Approved by HR ({$userName})! Request forwarded to Step 3: Final Management Sign-off.";
-                    try { \App\Services\MailService::sendStepApproved($leave, 2, $userName); } catch (\Throwable $e) {}
-                } else {
-                    // Step 3: Final Management Sign-off
-                    if ($userRole !== 'admin' && $userRole !== 'superadmin') {
-                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only Senior Management / Administrator can perform final sign-off.";
-                        redirect('leaves');
-                    }
-
-                    $stmt = $pdo->prepare("UPDATE leaves SET 
-                        approval_step = 4, 
-                        status = 'APPROVED',
-                        step3_approved_by = ?,
-                        step3_approved_by_name = ?,
-                        step3_approved_at = ?,
-                        approved_by = ?,
-                        approved_at = ?
-                        WHERE id = ?");
-                    $stmt->execute([$userId, $userName, $nowStr, $userId, $nowStr, $id]);
-
-                    Logger::log($userId, 'LEAVE_STEP3_APPROVED', "Final Authority ({$userName}) approved Step 3 for leave #{$id} ({$leave['employee_name']}). Fully Approved.");
-                    $_SESSION['flash_success'] = "✓ Final Step 3 Approved! Leave request for {$leave['employee_name']} is now Fully Approved and recorded.";
-                    try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
+                // STEP 3: System Administrator Final Sign-off
+                if ($userRole !== 'admin' && $userRole !== 'superadmin') {
+                    $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only System Administrator can perform final sign-off.";
+                    redirect('leaves');
                 }
+
+                $stmt = $pdo->prepare("UPDATE leaves SET 
+                    approval_step = 4, 
+                    status = 'APPROVED', 
+                    step3_approved_by = ?,
+                    step3_approved_by_name = ?,
+                    step3_approved_at = ?,
+                    approved_by = ?, 
+                    approved_at = ? 
+                    WHERE id = ?");
+                $stmt->execute([$userId, $userName, $nowStr, $userId, $nowStr, $id]);
+
+                Logger::log($userId, 'LEAVE_STEP3_APPROVED', "System Administrator ({$userName}) approved Step 3 for leave #{$id} ({$leave['employee_name']}). Fully Approved.");
+                $_SESSION['flash_success'] = "✓ Final Step 3 Approved! Leave request for {$leave['employee_name']} is now Fully Approved and recorded.";
+                try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
             }
         }
         redirect('leaves');
@@ -433,42 +388,24 @@ class LeaveController extends Controller {
                 $userRole = strtolower(trim(Auth::role()));
                 $userEmail = strtolower(trim($_SESSION['user_email'] ?? ''));
                 $currentStep = (int) ($leave['approval_step'] ?? 1);
-                $deptHeadEmail = strtolower(trim($leave['department_head_email'] ?? ''));
-                $deptHeadName = trim($leave['department_head'] ?? 'HR / Admin');
                 $deptName = trim($leave['department_name'] ?? 'General');
-                $hasIncharge = !empty($deptHeadEmail);
+                $authInfo = getLeaveStep1Authority($leave);
 
-                if ($hasIncharge) {
-                    if ($currentStep <= 1) {
-                        if ($userEmail !== $deptHeadEmail) {
-                            $headInfo = !empty($deptHeadName) ? $deptHeadName : 'Department Incharge';
-                            if (!empty($deptHeadEmail)) $headInfo .= " ({$deptHeadEmail})";
-                            $_SESSION['flash_error'] = "Access Error: This employee belongs to the {$deptName} department. Only {$headInfo} is authorized to reject Step 1 for this department.";
-                            redirect('leaves');
-                        }
-                    } elseif ($currentStep === 2) {
-                        if ($userRole !== 'hr' && $userRole !== 'admin' && $userRole !== 'superadmin') {
-                            $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 2! Only HR Managers can reject at Step 2.";
-                            redirect('leaves');
-                        }
-                    } else {
-                        if ($userRole !== 'admin' && $userRole !== 'superadmin') {
-                            $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only Senior Management can reject at Step 3.";
-                            redirect('leaves');
-                        }
+                if ($currentStep <= 1) {
+                    if (!canUserApproveStep1($authInfo, $userRole, $userEmail)) {
+                        $_SESSION['flash_error'] = "Access Error: Only {$authInfo['title']} ({$authInfo['head_name']} - {$authInfo['head_email']}) can reject Step 1 for this department.";
+                        redirect('leaves');
+                    }
+                } elseif ($currentStep === 2) {
+                    $canHR = ($userRole === 'hr' || $userRole === 'admin' || $userRole === 'superadmin' || str_contains($userEmail, 'hr@'));
+                    if (!$canHR) {
+                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 2! Only HR & Admin can reject at Step 2.";
+                        redirect('leaves');
                     }
                 } else {
-                    // Remaining employees (no incharge): HR rejects directly
-                    if ($currentStep <= 2) {
-                        if ($userRole !== 'hr' && $userRole !== 'admin' && $userRole !== 'superadmin') {
-                            $_SESSION['flash_error'] = "Access Error: This employee belongs to the {$deptName} department without a department incharge. Leave requests for these employees must be reviewed and rejected directly by HR only.";
-                            redirect('leaves');
-                        }
-                    } else {
-                        if ($userRole !== 'admin' && $userRole !== 'superadmin') {
-                            $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only Senior Management can reject at Step 3.";
-                            redirect('leaves');
-                        }
+                    if ($userRole !== 'admin' && $userRole !== 'superadmin') {
+                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only System Administrator can reject at Step 3.";
+                        redirect('leaves');
                     }
                 }
 
@@ -493,11 +430,6 @@ class LeaveController extends Controller {
         }
         redirect('leaves');
     }
-
-    /**
-     * Employee self-service leave application (from mobile punch page)
-     * Starts at Level 1 (Step 1 / 3: Awaiting Department Head)
-     */
     public function applyLeave(string $code = ''): void {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -549,22 +481,26 @@ class LeaveController extends Controller {
             $attachmentPath = upload_leave_attachment($uploadFile);
         }
 
-        // Determine initial step based on whether employee's department has an incharge
+        // Lookup department information and calculate Step 1 Authority
         $pdo = \Database\Database::getConnection();
-        $deptInchargeEmail = '';
+        $deptData = [];
         try {
-            $deptRow = $pdo->prepare("SELECT d.head_email FROM employees e LEFT JOIN departments d ON e.department_id = d.id WHERE e.id = ? LIMIT 1");
-            $deptRow->execute([$emp['id']]);
-            $deptData = $deptRow->fetch(\PDO::FETCH_ASSOC);
-            $deptInchargeEmail = strtolower(trim($deptData['head_email'] ?? ''));
+            $deptStmt = $pdo->prepare("SELECT d.name, d.head_name, d.head_email FROM employees e LEFT JOIN departments d ON e.department_id = d.id WHERE e.id = ? LIMIT 1");
+            $deptStmt->execute([$emp['id']]);
+            $deptData = $deptStmt->fetch(\PDO::FETCH_ASSOC) ?: [];
         } catch (\Throwable $e) {}
 
-        $hasIncharge = !empty($deptInchargeEmail);
-        $initialStep = $hasIncharge ? 1 : 2;
-        $initialStatus = $hasIncharge ? 'PENDING_LEVEL_1' : 'PENDING_LEVEL_2';
-        $statusMsg = $hasIncharge
-            ? "Status: ⏳ Step 1 / 3: Awaiting Department Incharge Approval."
-            : "Status: ⏳ Direct HR Review: Awaiting HR Approval (No Department Incharge assigned).";
+        $authInfo = getLeaveStep1Authority([
+            'employee_designation' => $emp['designation'] ?? '',
+            'department_id' => $emp['department_id'] ?? null,
+            'department_name' => $deptData['name'] ?? '',
+            'department_head_email' => $deptData['head_email'] ?? '',
+            'department_head' => $deptData['head_name'] ?? ''
+        ]);
+
+        $initialStep = 1;
+        $initialStatus = 'PENDING_LEVEL_1';
+        $statusMsg = "Status: ⏳ Step 1 / 3: Awaiting {$authInfo['title']} Approval.";
 
         try {
             $leaveId = Leave::create([
@@ -581,16 +517,11 @@ class LeaveController extends Controller {
                 'approval_step' => $initialStep
             ]);
 
-            // Mark applied_by_employee; for no-incharge depts, pre-fill step1 as "Direct HR Route"
             try {
-                if ($hasIncharge) {
-                    $pdo->prepare("UPDATE leaves SET applied_by_employee = 1 WHERE id = ?")->execute([$leaveId]);
-                } else {
-                    $pdo->prepare("UPDATE leaves SET applied_by_employee = 1, step1_approved_by_name = 'Direct HR Route (No Incharge)' WHERE id = ?")->execute([$leaveId]);
-                }
+                $pdo->prepare("UPDATE leaves SET applied_by_employee = 1 WHERE id = ?")->execute([$leaveId]);
             } catch (\Throwable $e) {}
 
-            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}." . (!empty($attachmentPath) ? " [Document Attached]" : "") . " " . ($hasIncharge ? "Level 1 approval pending (incharge)." : "Direct HR route (no incharge)."));
+            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}." . (!empty($attachmentPath) ? " [Document Attached]" : "") . " Awaiting {$authInfo['title']} Step 1 approval.");
 
             // Dispatch Email Notification to Department Head & HR
             try {

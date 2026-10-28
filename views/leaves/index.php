@@ -116,6 +116,23 @@
                         <?php foreach ($pendingLeaves as $pl): 
                             $step = (int) ($pl['approval_step'] ?? 1);
                             if ($step < 1) $step = 1;
+
+                            $currUserEmail   = strtolower(trim($_SESSION['user_email'] ?? ''));
+                            $currUserRole    = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
+                            $plAuthInfo      = getLeaveStep1Authority($pl);
+                            $plDeptHeadEmail = $plAuthInfo['head_email'];
+                            $plDeptHeadName  = $plAuthInfo['head_name'];
+                            $plDeptName      = trim($pl['department_name'] ?? 'General');
+
+                            // Step 1: Specific designation/department authority check
+                            $canActStep1     = canUserApproveStep1($plAuthInfo, $currUserRole, $currUserEmail);
+                            // Step 2: HR & Admin review
+                            $canActStep2     = ($currUserRole === 'hr' || $currUserRole === 'admin' || $currUserRole === 'superadmin' || str_contains($currUserEmail, 'hr@'));
+                            // Step 3: System Administrator final sign-off
+                            $canActStep3     = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+                            $canDirect       = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+
+                            $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
                         ?>
                             <tr>
                                 <td class="ps-4">
@@ -127,10 +144,13 @@
                                             <div class="fw-bold text-dark"><?= e($pl['employee_name'] ?? 'Employee') ?></div>
                                             <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
                                                 <?= e($pl['employee_code'] ?? '') ?> &bull; <?= e($pl['department_name'] ?? ($pl['department'] ?? 'General')) ?>
+                                                <?php if (!empty($pl['employee_designation'])): ?>
+                                                    &bull; <span class="text-primary fw-semibold"><?= e($pl['employee_designation']) ?></span>
+                                                <?php endif; ?>
                                             </div>
                                             <div class="mt-1">
-                                                <span class="badge bg-light text-primary border" style="font-size: 0.68rem;" title="Designated Department Approving Authority">
-                                                    <i class="fa-solid fa-user-shield me-1"></i>HOD: <strong><?= e($pl['department_head'] ?: 'HR / Admin') ?></strong>
+                                                <span class="badge bg-light text-primary border" style="font-size: 0.68rem;" title="Designated Step 1 Approving Authority">
+                                                    <i class="fa-solid fa-user-shield me-1"></i>Authority: <strong><?= e($plAuthInfo['title']) ?></strong>
                                                 </span>
                                             </div>
                                         </div>
@@ -142,6 +162,13 @@
                                     </span>
                                     <?php if (!empty($pl['applied_by_employee'])): ?>
                                         <div class="mt-1"><span class="badge bg-light text-secondary border" style="font-size: 0.65rem;"><i class="fa-solid fa-mobile-screen me-1"></i>Mobile Self-Apply</span></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($pl['attachment'])): ?>
+                                        <div class="mt-1">
+                                            <a href="<?= base_url($pl['attachment']) ?>" target="_blank" class="badge bg-light text-success border text-decoration-none" style="font-size: 0.65rem;">
+                                                <i class="fa-solid fa-paperclip me-1"></i>Document
+                                            </a>
+                                        </div>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -162,17 +189,17 @@
                                         <div class="d-flex align-items-center justify-content-between small">
                                             <span class="fw-bold <?= $step === 1 ? 'text-warning' : ($step > 1 ? 'text-success' : 'text-muted') ?>" style="font-size: 0.72rem;">
                                                 <?= $step > 1 ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : ($step === 1 ? '<i class="fa-solid fa-spinner fa-spin text-warning me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
-                                                1. Dept Head
+                                                1. <?= e($plAuthInfo['badge']) ?>
                                             </span>
                                             <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
                                             <span class="fw-bold <?= $step === 2 ? 'text-primary' : ($step > 2 ? 'text-success' : 'text-muted') ?>" style="font-size: 0.72rem;">
                                                 <?= $step > 2 ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : ($step === 2 ? '<i class="fa-solid fa-spinner fa-spin text-primary me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
-                                                2. HR Audit
+                                                2. HR &amp; Admin
                                             </span>
                                             <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
                                             <span class="fw-bold <?= $step === 3 ? 'text-dark' : 'text-muted' ?>" style="font-size: 0.72rem;">
                                                 <?= $step === 3 ? '<i class="fa-solid fa-spinner fa-spin text-dark me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>' ?>
-                                                3. Management
+                                                3. Administrator
                                             </span>
                                         </div>
                                         <div class="progress" style="height: 6px;">
@@ -182,14 +209,12 @@
                                             </div>
                                         </div>
                                         <div class="text-muted" style="font-size: 0.68rem;">
-                                            <?php if (!$plHasIncharge && $step <= 2): ?>
-                                                <i class="fa-solid fa-bolt text-primary me-1"></i><strong>Direct HR Route:</strong> Awaiting HR Approval (No Dept Incharge)
-                                            <?php elseif ($step === 1): ?>
-                                                <i class="fa-solid fa-hourglass-half text-warning me-1"></i><strong>Step 1 / 3:</strong> Awaiting Department Incharge Approval
+                                            <?php if ($step === 1): ?>
+                                                <i class="fa-solid fa-hourglass-half text-warning me-1"></i><strong>Step 1 / 3:</strong> Awaiting <?= e($plAuthInfo['title']) ?> Approval
                                             <?php elseif ($step === 2): ?>
-                                                <i class="fa-solid fa-check text-success me-1"></i>Incharge Approved (<?= e($pl['step1_approved_by_name'] ?? 'Incharge') ?>) &bull; <strong class="text-primary">Step 2: HR Review</strong>
+                                                <i class="fa-solid fa-check text-success me-1"></i>Step 1 Approved (<?= e($pl['step1_approved_by_name'] ?? $plAuthInfo['title']) ?>) &bull; <strong class="text-primary">Step 2: HR &amp; Admin Review</strong>
                                             <?php else: ?>
-                                                <i class="fa-solid fa-check text-success me-1"></i>Incharge & HR Approved &bull; <strong class="text-dark">Step 3: Final Sign-off</strong>
+                                                <i class="fa-solid fa-check text-success me-1"></i>Step 1 &amp; HR Approved &bull; <strong class="text-dark">Step 3: Administrator Sign-off</strong>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -201,55 +226,21 @@
                                     <span class="text-muted small"><?= date('d M, h:i A', strtotime($pl['created_at'])) ?></span>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <?php
-                                        $currUserEmail   = strtolower(trim($_SESSION['user_email'] ?? ''));
-                                        $currUserRole    = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
-                                        $plDeptHeadEmail = strtolower(trim($pl['department_head_email'] ?? ''));
-                                        $plDeptHeadName  = trim($pl['department_head'] ?? 'HR / Admin');
-                                        $plDeptName      = trim($pl['department_name'] ?? 'General');
-                                        $plHasIncharge   = !empty($plDeptHeadEmail);
-
-                                        // Step 1: Only the designated incharge can approve (if dept has one)
-                                        $canActStep1 = $plHasIncharge
-                                            ? ($currUserEmail === $plDeptHeadEmail)
-                                            : false; // no incharge = no step 1 gate; HR handles directly
-
-                                        // Step 2: HR Manager review
-                                        $canActStep2 = ($currUserRole === 'hr' || $currUserRole === 'admin' || $currUserRole === 'superadmin');
-
-                                        // Step 3: Management final sign-off
-                                        $canActStep3 = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
-
-                                        // Fast-track Direct (admin/superadmin only)
-                                        $canDirect   = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
-
-                                        // Is current step authorized for the logged-in user?
-                                        if ($plHasIncharge) {
-                                            $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
-                                        } else {
-                                            // Remaining employees: HR approves directly (step 1 & 2 merged), admin does step 3
-                                            $isStepAuthorized = ($step <= 2 && $canActStep2) || ($step >= 3 && $canActStep3);
-                                        }
-                                    ?>
                                     <div class="d-inline-flex align-items-center gap-1">
                                         <?php if ($isStepAuthorized): ?>
                                             <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="id" value="<?= $pl['id'] ?>">
-                                                <?php if ($step === 1 && $plHasIncharge): ?>
-                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Incharge)">
-                                                        <i class="fa-solid fa-check me-1"></i> Step 1: Approve as Incharge
-                                                    </button>
-                                                <?php elseif ($step <= 2 && !$plHasIncharge): ?>
-                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Directly as HR (No Incharge in this Dept)">
-                                                        <i class="fa-solid fa-check-double me-1"></i> Approve as HR (Direct)
+                                                <?php if ($step === 1): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="<?= e($plAuthInfo['button_text']) ?>">
+                                                        <i class="fa-solid fa-check me-1"></i> <?= e($plAuthInfo['button_text']) ?>
                                                     </button>
                                                 <?php elseif ($step === 2): ?>
-                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 2 (HR Manager Review)">
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Step 2 (HR &amp; Admin Review)">
                                                         <i class="fa-solid fa-check-double me-1"></i> Step 2: Approve as HR
                                                     </button>
                                                 <?php else: ?>
-                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 3 (Final Management Sign-off)">
+                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Step 3 (System Administrator Sign-off)">
                                                         <i class="fa-solid fa-stamp me-1"></i> Step 3: Final Sign-off
                                                     </button>
                                                 <?php endif; ?>
@@ -264,17 +255,17 @@
                                             </button>
                                         <?php else: ?>
                                             <!-- Unauthorized login: clicking shows the Access Error Dialog -->
-                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm fw-semibold" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plDeptHeadName) ?>', '<?= addslashes($plDeptHeadEmail) ?>', <?= (int)$step ?>)" title="Click to view authority requirement">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm fw-semibold" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plAuthInfo['head_name']) ?>', '<?= addslashes($plAuthInfo['head_email']) ?>', <?= (int)$step ?>, '<?= addslashes($plAuthInfo['title']) ?>')" title="Click to view authority requirement">
                                                 <i class="fa-solid fa-lock text-warning me-1"></i>
                                                 <?php if ($step === 1): ?>
-                                                    Step 1: Approve as HOD
+                                                    Step 1: <?= e($plAuthInfo['badge']) ?> Only
                                                 <?php elseif ($step === 2): ?>
-                                                    Step 2: Approve as HR
+                                                    Step 2: HR &amp; Admin Only
                                                 <?php else: ?>
-                                                    Step 3: Final Sign-off
+                                                    Step 3: Administrator Only
                                                 <?php endif; ?>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plDeptHeadName) ?>', '<?= addslashes($plDeptHeadEmail) ?>', <?= (int)$step ?>)" title="Click to view authority requirement">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plAuthInfo['head_name']) ?>', '<?= addslashes($plAuthInfo['head_email']) ?>', <?= (int)$step ?>, '<?= addslashes($plAuthInfo['title']) ?>')" title="Click to view authority requirement">
                                                 <i class="fa-solid fa-xmark"></i>
                                             </button>
                                         <?php endif; ?>
@@ -643,28 +634,30 @@
                                                 <div class="text-muted" style="font-size: 0.68rem;"><?= date('d M Y, h:i A', strtotime($lv['approved_at'])) ?></div>
                                             <?php endif; ?>
                                         </div>
-                                    <?php elseif ($st === 'PENDING_LEVEL_1' || ($st === 'PENDING' && $step <= 1)): ?>
+                                    <?php elseif ($st === 'PENDING_LEVEL_1' || ($st === 'PENDING' && $step <= 1)): 
+                                        $tblStatusAuth = getLeaveStep1Authority($lv);
+                                    ?>
                                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1">
-                                            <i class="fa-solid fa-hourglass-half me-1"></i> Step 1/3: Dept Head
+                                            <i class="fa-solid fa-hourglass-half me-1"></i> Step 1/3: <?= e($tblStatusAuth['title']) ?>
                                         </span>
                                         <div class="mt-1 text-muted" style="font-size: 0.72rem;">
-                                            <i class="fa-solid fa-user-shield text-warning me-1"></i>Authority: <strong class="text-dark"><?= e($lv['department_head'] ?: 'Dept Head') ?></strong>
+                                            <i class="fa-solid fa-user-shield text-warning me-1"></i>Authority: <strong class="text-dark"><?= e($tblStatusAuth['title']) ?></strong>
                                         </div>
                                     <?php elseif ($st === 'PENDING_LEVEL_2' || ($st === 'PENDING' && $step === 2)): ?>
                                         <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-2 py-1">
-                                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Step 2/3: HR Review
+                                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Step 2/3: HR &amp; Admin
                                         </span>
                                         <div class="mt-1 text-muted" style="font-size: 0.72rem;">
-                                            <i class="fa-solid fa-check text-success me-1"></i>HOD Approved: <strong class="text-dark"><?= e($lv['step1_approved_by_name'] ?? 'Done') ?></strong>
-                                            <div class="text-primary mt-1"><i class="fa-solid fa-user-gear me-1"></i>Awaiting HR Manager</div>
+                                            <i class="fa-solid fa-check text-success me-1"></i>Step 1 Approved: <strong class="text-dark"><?= e($lv['step1_approved_by_name'] ?? 'Done') ?></strong>
+                                            <div class="text-primary mt-1"><i class="fa-solid fa-user-gear me-1"></i>Awaiting HR &amp; Admin</div>
                                         </div>
                                     <?php elseif ($st === 'PENDING_LEVEL_3' || ($st === 'PENDING' && $step === 3)): ?>
                                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
-                                            <i class="fa-solid fa-stamp me-1"></i> Step 3/3: Management
+                                            <i class="fa-solid fa-stamp me-1"></i> Step 3/3: Administrator
                                         </span>
                                         <div class="mt-1 text-muted" style="font-size: 0.72rem;">
-                                            <i class="fa-solid fa-check-double text-success me-1"></i>HOD & HR Approved
-                                            <div class="text-dark fw-semibold mt-1"><i class="fa-solid fa-user-tie me-1"></i>Awaiting Final Sign-off</div>
+                                            <i class="fa-solid fa-check-double text-success me-1"></i>Step 1 &amp; HR Approved
+                                            <div class="text-dark fw-semibold mt-1"><i class="fa-solid fa-user-tie me-1"></i>Awaiting Administrator Sign-off</div>
                                         </div>
                                     <?php elseif ($st === 'REJECTED'): ?>
                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1" title="<?= e($lv['reject_reason'] ?? 'Rejected') ?>">
@@ -690,44 +683,33 @@
                                             $currStep        = (int)($lv['approval_step'] ?? 1);
                                             $tblUserEmail    = strtolower(trim($_SESSION['user_email'] ?? ''));
                                             $tblUserRole     = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
-                                            $lvDeptHeadEmail = strtolower(trim($lv['department_head_email'] ?? ''));
-                                            $lvDeptHeadName  = trim($lv['department_head'] ?? 'HR / Admin');
+                                            $tblAuthInfo     = getLeaveStep1Authority($lv);
+                                            $lvDeptHeadEmail = $tblAuthInfo['head_email'];
+                                            $lvDeptHeadName  = $tblAuthInfo['head_name'];
                                             $lvDeptName      = trim($lv['department_name'] ?? 'General');
 
-                                            $tblHasIncharge = !empty($lvDeptHeadEmail);
-
-                                            // Step 1: Only the designated incharge can approve (if dept has one)
-                                            $tblCanStep1 = $tblHasIncharge ? ($tblUserEmail === $lvDeptHeadEmail) : false;
-                                            $tblCanStep2 = ($tblUserRole === 'hr' || $tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+                                            $tblCanStep1 = canUserApproveStep1($tblAuthInfo, $tblUserRole, $tblUserEmail);
+                                            $tblCanStep2 = ($tblUserRole === 'hr' || $tblUserRole === 'admin' || $tblUserRole === 'superadmin' || str_contains($tblUserEmail, 'hr@'));
                                             $tblCanStep3 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
                                             $tblCanDirect = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
 
-                                            if ($tblHasIncharge) {
-                                                $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
-                                            } else {
-                                                // Remaining employees: HR approves directly (steps 1+2 merged), admin does step 3
-                                                $tblIsAuthorized = ($currStep <= 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
-                                            }
+                                            $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
                                     ?>
                                         <?php if ($tblIsAuthorized): ?>
                                             <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="id" value="<?= $lv['id'] ?>">
-                                                <?php if ($currStep === 1 && $tblHasIncharge): ?>
-                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Incharge)">
-                                                        <i class="fa-solid fa-check me-1"></i> Step 1
-                                                    </button>
-                                                <?php elseif ($currStep <= 2 && !$tblHasIncharge): ?>
-                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Directly as HR (No Incharge)">
-                                                        <i class="fa-solid fa-check-double me-1"></i> HR Direct
+                                                <?php if ($currStep === 1): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (<?= e($tblAuthInfo['title']) ?>)">
+                                                        <i class="fa-solid fa-check me-1"></i> Step 1: <?= e($tblAuthInfo['badge']) ?>
                                                     </button>
                                                 <?php elseif ($currStep === 2): ?>
-                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR Review)">
-                                                        <i class="fa-solid fa-check-double me-1"></i> Step 2
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR &amp; Admin Review)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> Step 2: HR
                                                     </button>
                                                 <?php else: ?>
-                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (Management Sign-off)">
-                                                        <i class="fa-solid fa-stamp me-1"></i> Step 3
+                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (System Administrator Sign-off)">
+                                                        <i class="fa-solid fa-stamp me-1"></i> Step 3: Admin
                                                     </button>
                                                 <?php endif; ?>
                                                 <?php if ($tblCanDirect): ?>
@@ -741,11 +723,11 @@
                                             </button>
                                         <?php else: ?>
                                             <!-- Unauthorized: shows access error dialog on click -->
-                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($lvDeptHeadName) ?>', '<?= addslashes($lvDeptHeadEmail) ?>', <?= (int)$currStep ?>)" title="Click to view authority requirement">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($tblAuthInfo['head_name']) ?>', '<?= addslashes($tblAuthInfo['head_email']) ?>', <?= (int)$currStep ?>, '<?= addslashes($tblAuthInfo['title']) ?>')" title="Click to view authority requirement">
                                                 <i class="fa-solid fa-lock text-warning me-1"></i>
-                                                <?= $currStep === 1 ? 'Step 1' : ($currStep === 2 ? 'Step 2' : 'Step 3') ?>
+                                                <?= $currStep === 1 ? ('Step 1: ' . e($tblAuthInfo['badge'])) : ($currStep === 2 ? 'Step 2: HR' : 'Step 3: Admin') ?>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($lvDeptHeadName) ?>', '<?= addslashes($lvDeptHeadEmail) ?>', <?= (int)$currStep ?>)" title="Click to view authority requirement">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($tblAuthInfo['head_name']) ?>', '<?= addslashes($tblAuthInfo['head_email']) ?>', <?= (int)$currStep ?>, '<?= addslashes($tblAuthInfo['title']) ?>')" title="Click to view authority requirement">
                                                 <i class="fa-solid fa-xmark"></i>
                                             </button>
                                         <?php endif; ?>
@@ -1512,26 +1494,25 @@ function openRejectModal(id, empName, leaveType) {
     new bootstrap.Modal(document.getElementById('rejectLeaveModal')).show();
 }
 
-function showAuthorityAccessDialog(empName, deptName, headName, headEmail, step) {
+function showAuthorityAccessDialog(empName, deptName, headName, headEmail, step, authTitle) {
     document.getElementById('errModalEmpName').textContent = empName || 'Employee';
     document.getElementById('errModalDeptName').textContent = deptName || 'General';
-    let headStr = headName || 'Designated Authority';
+    let headStr = headName || (authTitle || 'Designated Authority');
     if (headEmail) {
         headStr += ' (' + headEmail + ')';
-    } else {
-        headStr += ' (HR / Admin)';
     }
     document.getElementById('errModalHeadInfo').textContent = headStr;
 
     if (step === 1) {
-        document.getElementById('errModalStepTitle').textContent = 'Step 1: Department Head Review';
-        document.getElementById('errModalHelpText').textContent = 'Only ' + headStr + ' is the authorized approving authority for the ' + (deptName || 'this') + ' department.';
+        const title = authTitle || 'Department Authority';
+        document.getElementById('errModalStepTitle').textContent = 'Step 1: ' + title + ' Approval';
+        document.getElementById('errModalHelpText').textContent = 'Step 1 for this employee requires approval from the designated ' + title + ' (' + headStr + ') only. Accounts approve Accounts, Incharge approves Incharge & general staff, Coordinator approves Coordinators, Tender approves Tender staff.';
     } else if (step === 2) {
-        document.getElementById('errModalStepTitle').textContent = 'Step 2: HR Manager Review';
-        document.getElementById('errModalHelpText').textContent = 'Step 2 requires HR Manager reviewer authorization (e.g. hr@attendance.local).';
+        document.getElementById('errModalStepTitle').textContent = 'Step 2: HR & Admin Review';
+        document.getElementById('errModalHelpText').textContent = 'Step 2 requires HR & Admin authorization (e.g. hr@attendance.local or admin@attendance.local). Department authorities cannot approve Step 2.';
     } else {
-        document.getElementById('errModalStepTitle').textContent = 'Step 3: Final Management Sign-off';
-        document.getElementById('errModalHelpText').textContent = 'Step 3 requires Senior Management / Administrator authorization (e.g. admin@attendance.local).';
+        document.getElementById('errModalStepTitle').textContent = 'Step 3: System Administrator Sign-off';
+        document.getElementById('errModalHelpText').textContent = 'Step 3 requires System Administrator authorization (e.g. admin@attendance.local). Only administrators can perform final sign-off.';
     }
 
     const modal = new bootstrap.Modal(document.getElementById('authorityAccessErrorModal'));

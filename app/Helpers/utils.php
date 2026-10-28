@@ -393,3 +393,112 @@ if (!function_exists('uploaded_url')) {
         return base_url(ltrim($path, '/\\'));
     }
 }
+
+if (!function_exists('getLeaveStep1Authority')) {
+    /**
+     * Determine Step 1 Approving Authority details based on employee designation / department:
+     * - accounts => Accounts Head
+     * - incharge => Incharge
+     * - coordinator => Coordinator
+     * - tender => Tender Head
+     * - any other designation => Incharge
+     */
+    function getLeaveStep1Authority(array $leave): array {
+        $designation = strtolower(trim($leave['employee_designation'] ?? ($leave['designation'] ?? '')));
+        $deptName    = strtolower(trim($leave['department_name'] ?? ($leave['department'] ?? '')));
+        $deptHeadEmail = strtolower(trim($leave['department_head_email'] ?? ''));
+        $deptHeadName  = trim($leave['department_head'] ?? '');
+
+        // 1. Accounts: designation or department matches accounts
+        if (str_contains($designation, 'account') || str_contains($deptName, 'account')) {
+            return [
+                'type'        => 'account',
+                'title'       => 'Accounts Head',
+                'badge'       => 'Accounts',
+                'button_text' => 'Step 1: Approve as Accounts',
+                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Accounts Head',
+                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'account@attendance.local',
+            ];
+        }
+
+        // 2. Tender: designation or department matches tender
+        if (str_contains($designation, 'tender') || str_contains($deptName, 'tender')) {
+            return [
+                'type'        => 'tender',
+                'title'       => 'Tender Head',
+                'badge'       => 'Tender Head',
+                'button_text' => 'Step 1: Approve as Tender Head',
+                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Tender Head',
+                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'tender@attendance.local',
+            ];
+        }
+
+        // 3. Coordinator: designation or department matches coordinator
+        if (str_contains($designation, 'coordinator') || str_contains($deptName, 'coordinator')) {
+            return [
+                'type'        => 'coordinator',
+                'title'       => 'Coordinator',
+                'badge'       => 'Coordinator',
+                'button_text' => 'Step 1: Approve as Coordinator',
+                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Coordinator',
+                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'coordinator@attendance.local',
+            ];
+        }
+
+        // 4. Incharge: explicit incharge designation or department
+        if (str_contains($designation, 'incharge') || str_contains($deptName, 'incharge')) {
+            return [
+                'type'        => 'incharge',
+                'title'       => 'Incharge',
+                'badge'       => 'Incharge',
+                'button_text' => 'Step 1: Approve as Incharge',
+                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Incharge',
+                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'incharge@attendance.local',
+            ];
+        }
+
+        // 5. Any other designation => Incharge
+        return [
+            'type'        => 'incharge',
+            'title'       => 'Incharge',
+            'badge'       => 'Incharge',
+            'button_text' => 'Step 1: Approve as Incharge',
+            'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Department Incharge',
+            'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'incharge@attendance.local',
+        ];
+    }
+}
+
+if (!function_exists('canUserApproveStep1')) {
+    /**
+     * Check if the logged-in user is authorized to approve/reject Step 1
+     */
+    function canUserApproveStep1(array $authority, string $userRole, string $userEmail): bool {
+        // Admin / Superadmin has full authority over all steps
+        if ($userRole === 'admin' || $userRole === 'superadmin') {
+            return true;
+        }
+
+        // Direct email match with department head email or authority email
+        if (!empty($authority['head_email']) && strtolower($userEmail) === strtolower($authority['head_email'])) {
+            return true;
+        }
+
+        // Role-based matching
+        $targetType = $authority['type'];
+        if ($targetType === 'account' && ($userRole === 'account' || str_contains(strtolower($userEmail), 'account'))) {
+            return true;
+        }
+        if ($targetType === 'tender' && ($userRole === 'tender' || str_contains(strtolower($userEmail), 'tender'))) {
+            return true;
+        }
+        if ($targetType === 'coordinator' && ($userRole === 'coordinator' || str_contains(strtolower($userEmail), 'coordinator'))) {
+            return true;
+        }
+        if ($targetType === 'incharge' && ($userRole === 'incharge' || str_contains(strtolower($userEmail), 'incharge') || $userRole === 'manager')) {
+            return true;
+        }
+
+        return false;
+    }
+}

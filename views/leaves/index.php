@@ -182,12 +182,14 @@
                                             </div>
                                         </div>
                                         <div class="text-muted" style="font-size: 0.68rem;">
-                                            <?php if ($step === 1): ?>
-                                                <i class="fa-solid fa-hourglass-half text-warning me-1"></i><strong>Step 1 / 3:</strong> Awaiting Department Head Approval
+                                            <?php if (!$plHasIncharge && $step <= 2): ?>
+                                                <i class="fa-solid fa-bolt text-primary me-1"></i><strong>Direct HR Route:</strong> Awaiting HR Approval (No Dept Incharge)
+                                            <?php elseif ($step === 1): ?>
+                                                <i class="fa-solid fa-hourglass-half text-warning me-1"></i><strong>Step 1 / 3:</strong> Awaiting Department Incharge Approval
                                             <?php elseif ($step === 2): ?>
-                                                <i class="fa-solid fa-check text-success me-1"></i>HOD Approved (<?= e($pl['step1_approved_by_name'] ?? 'HOD') ?>) &bull; <strong class="text-primary">Step 2: HR Review</strong>
+                                                <i class="fa-solid fa-check text-success me-1"></i>Incharge Approved (<?= e($pl['step1_approved_by_name'] ?? 'Incharge') ?>) &bull; <strong class="text-primary">Step 2: HR Review</strong>
                                             <?php else: ?>
-                                                <i class="fa-solid fa-check text-success me-1"></i>HOD & HR Approved &bull; <strong class="text-dark">Step 3: Final Sign-off</strong>
+                                                <i class="fa-solid fa-check text-success me-1"></i>Incharge & HR Approved &bull; <strong class="text-dark">Step 3: Final Sign-off</strong>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -205,14 +207,12 @@
                                         $plDeptHeadEmail = strtolower(trim($pl['department_head_email'] ?? ''));
                                         $plDeptHeadName  = trim($pl['department_head'] ?? 'HR / Admin');
                                         $plDeptName      = trim($pl['department_name'] ?? 'General');
+                                        $plHasIncharge   = !empty($plDeptHeadEmail);
 
-                                        // Step 1: Specific department authority check
-                                        $canActStep1 = false;
-                                        if (!empty($plDeptHeadEmail)) {
-                                            $canActStep1 = ($currUserEmail === $plDeptHeadEmail);
-                                        } else {
-                                            $canActStep1 = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
-                                        }
+                                        // Step 1: Only the designated incharge can approve (if dept has one)
+                                        $canActStep1 = $plHasIncharge
+                                            ? ($currUserEmail === $plDeptHeadEmail)
+                                            : false; // no incharge = no step 1 gate; HR handles directly
 
                                         // Step 2: HR Manager review
                                         $canActStep2 = ($currUserRole === 'hr' || $currUserRole === 'admin' || $currUserRole === 'superadmin');
@@ -220,20 +220,29 @@
                                         // Step 3: Management final sign-off
                                         $canActStep3 = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
 
-                                        // Fast-track Direct
+                                        // Fast-track Direct (admin/superadmin only)
                                         $canDirect   = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
 
                                         // Is current step authorized for the logged-in user?
-                                        $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
+                                        if ($plHasIncharge) {
+                                            $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
+                                        } else {
+                                            // Remaining employees: HR approves directly (step 1 & 2 merged), admin does step 3
+                                            $isStepAuthorized = ($step <= 2 && $canActStep2) || ($step >= 3 && $canActStep3);
+                                        }
                                     ?>
                                     <div class="d-inline-flex align-items-center gap-1">
                                         <?php if ($isStepAuthorized): ?>
                                             <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="id" value="<?= $pl['id'] ?>">
-                                                <?php if ($step === 1): ?>
-                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Head)">
-                                                        <i class="fa-solid fa-check me-1"></i> Step 1: Approve as HOD
+                                                <?php if ($step === 1 && $plHasIncharge): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Incharge)">
+                                                        <i class="fa-solid fa-check me-1"></i> Step 1: Approve as Incharge
+                                                    </button>
+                                                <?php elseif ($step <= 2 && !$plHasIncharge): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Directly as HR (No Incharge in this Dept)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> Approve as HR (Direct)
                                                     </button>
                                                 <?php elseif ($step === 2): ?>
                                                     <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 2 (HR Manager Review)">
@@ -685,27 +694,32 @@
                                             $lvDeptHeadName  = trim($lv['department_head'] ?? 'HR / Admin');
                                             $lvDeptName      = trim($lv['department_name'] ?? 'General');
 
-                                            // Step 1: Department-specific authority check
-                                            $tblCanStep1 = false;
-                                            if (!empty($lvDeptHeadEmail)) {
-                                                $tblCanStep1 = ($tblUserEmail === $lvDeptHeadEmail);
-                                            } else {
-                                                $tblCanStep1 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
-                                            }
+                                            $tblHasIncharge = !empty($lvDeptHeadEmail);
 
+                                            // Step 1: Only the designated incharge can approve (if dept has one)
+                                            $tblCanStep1 = $tblHasIncharge ? ($tblUserEmail === $lvDeptHeadEmail) : false;
                                             $tblCanStep2 = ($tblUserRole === 'hr' || $tblUserRole === 'admin' || $tblUserRole === 'superadmin');
                                             $tblCanStep3 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
                                             $tblCanDirect = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
 
-                                            $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
+                                            if ($tblHasIncharge) {
+                                                $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
+                                            } else {
+                                                // Remaining employees: HR approves directly (steps 1+2 merged), admin does step 3
+                                                $tblIsAuthorized = ($currStep <= 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
+                                            }
                                     ?>
                                         <?php if ($tblIsAuthorized): ?>
                                             <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="id" value="<?= $lv['id'] ?>">
-                                                <?php if ($currStep === 1): ?>
-                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Head)">
+                                                <?php if ($currStep === 1 && $tblHasIncharge): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Incharge)">
                                                         <i class="fa-solid fa-check me-1"></i> Step 1
+                                                    </button>
+                                                <?php elseif ($currStep <= 2 && !$tblHasIncharge): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Directly as HR (No Incharge)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> HR Direct
                                                     </button>
                                                 <?php elseif ($currStep === 2): ?>
                                                     <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR Review)">

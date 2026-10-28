@@ -90,11 +90,20 @@ class Leave extends Model {
      */
     public static function getPendingBreakdown(): array {
         $pdo = self::db();
-        $rows = $pdo->query("SELECT status, approval_step, COUNT(*) as cnt FROM " . static::$table . " WHERE status = 'PENDING' OR status LIKE 'PENDING_%' GROUP BY status, approval_step")->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $pdo->query("SELECT l.status, l.approval_step, d.head_email, COUNT(*) as cnt 
+                             FROM " . static::$table . " l 
+                             JOIN employees e ON l.employee_id = e.id 
+                             LEFT JOIN departments d ON e.department_id = d.id 
+                             WHERE l.status = 'PENDING' OR l.status LIKE 'PENDING_%' 
+                             GROUP BY l.status, l.approval_step, d.head_email")->fetchAll(PDO::FETCH_ASSOC);
         $res = ['step1' => 0, 'step2' => 0, 'step3' => 0, 'total' => 0];
         foreach ($rows as $r) {
             $step = (int)($r['approval_step'] ?? 1);
-            if ($step <= 1 || $r['status'] === 'PENDING_LEVEL_1') {
+            $hasIncharge = !empty(trim($r['head_email'] ?? ''));
+            if (!$hasIncharge && $step <= 1) {
+                // Remaining employees without incharge go directly to Step 2 (HR)
+                $res['step2'] += (int)$r['cnt'];
+            } elseif ($step <= 1 || $r['status'] === 'PENDING_LEVEL_1') {
                 $res['step1'] += (int)$r['cnt'];
             } elseif ($step === 2 || $r['status'] === 'PENDING_LEVEL_2') {
                 $res['step2'] += (int)$r['cnt'];

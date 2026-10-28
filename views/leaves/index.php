@@ -200,49 +200,75 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     <?php
-                                        $pendingUserRole = $_SESSION['user_role'] ?? 'admin';
-                                        $canActStep1 = in_array($pendingUserRole, ['admin', 'superadmin', 'account']);
-                                        $canActStep2 = in_array($pendingUserRole, ['admin', 'superadmin', 'hr']);
-                                        $canActStep3 = in_array($pendingUserRole, ['admin', 'superadmin']);
-                                        $canDirect   = in_array($pendingUserRole, ['admin', 'superadmin']);
-                                        $stepAllowed = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
+                                        $currUserEmail   = strtolower(trim($_SESSION['user_email'] ?? ''));
+                                        $currUserRole    = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
+                                        $plDeptHeadEmail = strtolower(trim($pl['department_head_email'] ?? ''));
+                                        $plDeptHeadName  = trim($pl['department_head'] ?? 'HR / Admin');
+                                        $plDeptName      = trim($pl['department_name'] ?? 'General');
+
+                                        // Step 1: Specific department authority check
+                                        $canActStep1 = false;
+                                        if (!empty($plDeptHeadEmail)) {
+                                            $canActStep1 = ($currUserEmail === $plDeptHeadEmail);
+                                        } else {
+                                            $canActStep1 = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+                                        }
+
+                                        // Step 2: HR Manager review
+                                        $canActStep2 = ($currUserRole === 'hr' || $currUserRole === 'admin' || $currUserRole === 'superadmin');
+
+                                        // Step 3: Management final sign-off
+                                        $canActStep3 = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+
+                                        // Fast-track Direct
+                                        $canDirect   = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+
+                                        // Is current step authorized for the logged-in user?
+                                        $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
                                     ?>
                                     <div class="d-inline-flex align-items-center gap-1">
-                                        <?php if ($stepAllowed): ?>
-                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="id" value="<?= $pl['id'] ?>">
-                                            <?php if ($step === 1 && $canActStep1): ?>
-                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Head / Accounts)">
-                                                    <i class="fa-solid fa-check me-1"></i> Step 1: Approve as HOD
-                                                </button>
-                                            <?php elseif ($step === 2 && $canActStep2): ?>
-                                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 2 (HR Manager Review)">
-                                                    <i class="fa-solid fa-check-double me-1"></i> Step 2: Approve as HR
-                                                </button>
-                                            <?php elseif ($step >= 3 && $canActStep3): ?>
-                                                <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 3 (Final Management Sign-off)">
-                                                    <i class="fa-solid fa-stamp me-1"></i> Step 3: Final Sign-off
-                                                </button>
-                                            <?php endif; ?>
-                                            <?php if ($canDirect): ?>
-                                            <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 ms-1" title="Fast-Track: Direct Approve All 3 Steps (Super Admin)" onclick="return confirm('Fast-track and directly approve all 3 steps for <?= addslashes($pl['employee_name'] ?? '') ?>?');">
-                                                <i class="fa-solid fa-bolt"></i> Direct
+                                        <?php if ($isStepAuthorized): ?>
+                                            <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="id" value="<?= $pl['id'] ?>">
+                                                <?php if ($step === 1): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 1 (Department Head)">
+                                                        <i class="fa-solid fa-check me-1"></i> Step 1: Approve as HOD
+                                                    </button>
+                                                <?php elseif ($step === 2): ?>
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 2 (HR Manager Review)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> Step 2: Approve as HR
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Level 3 (Final Management Sign-off)">
+                                                        <i class="fa-solid fa-stamp me-1"></i> Step 3: Final Sign-off
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($canDirect): ?>
+                                                    <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 ms-1" title="Fast-Track: Direct Approve All 3 Steps (Super Admin)" onclick="return confirm('Fast-track and directly approve all 3 steps for <?= addslashes($pl['employee_name'] ?? '') ?>?');">
+                                                        <i class="fa-solid fa-bolt"></i> Direct
+                                                    </button>
+                                                <?php endif; ?>
+                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')" title="Reject Request">
+                                                <i class="fa-solid fa-xmark"></i>
                                             </button>
-                                            <?php endif; ?>
-                                        </form>
                                         <?php else: ?>
-                                            <?php if ($step === 1 && !$canActStep1): ?>
-                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1 small"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HOD</span>
-                                            <?php elseif ($step === 2 && !$canActStep2): ?>
-                                                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1 small"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HR</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-dark-subtle text-dark border rounded-pill px-2 py-1 small"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Mgmt</span>
-                                            <?php endif; ?>
+                                            <!-- Unauthorized login: clicking shows the Access Error Dialog -->
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm fw-semibold" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plDeptHeadName) ?>', '<?= addslashes($plDeptHeadEmail) ?>', <?= (int)$step ?>)" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-lock text-warning me-1"></i>
+                                                <?php if ($step === 1): ?>
+                                                    Step 1: Approve as HOD
+                                                <?php elseif ($step === 2): ?>
+                                                    Step 2: Approve as HR
+                                                <?php else: ?>
+                                                    Step 3: Final Sign-off
+                                                <?php endif; ?>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plDeptHeadName) ?>', '<?= addslashes($plDeptHeadEmail) ?>', <?= (int)$step ?>)" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
                                         <?php endif; ?>
-                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')" title="Reject Request">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -652,49 +678,63 @@
                                     <?php 
                                         $isPending = str_starts_with($st, 'PENDING');
                                         if ($isPending): 
-                                            $currStep = (int)($lv['approval_step'] ?? 1);
-                                            $tblUserRole = $_SESSION['user_role'] ?? 'admin';
-                                            $tblCanStep1 = in_array($tblUserRole, ['admin', 'superadmin', 'account']);
-                                            $tblCanStep2 = in_array($tblUserRole, ['admin', 'superadmin', 'hr']);
-                                            $tblCanStep3 = in_array($tblUserRole, ['admin', 'superadmin']);
-                                            $tblCanDirect = in_array($tblUserRole, ['admin', 'superadmin']);
-                                            $tblStepAllowed = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
+                                            $currStep        = (int)($lv['approval_step'] ?? 1);
+                                            $tblUserEmail    = strtolower(trim($_SESSION['user_email'] ?? ''));
+                                            $tblUserRole     = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
+                                            $lvDeptHeadEmail = strtolower(trim($lv['department_head_email'] ?? ''));
+                                            $lvDeptHeadName  = trim($lv['department_head'] ?? 'HR / Admin');
+                                            $lvDeptName      = trim($lv['department_name'] ?? 'General');
+
+                                            // Step 1: Department-specific authority check
+                                            $tblCanStep1 = false;
+                                            if (!empty($lvDeptHeadEmail)) {
+                                                $tblCanStep1 = ($tblUserEmail === $lvDeptHeadEmail);
+                                            } else {
+                                                $tblCanStep1 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+                                            }
+
+                                            $tblCanStep2 = ($tblUserRole === 'hr' || $tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+                                            $tblCanStep3 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+                                            $tblCanDirect = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+
+                                            $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
                                     ?>
-                                        <?php if ($tblStepAllowed): ?>
-                                        <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="id" value="<?= $lv['id'] ?>">
-                                            <?php if ($currStep === 1 && $tblCanStep1): ?>
-                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Head / Accounts)">
-                                                    <i class="fa-solid fa-check me-1"></i> Step 1
-                                                </button>
-                                            <?php elseif ($currStep === 2 && $tblCanStep2): ?>
-                                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR Review)">
-                                                    <i class="fa-solid fa-check-double me-1"></i> Step 2
-                                                </button>
-                                            <?php elseif ($currStep >= 3 && $tblCanStep3): ?>
-                                                <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (Management Sign-off)">
-                                                    <i class="fa-solid fa-stamp me-1"></i> Step 3
-                                                </button>
-                                            <?php endif; ?>
-                                            <?php if ($tblCanDirect): ?>
-                                            <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" title="Direct Approve (All Steps)" onclick="return confirm('Directly approve all 3 steps?');">
-                                                <i class="fa-solid fa-bolt"></i>
+                                        <?php if ($tblIsAuthorized): ?>
+                                            <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="id" value="<?= $lv['id'] ?>">
+                                                <?php if ($currStep === 1): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (Department Head)">
+                                                        <i class="fa-solid fa-check me-1"></i> Step 1
+                                                    </button>
+                                                <?php elseif ($currStep === 2): ?>
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR Review)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> Step 2
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (Management Sign-off)">
+                                                        <i class="fa-solid fa-stamp me-1"></i> Step 3
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($tblCanDirect): ?>
+                                                    <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" title="Direct Approve (All Steps)" onclick="return confirm('Directly approve all 3 steps?');">
+                                                        <i class="fa-solid fa-bolt"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $lv['id'] ?>, '<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lv['leave_type'] ?? '') ?>')" title="Reject Leave">
+                                                <i class="fa-solid fa-xmark"></i>
                                             </button>
-                                            <?php endif; ?>
-                                        </form>
                                         <?php else: ?>
-                                            <?php if ($currStep === 1 && !$tblCanStep1): ?>
-                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1" style="font-size:0.65rem;"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HOD</span>
-                                            <?php elseif ($currStep === 2 && !$tblCanStep2): ?>
-                                                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1" style="font-size:0.65rem;"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting HR</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-dark-subtle text-dark border rounded-pill px-2 py-1" style="font-size:0.65rem;"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Mgmt</span>
-                                            <?php endif; ?>
+                                            <!-- Unauthorized: shows access error dialog on click -->
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($lvDeptHeadName) ?>', '<?= addslashes($lvDeptHeadEmail) ?>', <?= (int)$currStep ?>)" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-lock text-warning me-1"></i>
+                                                <?= $currStep === 1 ? 'Step 1' : ($currStep === 2 ? 'Step 2' : 'Step 3') ?>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($lvDeptHeadName) ?>', '<?= addslashes($lvDeptHeadEmail) ?>', <?= (int)$currStep ?>)" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
                                         <?php endif; ?>
-                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $lv['id'] ?>, '<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lv['leave_type'] ?? '') ?>')" title="Reject Leave">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </button>
                                     <?php endif; ?>
                                     <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="View Complete Leave Sheet">
                                         <i class="fa-solid fa-file-lines"></i>
@@ -1458,6 +1498,42 @@ function openRejectModal(id, empName, leaveType) {
     new bootstrap.Modal(document.getElementById('rejectLeaveModal')).show();
 }
 
+function showAuthorityAccessDialog(empName, deptName, headName, headEmail, step) {
+    document.getElementById('errModalEmpName').textContent = empName || 'Employee';
+    document.getElementById('errModalDeptName').textContent = deptName || 'General';
+    let headStr = headName || 'Designated Authority';
+    if (headEmail) {
+        headStr += ' (' + headEmail + ')';
+    } else {
+        headStr += ' (HR / Admin)';
+    }
+    document.getElementById('errModalHeadInfo').textContent = headStr;
+
+    if (step === 1) {
+        document.getElementById('errModalStepTitle').textContent = 'Step 1: Department Head Review';
+        document.getElementById('errModalHelpText').textContent = 'Only ' + headStr + ' is the authorized approving authority for the ' + (deptName || 'this') + ' department.';
+    } else if (step === 2) {
+        document.getElementById('errModalStepTitle').textContent = 'Step 2: HR Manager Review';
+        document.getElementById('errModalHelpText').textContent = 'Step 2 requires HR Manager reviewer authorization (e.g. hr@attendance.local).';
+    } else {
+        document.getElementById('errModalStepTitle').textContent = 'Step 3: Final Management Sign-off';
+        document.getElementById('errModalHelpText').textContent = 'Step 3 requires Senior Management / Administrator authorization (e.g. admin@attendance.local).';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('authorityAccessErrorModal'));
+    modal.show();
+}
+
+function applyAuthorityUser(selectElem) {
+    const email = selectElem.value;
+    const opt = selectElem.options[selectElem.selectedIndex];
+    const name = opt ? opt.getAttribute('data-name') : '';
+    if (email) {
+        document.getElementById('editDeptHeadName').value = name || '';
+        document.getElementById('editDeptHeadEmail').value = email;
+    }
+}
+
 function openEditDeptHeadModal(id, name, code, description, headName, headEmail) {
     document.getElementById('editDeptId').value = id || '';
     document.getElementById('editDeptModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Department & Authority';
@@ -1466,6 +1542,12 @@ function openEditDeptHeadModal(id, name, code, description, headName, headEmail)
     document.getElementById('editDeptDesc').value = description || '';
     document.getElementById('editDeptHeadName').value = headName || '';
     document.getElementById('editDeptHeadEmail').value = headEmail || '';
+    
+    const sel = document.getElementById('selectAuthorityUser');
+    if (sel) {
+        sel.value = headEmail || '';
+    }
+
     document.getElementById('btnSubmitDept').textContent = 'Update Department';
     new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
 }
@@ -1478,6 +1560,12 @@ function openCreateDeptModal() {
     document.getElementById('editDeptDesc').value = '';
     document.getElementById('editDeptHeadName').value = '';
     document.getElementById('editDeptHeadEmail').value = '';
+    
+    const sel = document.getElementById('selectAuthorityUser');
+    if (sel) {
+        sel.value = '';
+    }
+
     document.getElementById('btnSubmitDept').textContent = 'Create Department';
     new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
 }
@@ -1524,6 +1612,62 @@ function syncHeadEmail(val) {
                     <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Rejection</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Authority Access Error Dialog -->
+<div class="modal fade" id="authorityAccessErrorModal" tabindex="-1" aria-labelledby="authorityErrorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header bg-danger text-white border-0 py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="authorityErrorTitle">Access Error: Not Authorized</h5>
+                        <small class="text-white-50" id="errModalStepTitle">Department Approving Authority Restriction</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 64px; height: 64px;">
+                    <i class="fa-solid fa-user-xmark fs-2"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-2">You Are Not The Authority!</h5>
+                <p class="text-muted small mb-3">
+                    You do not have permission to approve or reject leave requests for this department.
+                </p>
+
+                <div class="p-3 bg-light rounded-4 border text-start mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-semibold">Employee:</span>
+                        <strong class="text-dark small" id="errModalEmpName">—</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-semibold">Department:</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="errModalDeptName">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-semibold">Designated Authority:</span>
+                        <span class="small fw-bold text-danger text-truncate ms-2" id="errModalHeadInfo">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-muted fw-semibold">Your Current Login:</span>
+                        <code class="text-dark small font-monospace"><?= e($_SESSION['user_email'] ?? '') ?> (<?= ucfirst(e($_SESSION['user_role'] ?? 'user')) ?>)</code>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning border-0 small text-start py-2 px-3 mb-0">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    <span id="errModalHelpText">Please sign in as the designated authority for this department to review and approve Step 1.</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light px-4 py-3 justify-content-center">
+                <button type="button" class="btn btn-secondary rounded-pill px-5 shadow-sm fw-semibold" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1658,6 +1802,21 @@ function syncHeadEmail(val) {
                             <label class="form-label small fw-bold text-dark mb-1">Description / Notes</label>
                             <input type="text" name="description" id="editDeptDesc" class="form-control rounded-3" placeholder="e.g. Software, QA & Site Support">
                         </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-user-shield text-primary me-1"></i> Assign Authority From System Logins
+                        </label>
+                        <select id="selectAuthorityUser" class="form-select rounded-3 bg-light" onchange="applyAuthorityUser(this)">
+                            <option value="">-- Choose from existing logins or type manually below --</option>
+                            <?php foreach ($systemUsers ?? [] as $su): ?>
+                                <option value="<?= e($su['email']) ?>" data-name="<?= e($su['name']) ?>">
+                                    <?= e($su['name']) ?> (<?= e($su['email']) ?> &bull; <?= ucfirst(e($su['role'])) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text small text-muted">Selecting a system login auto-fills the Authority Name and Login Email below.</div>
                     </div>
 
                     <div class="mb-3">

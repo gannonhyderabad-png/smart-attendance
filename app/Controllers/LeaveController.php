@@ -10,6 +10,7 @@ use App\Core\Logger;
 use App\Models\Leave;
 use App\Models\Employee;
 use App\Models\Department;
+use App\Models\User;
 
 class LeaveController extends Controller {
     public function index(): void {
@@ -67,6 +68,7 @@ class LeaveController extends Controller {
             'pendingLeaves' => $pendingLeaves,
             'employees' => $employees,
             'departments' => $departments,
+            'systemUsers' => User::all(),
             'selectedDepartment' => $selectedDepartment,
             'siteList' => $siteList,
             'companyQuotas' => $companyQuotas,
@@ -261,8 +263,18 @@ class LeaveController extends Controller {
         $userId = Auth::id();
         $user = Auth::user();
         $userName = $user['name'] ?? 'Administrator';
+        $userRole = strtolower(trim(Auth::role()));
+        $userEmail = strtolower(trim($_SESSION['user_email'] ?? ''));
+        $currentStep = (int) ($leave['approval_step'] ?? 1);
+        $deptHeadEmail = strtolower(trim($leave['department_head_email'] ?? ''));
+        $deptHeadName = trim($leave['department_head'] ?? 'HR / Admin');
+        $deptName = trim($leave['department_name'] ?? 'General');
 
         if ($directApprove === 1) {
+            if ($userRole !== 'admin' && $userRole !== 'superadmin') {
+                $_SESSION['flash_error'] = "Access Error: Fast-track direct approval is restricted to Super Administrator.";
+                redirect('leaves');
+            }
             // Fast-track / Direct approve all 3 steps at once (Super Admin privilege)
             $stmt = $pdo->prepare("UPDATE leaves SET 
                 status = 'APPROVED', 
@@ -290,9 +302,24 @@ class LeaveController extends Controller {
             $_SESSION['flash_success'] = "Leave for {$leave['employee_name']} has been Direct Approved (All 3 Steps Cleared)!";
             try { \App\Services\MailService::sendLeaveDecision($leave, 'APPROVED', $userName); } catch (\Throwable $e) {}
         } else {
-            $currentStep = (int) ($leave['approval_step'] ?? 1);
             if ($currentStep <= 1) {
                 // Step 1: Department Head Review & Approval -> Moves to Step 2 (HR)
+                $isAuthorized = false;
+                if (!empty($deptHeadEmail)) {
+                    $isAuthorized = ($userEmail === $deptHeadEmail);
+                } else {
+                    $isAuthorized = ($userRole === 'admin' || $userRole === 'superadmin');
+                }
+
+                if (!$isAuthorized) {
+                    $headInfo = !empty($deptHeadName) ? $deptHeadName : 'Department Head';
+                    if (!empty($deptHeadEmail)) {
+                        $headInfo .= " ({$deptHeadEmail})";
+                    }
+                    $_SESSION['flash_error'] = "Access Error: You are not the authority for {$deptName}! Only {$headInfo} is authorized to approve Step 1 for this department.";
+                    redirect('leaves');
+                }
+
                 $stmt = $pdo->prepare("UPDATE leaves SET 
                     approval_step = 2, 
                     status = 'PENDING_LEVEL_2',
@@ -307,6 +334,11 @@ class LeaveController extends Controller {
                 try { \App\Services\MailService::sendStepApproved($leave, 1, $userName); } catch (\Throwable $e) {}
             } elseif ($currentStep === 2) {
                 // Step 2: HR Manager Approval -> Moves to Step 3 (Final Management)
+                if ($userRole !== 'hr' && $userRole !== 'admin' && $userRole !== 'superadmin') {
+                    $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 2! Only HR Managers can review and approve Step 2.";
+                    redirect('leaves');
+                }
+
                 $stmt = $pdo->prepare("UPDATE leaves SET 
                     approval_step = 3, 
                     status = 'PENDING_LEVEL_3',
@@ -321,6 +353,11 @@ class LeaveController extends Controller {
                 try { \App\Services\MailService::sendStepApproved($leave, 2, $userName); } catch (\Throwable $e) {}
             } else {
                 // Step 3: Final Management Sign-off -> Status becomes fully APPROVED
+                if ($userRole !== 'admin' && $userRole !== 'superadmin') {
+                    $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only Senior Management / Administrator can perform final sign-off.";
+                    redirect('leaves');
+                }
+
                 $stmt = $pdo->prepare("UPDATE leaves SET 
                     approval_step = 4, 
                     status = 'APPROVED',
@@ -353,6 +390,38 @@ class LeaveController extends Controller {
         if ($id > 0) {
             $leave = Leave::find($id);
             if ($leave) {
+                $userRole = strtolower(trim(Auth::role()));
+                $userEmail = strtolower(trim($_SESSION['user_email'] ?? ''));
+                $currentStep = (int) ($leave['approval_step'] ?? 1);
+                $deptHeadEmail = strtolower(trim($leave['department_head_email'] ?? ''));
+                $deptHeadName = trim($leave['department_head'] ?? 'HR / Admin');
+                $deptName = trim($leave['department_name'] ?? 'General');
+
+                if ($currentStep <= 1) {
+                    $isAuthorized = false;
+                    if (!empty($deptHeadEmail)) {
+                        $isAuthorized = ($userEmail === $deptHeadEmail);
+                    } else {
+                        $isAuthorized = ($userRole === 'admin' || $userRole === 'superadmin');
+                    }
+                    if (!$isAuthorized) {
+                        $headInfo = !empty($deptHeadName) ? $deptHeadName : 'Department Head';
+                        if (!empty($deptHeadEmail)) $headInfo .= " ({$deptHeadEmail})";
+                        $_SESSION['flash_error'] = "Access Error: You are not the authority for {$deptName}! Only {$headInfo} is authorized to reject Step 1 for this department.";
+                        redirect('leaves');
+                    }
+                } elseif ($currentStep === 2) {
+                    if ($userRole !== 'hr' && $userRole !== 'admin' && $userRole !== 'superadmin') {
+                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 2! Only HR Managers can reject at Step 2.";
+                        redirect('leaves');
+                    }
+                } else {
+                    if ($userRole !== 'admin' && $userRole !== 'superadmin') {
+                        $_SESSION['flash_error'] = "Access Error: You are not authorized for Step 3! Only Senior Management can reject at Step 3.";
+                        redirect('leaves');
+                    }
+                }
+
                 $pdo = \Database\Database::getConnection();
                 $nowStr = date('Y-m-d H:i:s');
                 $userId = Auth::id();

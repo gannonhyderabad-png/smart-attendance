@@ -430,6 +430,8 @@ $router->post('/profile/update', [\App\Controllers\AuthController::class, 'updat
 $router->post('/users/create', [\App\Controllers\AuthController::class, 'createUser']);
 $router->post('/users/update', [\App\Controllers\AuthController::class, 'updateUser']);
 $router->post('/users/delete', [\App\Controllers\AuthController::class, 'deleteUser']);
+$router->post('/settings/smtp', [\App\Controllers\AuthController::class, 'updateSmtp']);
+$router->post('/settings/smtp-test', [\App\Controllers\AuthController::class, 'testSmtp']);
 $router->get('/backup/download', [\App\Controllers\BackupController::class, 'download']);
 $router->post('/backup/restore', [\App\Controllers\BackupController::class, 'restore']);
 $router->post('/backup/clean-photos', [\App\Controllers\BackupController::class, 'cleanOldPhotos']);

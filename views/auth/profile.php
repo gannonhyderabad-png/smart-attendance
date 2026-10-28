@@ -281,6 +281,139 @@
     </div>
 </div>
 
+<!-- SMTP Mail Server Configuration Card -->
+<div class="row g-4 justify-content-center mt-0 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">
+                        <i class="fa-solid fa-paper-plane text-info me-2"></i>Outbound SMTP Mail Server Configuration
+                    </h5>
+                    <p class="text-muted small mb-0">Configure your SMTP server so leave applications push real email notifications to authority mailboxes (e.g. <code>hyd.itserv@gdcl.in</code>).</p>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge <?= !empty($smtpSettings['host']) ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle' ?> rounded-pill px-3">
+                        <i class="fa-solid <?= !empty($smtpSettings['host']) ? 'fa-circle-check' : 'fa-triangle-exclamation' ?> me-1"></i>
+                        <?= !empty($smtpSettings['host']) ? 'SMTP Configured' : 'Not Configured (using system mail)' ?>
+                    </span>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- SMTP Settings Form -->
+                    <div class="col-lg-7">
+                        <form method="POST" action="<?= base_url('settings/smtp') ?>">
+                            <?= csrf_field() ?>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch mb-1">
+                                        <input class="form-check-input" type="checkbox" name="smtp_enabled" id="smtpEnabled" value="1" <?= ($smtpSettings['enabled'] ?? '1') !== '0' ? 'checked' : '' ?>>
+                                        <label class="form-check-label fw-semibold small text-dark" for="smtpEnabled">
+                                            Enable Outbound SMTP Delivery
+                                        </label>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">When enabled, leave notifications are sent directly via authenticated SMTP to authority mailboxes.</small>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small fw-semibold text-muted">SMTP Host / Server <span class="text-danger">*</span></label>
+                                    <input type="text" name="smtp_host" class="form-control bg-light" placeholder="e.g. smtp.office365.com or smtp.gmail.com" value="<?= e($smtpSettings['host'] ?? '') ?>">
+                                    <small class="text-muted" style="font-size: 0.7rem;">For Microsoft 365: <code>smtp.office365.com</code> &bull; Gmail: <code>smtp.gmail.com</code></small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold text-muted">SMTP Port</label>
+                                    <select name="smtp_port" class="form-select bg-light">
+                                        <option value="587" <?= ($smtpSettings['port'] ?? '587') === '587' ? 'selected' : '' ?>>587 (STARTTLS — Recommended)</option>
+                                        <option value="465" <?= ($smtpSettings['port'] ?? '') === '465' ? 'selected' : '' ?>>465 (SSL)</option>
+                                        <option value="25" <?= ($smtpSettings['port'] ?? '') === '25' ? 'selected' : '' ?>>25 (Plain)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold text-muted">Encryption</label>
+                                    <select name="smtp_encryption" class="form-select bg-light">
+                                        <option value="tls" <?= ($smtpSettings['encryption'] ?? 'tls') === 'tls' ? 'selected' : '' ?>>STARTTLS (Port 587)</option>
+                                        <option value="ssl" <?= ($smtpSettings['encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL (Port 465)</option>
+                                        <option value="none" <?= ($smtpSettings['encryption'] ?? '') === 'none' ? 'selected' : '' ?>>None (Port 25)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small fw-semibold text-muted">SMTP Username / Login Email</label>
+                                    <input type="email" name="smtp_username" class="form-control bg-light" placeholder="e.g. sender@gdcl.in" value="<?= e($smtpSettings['username'] ?? '') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold text-muted">SMTP Password / App Password</label>
+                                    <input type="password" name="smtp_password" class="form-control bg-light" placeholder="Leave blank to keep saved password">
+                                    <small class="text-muted" style="font-size: 0.7rem;">For Microsoft 365 / Gmail with MFA: use an App Password.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold text-muted">From Email Address</label>
+                                    <input type="email" name="smtp_from_email" class="form-control bg-light" placeholder="e.g. attendance@gdcl.in" value="<?= e($smtpSettings['from_email'] ?? '') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold text-muted">From Name (displayed to recipient)</label>
+                                    <input type="text" name="smtp_from_name" class="form-control bg-light" placeholder="e.g. SmartPunch Leave System" value="<?= e($smtpSettings['from_name'] ?? 'SmartPunch Attendance') ?>">
+                                </div>
+                                <div class="col-12">
+                                    <div class="alert alert-light border rounded-3 p-2 small text-muted mb-0">
+                                        <i class="fa-solid fa-circle-info text-primary me-1"></i>
+                                        <strong>Microsoft 365 users:</strong> Use <code>smtp.office365.com</code> port <code>587</code> with STARTTLS. Your login email is your M365 username. Enable <em>Authenticated SMTP</em> in the Exchange admin center if needed.
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-info text-white rounded-pill px-4 shadow-sm fw-bold">
+                                        <i class="fa-solid fa-floppy-disk me-1"></i> Save SMTP Settings
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Test Email Panel -->
+                    <div class="col-lg-5">
+                        <div class="card border-0 bg-light rounded-4 h-100">
+                            <div class="card-body p-4">
+                                <h6 class="fw-bold text-dark mb-1">
+                                    <i class="fa-solid fa-flask text-success me-2"></i>Live Delivery Test
+                                </h6>
+                                <p class="text-muted small mb-3">Send a test email to verify your SMTP configuration is working and can deliver to your authority mailboxes.</p>
+                                <form method="POST" action="<?= base_url('settings/smtp-test') ?>">
+                                    <?= csrf_field() ?>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-muted">Test Recipient Email</label>
+                                        <input type="email" name="test_email" class="form-control" placeholder="e.g. hyd.itserv@gdcl.in" value="<?= e($smtpSettings['username'] ?? '') ?>" required>
+                                        <small class="text-muted" style="font-size: 0.7rem;">Enter the authority / company mailbox to test delivery.</small>
+                                    </div>
+                                    <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm w-100 fw-bold">
+                                        <i class="fa-solid fa-paper-plane me-1"></i> Send Test Email Now
+                                    </button>
+                                </form>
+                                <hr class="my-3 opacity-25">
+                                <div class="p-3 bg-white rounded-3 border">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-semibold text-muted">SMTP Status:</span>
+                                        <span class="badge <?= !empty($smtpSettings['host']) ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border' ?> rounded-pill">
+                                            <?= !empty($smtpSettings['host']) ? '🟢 Ready' : '⚪ Not Set' ?>
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-semibold text-muted">Host:</span>
+                                        <code class="small"><?= !empty($smtpSettings['host']) ? e($smtpSettings['host'] . ':' . ($smtpSettings['port'] ?? '587')) : '—' ?></code>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small fw-semibold text-muted">Auth User:</span>
+                                        <code class="small"><?= !empty($smtpSettings['username']) ? e($smtpSettings['username']) : '—' ?></code>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php endif; ?>
+
 <!-- Modal: Create New System Login -->
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

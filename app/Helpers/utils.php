@@ -410,12 +410,13 @@ if (!function_exists('getLeaveStep1Authority')) {
         if (!empty($deptHeadEmail) && $deptHeadEmail !== 'admin@attendance.local') {
             $headTitle = !empty($deptHeadName) && $deptHeadName !== 'HR / Admin' ? $deptHeadName : ($deptName ? ucwords($deptName) . ' Head' : 'Department Authority');
             return [
-                'type'        => 'dept_head',
-                'title'       => $headTitle,
-                'badge'       => ucwords($deptName ?: 'Dept Head'),
-                'button_text' => 'Step 1: Approve as ' . ucwords($deptName ?: 'Authority'),
-                'head_name'   => $headTitle,
-                'head_email'  => $deptHeadEmail,
+                'type'         => 'dept_head',
+                'title'        => $headTitle,
+                'badge'        => ucwords($deptName ?: 'Dept Head'),
+                'button_text'  => 'Step 1: Approve as ' . ucwords($deptName ?: 'Authority'),
+                'head_name'    => $headTitle,
+                'head_email'   => $deptHeadEmail,
+                'company_mail' => $deptHeadEmail,
             ];
         }
 
@@ -433,29 +434,31 @@ if (!function_exists('getLeaveStep1Authority')) {
 
         foreach ($cachedCustomUsers as $cu) {
             $r = strtolower(trim($cu['role'] ?? ''));
+            $name = strtolower(trim($cu['name'] ?? ''));
             $emailUser = strtolower(trim(explode('@', $cu['email'] ?? '')[0]));
-            if (empty($r)) continue;
+            if (empty($r) && empty($name)) continue;
 
             // Skip default incharge here so specific roles take precedence
             if ($r === 'incharge' && !str_contains($designation, 'incharge') && !str_contains($deptName, 'incharge')) {
                 continue;
             }
 
-            // Check if user role or email prefix matches employee designation or department
+            // Check if user role, name, or email prefix matches employee designation or department
             $matchRole = (strlen($r) >= 3 && (str_contains($designation, $r) || str_contains($deptName, $r)));
+            $matchName = (strlen($name) >= 3 && (str_contains($designation, $name) || str_contains($deptName, $name) || str_contains($name, $deptName)));
             $matchEmail = (strlen($emailUser) >= 4 && (str_contains($designation, $emailUser) || str_contains($deptName, $emailUser) || (strlen($deptName) >= 4 && str_contains($emailUser, substr($deptName, 0, 4)))));
 
-            if ($matchRole || $matchEmail) {
-                $roleLabel = ucwords(str_replace(['_', '-'], ' ', $r));
-                $title = !empty($cu['name']) ? $cu['name'] : ($roleLabel . ' Authority');
+            if ($matchRole || $matchName || $matchEmail) {
+                $roleLabel = !empty($cu['name']) ? $cu['name'] : ucwords(str_replace(['_', '-'], ' ', $r));
+                $preferredMail = !empty($cu['company_mail']) ? $cu['company_mail'] : ($cu['email'] ?? '');
                 return [
-                    'type'         => $r,
-                    'title'        => $title,
+                    'type'         => $r ?: 'authority',
+                    'title'        => $roleLabel,
                     'badge'        => $roleLabel,
                     'button_text'  => 'Step 1: Approve as ' . $roleLabel,
-                    'head_name'    => $title,
+                    'head_name'    => $cu['name'] ?? $roleLabel,
                     'head_email'   => $cu['email'] ?? '',
-                    'company_mail' => $cu['company_mail'] ?? '',
+                    'company_mail' => $preferredMail,
                 ];
             }
         }
@@ -463,11 +466,14 @@ if (!function_exists('getLeaveStep1Authority')) {
         // Helper to find company mail for built-in roles
         $findRoleMail = function(string $roleName) use ($cachedCustomUsers): array {
             foreach ($cachedCustomUsers as $u) {
-                if (($u['role'] ?? '') === $roleName) {
+                $uRole = strtolower(trim($u['role'] ?? ''));
+                $uName = strtolower(trim($u['name'] ?? ''));
+                if ($uRole === $roleName || str_contains($uName, $roleName) || str_contains($roleName, $uName)) {
+                    $pref = !empty($u['company_mail']) ? $u['company_mail'] : ($u['email'] ?? '');
                     return [
-                        'email' => $u['email'] ?? '',
-                        'company_mail' => $u['company_mail'] ?? '',
-                        'name' => $u['name'] ?? ''
+                        'email'        => $u['email'] ?? '',
+                        'company_mail' => $pref,
+                        'name'         => $u['name'] ?? ''
                     ];
                 }
             }
@@ -477,6 +483,7 @@ if (!function_exists('getLeaveStep1Authority')) {
         // 3. Accounts: designation or department matches accounts
         if (str_contains($designation, 'account') || str_contains($deptName, 'account')) {
             $acctUser = $findRoleMail('account');
+            $preferredMail = !empty($acctUser['company_mail']) ? $acctUser['company_mail'] : (!empty($deptHeadEmail) ? $deptHeadEmail : ($acctUser['email'] ?: 'account@attendance.local'));
             return [
                 'type'         => 'account',
                 'title'        => 'Accounts Head',
@@ -484,13 +491,14 @@ if (!function_exists('getLeaveStep1Authority')) {
                 'button_text'  => 'Step 1: Approve as Accounts',
                 'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($acctUser['name'] ?: 'Accounts Head'),
                 'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($acctUser['email'] ?: 'account@attendance.local'),
-                'company_mail' => $acctUser['company_mail'] ?? '',
+                'company_mail' => $preferredMail,
             ];
         }
 
         // 4. Tender: designation or department matches tender
         if (str_contains($designation, 'tender') || str_contains($deptName, 'tender')) {
             $tenderUser = $findRoleMail('tender');
+            $preferredMail = !empty($tenderUser['company_mail']) ? $tenderUser['company_mail'] : (!empty($deptHeadEmail) ? $deptHeadEmail : ($tenderUser['email'] ?: 'tender@attendance.local'));
             return [
                 'type'         => 'tender',
                 'title'        => 'Tender Head',
@@ -498,13 +506,14 @@ if (!function_exists('getLeaveStep1Authority')) {
                 'button_text'  => 'Step 1: Approve as Tender Head',
                 'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($tenderUser['name'] ?: 'Tender Head'),
                 'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($tenderUser['email'] ?: 'tender@attendance.local'),
-                'company_mail' => $tenderUser['company_mail'] ?? '',
+                'company_mail' => $preferredMail,
             ];
         }
 
         // 5. Coordinator: designation or department matches coordinator
         if (str_contains($designation, 'coordinator') || str_contains($deptName, 'coordinator')) {
             $coordUser = $findRoleMail('coordinator');
+            $preferredMail = !empty($coordUser['company_mail']) ? $coordUser['company_mail'] : (!empty($deptHeadEmail) ? $deptHeadEmail : ($coordUser['email'] ?: 'coordinator@attendance.local'));
             return [
                 'type'         => 'coordinator',
                 'title'        => 'Coordinator',
@@ -512,12 +521,13 @@ if (!function_exists('getLeaveStep1Authority')) {
                 'button_text'  => 'Step 1: Approve as Coordinator',
                 'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($coordUser['name'] ?: 'Coordinator'),
                 'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($coordUser['email'] ?: 'coordinator@attendance.local'),
-                'company_mail' => $coordUser['company_mail'] ?? '',
+                'company_mail' => $preferredMail,
             ];
         }
 
         // 6. Incharge: explicit incharge designation or department
         $inchUser = $findRoleMail('incharge');
+        $preferredMail = !empty($inchUser['company_mail']) ? $inchUser['company_mail'] : (!empty($deptHeadEmail) ? $deptHeadEmail : ($inchUser['email'] ?: 'incharge@attendance.local'));
         if (str_contains($designation, 'incharge') || str_contains($deptName, 'incharge')) {
             return [
                 'type'         => 'incharge',
@@ -526,7 +536,7 @@ if (!function_exists('getLeaveStep1Authority')) {
                 'button_text'  => 'Step 1: Approve as Incharge',
                 'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($inchUser['name'] ?: 'Incharge'),
                 'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($inchUser['email'] ?: 'incharge@attendance.local'),
-                'company_mail' => $inchUser['company_mail'] ?? '',
+                'company_mail' => $preferredMail,
             ];
         }
 
@@ -538,7 +548,7 @@ if (!function_exists('getLeaveStep1Authority')) {
             'button_text'  => 'Step 1: Approve as Incharge',
             'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($inchUser['name'] ?: 'Department Incharge'),
             'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($inchUser['email'] ?: 'incharge@attendance.local'),
-            'company_mail' => $inchUser['company_mail'] ?? '',
+            'company_mail' => $preferredMail,
         ];
     }
 }

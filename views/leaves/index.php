@@ -1805,9 +1805,11 @@ function syncHeadEmail(val) {
                         </label>
                         <select id="selectAuthorityUser" class="form-select rounded-3 bg-light" onchange="applyAuthorityUser(this)">
                             <option value="">-- Choose from existing logins or type manually below --</option>
-                            <?php foreach ($systemUsers ?? [] as $su): ?>
-                                <option value="<?= e($su['email']) ?>" data-name="<?= e($su['name']) ?>">
-                                    <?= e($su['name']) ?> (<?= e($su['email']) ?> &bull; <?= ucfirst(e($su['role'])) ?>)
+                            <?php foreach ($systemUsers ?? [] as $su):
+                                $preferredContact = !empty($su['company_mail']) ? $su['company_mail'] : $su['email'];
+                            ?>
+                                <option value="<?= e($preferredContact) ?>" data-name="<?= e($su['name']) ?>">
+                                    <?= e($su['name']) ?> (<?= e($preferredContact) ?> &bull; <?= ucfirst(e($su['role'])) ?><?= !empty($su['company_mail']) ? ' &bull; <em class=\'text-info\'>Mailbox</em>' : '' ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>

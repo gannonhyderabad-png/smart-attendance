@@ -9,6 +9,239 @@ use App\Core\Logger;
 
 class MailService {
     /**
+     * Send email via direct SMTP socket connection (RFC 5321)
+     * Supports STARTTLS (port 587), SSL (port 465), or plain (port 25)
+     */
+    public static function sendViaSmtp(string $to, string $subject, string $htmlBody, array $cc = []): array {
+        $host = trim((string)(Setting::get('smtp_host') ?: getenv('SMTP_HOST') ?: ''));
+        $port = (int)(Setting::get('smtp_port') ?: getenv('SMTP_PORT') ?: 587);
+        $encryption = strtolower(trim((string)(Setting::get('smtp_encryption') ?: getenv('SMTP_ENCRYPTION') ?: 'tls')));
+        $username = trim((string)(Setting::get('smtp_username') ?: getenv('SMTP_USERNAME') ?: getenv('SMTP_USER') ?: ''));
+        $password = trim((string)(Setting::get('smtp_password') ?: getenv('SMTP_PASSWORD') ?: getenv('SMTP_PASS') ?: ''));
+        $fromEmail = trim((string)(Setting::get('smtp_from_email') ?: getenv('SMTP_FROM') ?: Setting::get('company_email', 'notifications@smartattendance.local')));
+        $fromName = trim((string)(Setting::get('smtp_from_name') ?: Setting::get('company_name', 'SmartPunch Attendance')));
+
+        if (empty($host)) {
+            return ['success' => false, 'error' => 'SMTP Host is not configured in settings or environment'];
+        }
+
+        // Clean parameters to prevent header injection
+        $safeSubject = str_replace(["\r", "\n"], '', $subject);
+        $encodedSubject = '=?UTF-8?B?' . base64_encode($safeSubject) . '?=';
+        $safeFromName = str_replace(["\r", "\n", '"'], '', $fromName);
+
+        $protocol = ($encryption === 'ssl' || $port === 465) ? 'ssl://' : 'tcp://';
+        $timeout = 15;
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            ]
+        ]);
+
+        $socket = @stream_socket_client($protocol . $host . ':' . $port, $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $context);
+        if (!$socket) {
+            return ['success' => false, 'error' => "Cannot connect to SMTP server {$host}:{$port} ({$errstr})"];
+        }
+
+        stream_set_timeout($socket, $timeout);
+
+        $readResponse = function() use ($socket): string {
+            $response = '';
+            while ($line = fgets($socket, 1024)) {
+                $response .= $line;
+                if (isset($line[3]) && $line[3] === ' ') {
+                    break;
+                }
+                if (strlen(trim($line)) === 3) {
+                    break;
+                }
+            }
+            return trim($response);
+        };
+
+        $sendCommand = function(string $cmd) use ($socket, $readResponse): string {
+            fputs($socket, $cmd . "\r\n");
+            return $readResponse();
+        };
+
+        $greeting = $readResponse();
+        if (substr($greeting, 0, 3) !== '220') {
+            fclose($socket);
+            return ['success' => false, 'error' => "SMTP greeting error from {$host}: {$greeting}"];
+        }
+
+        $clientHost = !empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost';
+        $ehlo = $sendCommand('EHLO ' . $clientHost);
+        if (substr($ehlo, 0, 3) !== '250') {
+            $helo = $sendCommand('HELO ' . $clientHost);
+            if (substr($helo, 0, 3) !== '250') {
+                fclose($socket);
+                return ['success' => false, 'error' => "HELO/EHLO rejected by {$host}: {$helo}"];
+            }
+        }
+
+        // STARTTLS negotiation for TLS encryption on port 587 or 25
+        if ($encryption === 'tls' || ($encryption !== 'ssl' && $port === 587)) {
+            $tlsResp = $sendCommand('STARTTLS');
+            if (substr($tlsResp, 0, 3) === '220') {
+                $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT;
+                if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+                    $cryptoMethod |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+                }
+                if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
+                    $cryptoMethod |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+                }
+
+                $crypto = @stream_socket_enable_crypto($socket, true, $cryptoMethod);
+                if (!$crypto) {
+                    fclose($socket);
+                    return ['success' => false, 'error' => "STARTTLS handshake failed with {$host}"];
+                }
+                // Resend EHLO after secure tunnel established
+                $ehlo = $sendCommand('EHLO ' . $clientHost);
+            }
+        }
+
+        // SMTP Authentication (AUTH LOGIN)
+        if (!empty($username) && !empty($password)) {
+            $authResp = $sendCommand('AUTH LOGIN');
+            if (substr($authResp, 0, 3) === '334') {
+                $uResp = $sendCommand(base64_encode($username));
+                if (substr($uResp, 0, 3) !== '334') {
+                    fclose($socket);
+                    return ['success' => false, 'error' => "SMTP Username rejected by {$host}: {$uResp}"];
+                }
+                $pResp = $sendCommand(base64_encode($password));
+                if (substr($pResp, 0, 3) !== '235') {
+                    fclose($socket);
+                    return ['success' => false, 'error' => "SMTP Authentication failed for {$username}: {$pResp}"];
+                }
+            }
+        }
+
+        // MAIL FROM
+        $mailFrom = $sendCommand('MAIL FROM:<' . $fromEmail . '>');
+        if (substr($mailFrom, 0, 3) !== '250') {
+            fclose($socket);
+            return ['success' => false, 'error' => "MAIL FROM <{$fromEmail}> rejected: {$mailFrom}"];
+        }
+
+        // RCPT TO
+        $allRecipients = array_merge([$to], $cc);
+        $validRecipients = [];
+        foreach ($allRecipients as $rcpt) {
+            $rcpt = trim((string)$rcpt);
+            if (!empty($rcpt) && filter_var($rcpt, FILTER_VALIDATE_EMAIL)) {
+                $rcptResp = $sendCommand('RCPT TO:<' . $rcpt . '>');
+                if (substr($rcptResp, 0, 3) === '250' || substr($rcptResp, 0, 3) === '251') {
+                    $validRecipients[] = $rcpt;
+                }
+            }
+        }
+
+        if (empty($validRecipients)) {
+            fclose($socket);
+            return ['success' => false, 'error' => "Recipient <{$to}> was rejected by {$host}"];
+        }
+
+        // DATA command
+        $dataResp = $sendCommand('DATA');
+        if (substr($dataResp, 0, 3) !== '354') {
+            fclose($socket);
+            return ['success' => false, 'error' => "DATA rejected: {$dataResp}"];
+        }
+
+        // Compose MIME Headers
+        $headers = [];
+        $headers[] = 'MIME-Version: 1.0';
+        $headers[] = 'Content-Type: text/html; charset=UTF-8';
+        $headers[] = 'From: =?UTF-8?B?' . base64_encode($safeFromName) . '?= <' . $fromEmail . '>';
+        $headers[] = 'To: <' . $to . '>';
+        if (!empty($cc)) {
+            $headers[] = 'Cc: ' . implode(', ', array_map(fn($c) => '<' . trim($c) . '>', $cc));
+        }
+        $headers[] = 'Date: ' . date('r');
+        $headers[] = 'Subject: ' . $encodedSubject;
+        $headers[] = 'Reply-To: <' . $fromEmail . '>';
+        $headers[] = 'X-Mailer: SmartPunch-Attendance/2.0';
+
+        // Prepare message body (escaping standalone dots per RFC 5321)
+        $normalizedBody = str_replace("\r\n", "\n", $htmlBody);
+        $normalizedBody = str_replace("\n", "\r\n", $normalizedBody);
+        $normalizedBody = preg_replace('/^\./m', '..', $normalizedBody);
+
+        $payload = implode("\r\n", $headers) . "\r\n\r\n" . $normalizedBody . "\r\n.";
+        $sendResp = $sendCommand($payload);
+
+        $sendCommand('QUIT');
+        fclose($socket);
+
+        if (substr($sendResp, 0, 3) === '250') {
+            return ['success' => true, 'response' => $sendResp];
+        } else {
+            return ['success' => false, 'error' => "Failed to dispatch message content: {$sendResp}"];
+        }
+    }
+
+    /**
+     * Send a live test email to verify SMTP configuration
+     */
+    public static function sendTestEmail(string $targetEmail): array {
+        $targetEmail = trim($targetEmail);
+        if (empty($targetEmail) || !filter_var($targetEmail, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'error' => "Invalid destination email '{$targetEmail}'"];
+        }
+
+        $host = Setting::get('smtp_host', '');
+        $port = Setting::get('smtp_port', '587');
+        $user = Setting::get('smtp_username', '');
+        $timeStr = date('d M Y, h:i:s A');
+
+        $testHtml = self::buildEmailTemplate([
+            'title' => 'SMTP Outbound Connection Verified',
+            'badge' => 'Test Email • System Online',
+            'badge_color' => '#16a34a',
+            'lead' => "This is a live test notification from your <strong>Smart Attendance &amp; Leave System</strong>.",
+            'rows' => "
+                <tr>
+                    <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600; width: 140px;'>Recipient Mailbox:</td>
+                    <td style='padding: 8px 12px; color: #0f172a; font-size: 14px; font-weight: bold;'>" . htmlspecialchars($targetEmail) . "</td>
+                </tr>
+                <tr style='background: #f8fafc;'>
+                    <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600;'>SMTP Server:</td>
+                    <td style='padding: 8px 12px; color: #0f172a; font-size: 14px; font-family: monospace;'>" . htmlspecialchars($host ?: 'Direct Socket / Local') . ":" . htmlspecialchars((string)$port) . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600;'>Authenticated User:</td>
+                    <td style='padding: 8px 12px; color: #0f172a; font-size: 14px;'>" . htmlspecialchars($user ?: '(None / Direct)') . "</td>
+                </tr>
+                <tr style='background: #f8fafc;'>
+                    <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600;'>Dispatch Time:</td>
+                    <td style='padding: 8px 12px; color: #0f172a; font-size: 14px;'>{$timeStr}</td>
+                </tr>
+                <tr style='background: #f0fdf4;'>
+                    <td style='padding: 8px 12px; color: #166534; font-size: 13px; font-weight: 600;'>Delivery Status:</td>
+                    <td style='padding: 8px 12px; color: #166534; font-size: 14px; font-weight: bold;'>✅ Successfully Delivered to Authority Mailbox</td>
+                </tr>
+            ",
+            'button_text' => 'Open Leave Management Portal',
+            'button_url' => base_url('leaves'),
+            'note' => 'Your email server configuration is operational. All upcoming leave and OD applications submitted by employees will automatically push instant email notifications with action links to this mailbox.'
+        ]);
+
+        $subject = "✅ SmartPunch SMTP Test: Outbound Delivery Verified";
+        $res = self::sendViaSmtp($targetEmail, $subject, $testHtml);
+        if ($res['success']) {
+            Logger::log(null, 'SMTP_TEST_SUCCESS', "SMTP test email successfully delivered to {$targetEmail} via [{$host}:{$port}]");
+        } else {
+            Logger::log(null, 'SMTP_TEST_FAIL', "SMTP test email failed for {$targetEmail}: " . ($res['error'] ?? 'Unknown error'));
+        }
+        return $res;
+    }
+
+    /**
      * Send an HTML email with graceful error handling and activity logging
      */
     public static function send(string $to, string $subject, string $htmlBody, array $cc = []): bool {
@@ -18,6 +251,22 @@ class MailService {
             return false;
         }
 
+        // 1. Attempt delivery via authenticated SMTP if configured
+        $smtpHost = trim((string)(Setting::get('smtp_host') ?: getenv('SMTP_HOST') ?: ''));
+        $smtpEnabled = Setting::get('smtp_enabled', '1');
+
+        if (!empty($smtpHost) && $smtpEnabled !== '0') {
+            $smtpRes = self::sendViaSmtp($to, $subject, $htmlBody, $cc);
+            if ($smtpRes['success']) {
+                Logger::log(null, 'MAIL_SENT_SMTP', "Email successfully delivered via SMTP [{$smtpHost}] to {$to} (Subject: {$subject})");
+                return true;
+            } else {
+                Logger::log(null, 'MAIL_SMTP_FAIL', "SMTP delivery failed for {$to} via [{$smtpHost}]: " . ($smtpRes['error'] ?? 'Unknown error'));
+                // Fall back to mail() below
+            }
+        }
+
+        // 2. Standard PHP mail() fallback
         $companyName = Setting::get('company_name', 'Gannon Dunkerley & Co. Ltd.');
         $companyEmail = Setting::get('company_email', 'hr@gannondunkerley.com');
         if (!filter_var($companyEmail, FILTER_VALIDATE_EMAIL)) {
@@ -50,14 +299,11 @@ class MailService {
         $headersStr = implode("\r\n", $headers);
 
         try {
-            // Attempt standard PHP mail()
             $sent = @mail($to, $encodedSubject, $htmlBody, $headersStr);
             if ($sent) {
                 Logger::log(null, 'MAIL_SENT', "Email successfully sent to {$to} (Subject: {$safeSubject})");
                 return true;
             } else {
-                // In environments without a configured local MTA (like bare Docker or Windows local),
-                // log gracefully so the user request never halts.
                 Logger::log(null, 'MAIL_QUEUED', "Email dispatched via system queue for {$to} (Subject: {$safeSubject})");
                 return true;
             }

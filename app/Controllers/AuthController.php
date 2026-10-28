@@ -8,6 +8,7 @@ use App\Core\Request;
 use App\Core\Csrf;
 use App\Core\Logger;
 use App\Models\User;
+use App\Models\Setting;
 
 class AuthController extends Controller {
     public function showLogin(): void {
@@ -53,10 +54,22 @@ class AuthController extends Controller {
             $allUsers = User::all();
         }
 
+        $smtpSettings = [
+            'enabled' => Setting::get('smtp_enabled', '1'),
+            'host' => Setting::get('smtp_host', ''),
+            'port' => Setting::get('smtp_port', '587'),
+            'encryption' => Setting::get('smtp_encryption', 'tls'),
+            'username' => Setting::get('smtp_username', ''),
+            'password' => Setting::get('smtp_password', ''),
+            'from_email' => Setting::get('smtp_from_email', ''),
+            'from_name' => Setting::get('smtp_from_name', ''),
+        ];
+
         $this->view('auth.profile', [
             'title' => 'Admin Profile & Security',
             'currentUser' => $user,
-            'allUsers' => $allUsers
+            'allUsers' => $allUsers,
+            'smtpSettings' => $smtpSettings
         ], 'admin');
     }
 
@@ -269,6 +282,77 @@ class AuthController extends Controller {
             $this->setFlash('success', "Login for '{$user['name']}' ({$user['email']}) deleted.");
         }
 
+        redirect('profile');
+    }
+
+    /**
+     * Update Outbound SMTP Mail Server Settings (Admin only)
+     */
+    public function updateSmtp(): void {
+        Auth::requireAuth();
+        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+            $this->setFlash('error', 'Unauthorized access.');
+            redirect('profile');
+        }
+
+        if (!Csrf::validate(Request::input('_csrf_token'))) {
+            $this->setFlash('error', 'Invalid security token.');
+            redirect('profile');
+        }
+
+        $enabled = Request::input('smtp_enabled') ? '1' : '0';
+        $host = trim((string)Request::input('smtp_host', ''));
+        $port = trim((string)Request::input('smtp_port', '587'));
+        $encryption = trim((string)Request::input('smtp_encryption', 'tls'));
+        $username = trim((string)Request::input('smtp_username', ''));
+        $password = trim((string)Request::input('smtp_password', ''));
+        $fromEmail = trim((string)Request::input('smtp_from_email', ''));
+        $fromName = trim((string)Request::input('smtp_from_name', ''));
+
+        Setting::set('smtp_enabled', $enabled);
+        Setting::set('smtp_host', $host);
+        Setting::set('smtp_port', $port);
+        Setting::set('smtp_encryption', $encryption);
+        Setting::set('smtp_username', $username);
+        if ($password !== '') {
+            Setting::set('smtp_password', $password);
+        }
+        Setting::set('smtp_from_email', $fromEmail);
+        Setting::set('smtp_from_name', $fromName);
+
+        Logger::log(Auth::id(), 'SMTP_CONFIG_UPDATED', "Updated SMTP server configuration: Host={$host}:{$port}, Enc={$encryption}, User={$username}, Enabled={$enabled}");
+        $this->setFlash('success', "SMTP Mail Server settings saved successfully!");
+        redirect('profile');
+    }
+
+    /**
+     * Send a Live Test Email to verify SMTP configuration
+     */
+    public function testSmtp(): void {
+        Auth::requireAuth();
+        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+            $this->setFlash('error', 'Unauthorized access.');
+            redirect('profile');
+        }
+
+        if (!Csrf::validate(Request::input('_csrf_token'))) {
+            $this->setFlash('error', 'Invalid security token.');
+            redirect('profile');
+        }
+
+        $testEmail = trim((string)Request::input('test_email', ''));
+        if (empty($testEmail) || !filter_var($testEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->setFlash('error', "Please enter a valid email address to send the test message.");
+            redirect('profile');
+        }
+
+        $res = \App\Services\MailService::sendTestEmail($testEmail);
+        if ($res['success']) {
+            $this->setFlash('success', "✅ Test email successfully delivered to '{$testEmail}'! Outbound leave notifications are ready.");
+        } else {
+            $err = $res['error'] ?? 'Connection error';
+            $this->setFlash('error', "❌ SMTP Delivery failed for '{$testEmail}': {$err}. Please verify host, port, credentials, and encryption.");
+        }
         redirect('profile');
     }
 }

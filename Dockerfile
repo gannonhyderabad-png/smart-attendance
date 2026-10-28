@@ -21,12 +21,25 @@ WORKDIR /var/www/html
 # Copy all application files
 COPY . /var/www/html/
 
-# Create database and uploads directory with full permissions
-RUN mkdir -p /var/www/html/database /var/www/html/public/uploads/avatars /var/www/html/public/uploads/punches \
-    && touch /var/www/html/database/attendance.sqlite \
-    && chmod -R 777 /var/www/html/database /var/www/html/public/uploads
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORTANT: Do NOT create or touch /var/www/html/database/attendance.sqlite
+# here. The /database directory is mounted as a Render Persistent Disk.
+# The entrypoint script initialises the DB only on first boot (when empty).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Pre-create uploads folder structure (only for the image in the build layer;
+# at runtime the entrypoint ensures both /data/uploads and /data/database dirs)
+RUN mkdir -p /var/www/html/public/uploads/avatars \
+             /var/www/html/public/uploads/punches \
+             /var/www/html/public/uploads/leaves \
+    && chmod -R 777 /var/www/html/public/uploads
 
 EXPOSE 80 10000
 
-# Start high-performance PHP concurrent web server on Render's dynamic $PORT
-CMD ["sh", "-c", "PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:${PORT:-80} index.php"]
+# Use the entrypoint so data directories are initialised before the server starts
+COPY docker-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# CMD is handled by the entrypoint script (exec php -S ...)

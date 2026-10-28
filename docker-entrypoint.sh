@@ -1,14 +1,71 @@
-#!/bin/bash
+#!/bin/sh
+# =============================================================================
+# Smart Attendance - Docker Entrypoint
+# Handles Render Persistent Disk setup so data NEVER gets erased on redeploy.
+# =============================================================================
+
 set -e
 
-# Support Render dynamic port assignment
-PORT_TO_USE="${PORT:-80}"
-sed -i "s/Listen [0-9]*/Listen ${PORT_TO_USE}/g" /etc/apache2/ports.conf
-sed -i "s/<VirtualHost \*:[0-9]*>/<VirtualHost \*:${PORT_TO_USE}>/g" /etc/apache2/sites-available/000-default.conf
+echo "============================================================"
+echo "  SmartPunch Attendance - Starting Up"
+echo "  $(date)"
+echo "============================================================"
 
-# Ensure directories and permissions
-mkdir -p /var/www/html/database /var/www/html/public/uploads/avatars /var/www/html/public/uploads/punches
-chown -R www-data:www-data /var/www/html/database /var/www/html/public/uploads
-chmod -R 777 /var/www/html/database /var/www/html/public/uploads
+# ─── 1. Persistent Database Directory ────────────────────────────────────────
+# On Render, /var/www/html/database is mounted as a Persistent Disk.
+# This directory survives redeploys and restarts.
+DB_DIR="/var/www/html/database"
+DB_FILE="${DB_DIR}/attendance.sqlite"
 
-exec "$@"
+mkdir -p "${DB_DIR}"
+chmod 777 "${DB_DIR}"
+
+if [ ! -f "${DB_FILE}" ]; then
+    echo "[INIT] First boot detected — creating fresh SQLite database at ${DB_FILE}"
+    touch "${DB_FILE}"
+    chmod 666 "${DB_FILE}"
+else
+    echo "[OK] Persistent database found: ${DB_FILE} ($(du -sh ${DB_FILE} | cut -f1) on disk)"
+fi
+
+# ─── 2. Persistent Uploads Directory ─────────────────────────────────────────
+# Render Persistent Disk is mounted at /var/www/html/database
+# We store uploads INSIDE the same persistent disk under a sibling path.
+# The symlink trick: keep code in /var/www/html/public/uploads but redirect
+# actual storage to /var/www/html/database/_uploads (on the persistent disk).
+
+PERSISTENT_UPLOADS="${DB_DIR}/_uploads"
+APP_UPLOADS="/var/www/html/public/uploads"
+
+mkdir -p "${PERSISTENT_UPLOADS}/avatars"
+mkdir -p "${PERSISTENT_UPLOADS}/punches"
+mkdir -p "${PERSISTENT_UPLOADS}/leaves"
+chmod -R 777 "${PERSISTENT_UPLOADS}"
+
+# Replace the build-time uploads folder with a symlink to the persistent volume
+if [ -L "${APP_UPLOADS}" ]; then
+    echo "[OK] Uploads symlink already exists: ${APP_UPLOADS} -> ${PERSISTENT_UPLOADS}"
+elif [ -d "${APP_UPLOADS}" ]; then
+    # Move any files that were baked into the image (e.g. default avatars)
+    cp -rn "${APP_UPLOADS}/." "${PERSISTENT_UPLOADS}/" 2>/dev/null || true
+    rm -rf "${APP_UPLOADS}"
+    ln -s "${PERSISTENT_UPLOADS}" "${APP_UPLOADS}"
+    echo "[INIT] Created uploads symlink: ${APP_UPLOADS} -> ${PERSISTENT_UPLOADS}"
+else
+    ln -s "${PERSISTENT_UPLOADS}" "${APP_UPLOADS}"
+    echo "[INIT] Created uploads symlink: ${APP_UPLOADS} -> ${PERSISTENT_UPLOADS}"
+fi
+
+# ─── 3. Environment Summary ───────────────────────────────────────────────────
+echo ""
+echo "  DB Driver : ${DB_CONNECTION:-sqlite}"
+echo "  DB File   : ${DB_FILE}"
+echo "  Uploads   : ${APP_UPLOADS} -> ${PERSISTENT_UPLOADS}"
+echo "  Port      : ${PORT:-80}"
+echo ""
+echo "============================================================"
+echo "  Starting PHP web server..."
+echo "============================================================"
+
+# ─── 4. Start Server ─────────────────────────────────────────────────────────
+exec PHP_CLI_SERVER_WORKERS=8 php -S "0.0.0.0:${PORT:-80}" /var/www/html/index.php

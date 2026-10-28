@@ -128,6 +128,11 @@ class Database {
 
         self::seedDefaultLogins($pdo);
         $hasMigratedInProcess = true;
+
+        // Auto-backup SQLite to persistent disk (once per hour)
+        if ($driver === 'sqlite') {
+            self::autoBackupSqlite();
+        }
     }
 
     /**
@@ -178,6 +183,49 @@ class Database {
                     $upd->execute([$u['role'], $id]);
                 }
             } catch (\Throwable $e) {}
+        }
+    }
+
+    /**
+     * Auto-backup SQLite database to a dated file on the persistent disk.
+     * Keeps up to 3 daily backups — protects against accidental data loss on Render.
+     * Runs at most once per 60 minutes (throttled by a marker file).
+     */
+    public static function autoBackupSqlite(): void {
+        try {
+            $driver = self::$config['default'] ?? 'sqlite';
+            if ($driver !== 'sqlite') return;
+
+            $connConfig = self::$config['connections']['sqlite'] ?? [];
+            $dbPath = $connConfig['database'] ?? (__DIR__ . '/attendance.sqlite');
+            if (!file_exists($dbPath) || filesize($dbPath) < 2048) return;
+
+            $backupDir = dirname($dbPath) . '/backups';
+            if (!is_dir($backupDir)) {
+                @mkdir($backupDir, 0777, true);
+            }
+
+            // Throttle: only run once per hour
+            $markerFile = $backupDir . '/.last_backup';
+            if (file_exists($markerFile) && (time() - filemtime($markerFile)) < 3600) {
+                return;
+            }
+
+            $today = date('Y-m-d');
+            $destFile = $backupDir . '/attendance_' . $today . '.sqlite.bak';
+            if (@copy($dbPath, $destFile)) {
+                @touch($markerFile);
+                // Keep only the 3 most recent daily backups
+                $backups = glob($backupDir . '/attendance_*.sqlite.bak');
+                if ($backups && count($backups) > 3) {
+                    sort($backups);
+                    foreach (array_slice($backups, 0, count($backups) - 3) as $old) {
+                        @unlink($old);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Backup failure must never crash the application
         }
     }
 

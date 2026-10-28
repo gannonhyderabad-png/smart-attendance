@@ -3,7 +3,7 @@ services:
     name: smart-attendance-system
     runtime: docker
     plan: free
-    region: singapore # or frankfurt, oregon, ohio
+    region: singapore
     dockerfilePath: ./Dockerfile
     envVars:
       - key: APP_NAME
@@ -17,11 +17,17 @@ services:
       - key: DB_CONNECTION
         value: sqlite
       - key: DB_SQLITE_PATH
-        value: database/attendance.sqlite
+        value: /var/www/html/database/attendance.sqlite
       - key: SESSION_LIFETIME
         value: 120
       - key: EMPLOYEE_CODE_PREFIX
         value: "EMP-"
+    # ─────────────────────────────────────────────────────────────────────────
+    # Render Persistent Disk — survives ALL redeploys and restarts.
+    # Mount path /var/www/html/database stores:
+    #   - attendance.sqlite  (your database)
+    #   - _uploads/          (all selfie photos, avatars, documents)
+    # ─────────────────────────────────────────────────────────────────────────
     disk:
       name: attendance-data
       mountPath: /var/www/html/database

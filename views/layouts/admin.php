@@ -18,14 +18,18 @@
 <body class="bg-body-tertiary">
     <div class="wrapper d-flex">
 <?php
-$userRole = $_SESSION['user_role'] ?? 'admin';
-$isRestricted = in_array($userRole, ['hr', 'account', 'incharge', 'coordinator', 'tender']);
+$userRole = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
+$isRestricted = ($userRole !== 'admin' && $userRole !== 'superadmin');
 $homeUrl = $isRestricted ? base_url('leaves') : base_url('dashboard');
-$portalBadge = ($userRole === 'hr') ? 'HR PORTAL' : 
+
+$roleLabel = ucwords(str_replace(['_', '-'], ' ', $userRole));
+$portalBadge = ($userRole === 'admin' || $userRole === 'superadmin') ? 'ADMIN v2.0' : 
+               (($userRole === 'hr') ? 'HR PORTAL' : 
                (($userRole === 'account') ? 'ACCOUNTS PORTAL' : 
                (($userRole === 'incharge') ? 'INCHARGE PORTAL' : 
                (($userRole === 'coordinator') ? 'COORDINATOR PORTAL' : 
-               (($userRole === 'tender') ? 'TENDER PORTAL' : 'ADMIN v2.0'))));
+               (($userRole === 'tender') ? 'TENDER PORTAL' : strtoupper($roleLabel) . ' PORTAL')))));
+
 $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' : 
                     (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 
                     (($userRole === 'incharge') ? 'bg-success-subtle text-success border-success-subtle' : 

@@ -224,10 +224,10 @@
                                             </span>
                                             <div class="text-muted small mt-1" style="font-size:0.68rem;">Step 1 Approvals for Tender Staff</div>
                                         <?php else: ?>
-                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-1">
-                                                <i class="fa-solid fa-user me-1"></i> <?= e(ucfirst($u['role'])) ?>
+                                            <span class="badge bg-secondary-subtle text-dark border border-secondary-subtle rounded-pill px-3 py-1">
+                                                <i class="fa-solid fa-user-shield text-primary me-1"></i> <?= e(ucwords(str_replace(['_', '-'], ' ', $u['role']))) ?> (Step 1 Authority)
                                             </span>
-                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Employees &amp; Leave Approvals</div>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">Step 1 Approvals for <?= e(ucwords(str_replace(['_', '-'], ' ', $u['role']))) ?> Staff</div>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -298,14 +298,24 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
-                        <select name="role" class="form-select bg-light" required>
-                            <option value="account" selected>Accounts Head (Step 1 Approvals for Accounts)</option>
+                        <select name="role_preset" id="createRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'createCustomRoleBox', 'createRoleInput')">
+                            <option value="custom" selected>-- Blank Entry: Custom Authority / Enter Below --</option>
+                            <option value="account">Accounts Head (Step 1 Approvals for Accounts)</option>
                             <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
                             <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
                             <option value="tender">Tender Head (Step 1 Approvals for Tender Staff)</option>
                             <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
                             <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
                         </select>
+                        <div id="createCustomRoleBox" class="mt-2">
+                            <label class="form-label small fw-semibold text-primary mb-1">
+                                <i class="fa-solid fa-pen-nib me-1"></i> Custom Authority Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="role" id="createRoleInput" class="form-control bg-light border-primary" placeholder="Type custom authority (e.g. Technical, Engineering, Operations, Store...)" required>
+                            <div class="text-muted small mt-1" style="font-size:0.7rem;">
+                                <i class="fa-solid fa-circle-check text-success me-1"></i> This custom entry is automatically taken as the <strong>Step 1 Approving Authority</strong> for employees in this department/designation.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -358,7 +368,8 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
-                        <select name="role" id="editUserRole" class="form-select bg-light" required>
+                        <select name="role_preset" id="editRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'editCustomRoleBox', 'editRoleInput')">
+                            <option value="custom">-- Blank Entry: Custom Authority / Enter Below --</option>
                             <option value="account">Accounts Head (Step 1 Approvals for Accounts)</option>
                             <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
                             <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
@@ -366,6 +377,15 @@
                             <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
                             <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
                         </select>
+                        <div id="editCustomRoleBox" class="mt-2" style="display:none;">
+                            <label class="form-label small fw-semibold text-primary mb-1">
+                                <i class="fa-solid fa-pen-nib me-1"></i> Custom Authority Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="role" id="editRoleInput" class="form-control bg-light border-primary" placeholder="Type custom authority name..." required>
+                            <div class="text-muted small mt-1" style="font-size:0.7rem;">
+                                <i class="fa-solid fa-circle-check text-success me-1"></i> This custom entry is taken as the Step 1 Approving Authority.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -393,13 +413,41 @@
 </div>
 
 <script>
+function handleRolePresetChange(sel, boxId, inputId) {
+    const box = document.getElementById(boxId);
+    const input = document.getElementById(inputId);
+    if (sel.value === 'custom') {
+        box.style.display = 'block';
+        input.value = '';
+        input.placeholder = 'Type custom authority (e.g. Technical, Engineering, Operations...)';
+        input.focus();
+    } else {
+        box.style.display = 'none';
+        input.value = sel.value;
+    }
+}
+
 function openEditUserModal(user) {
     document.getElementById('editUserId').value = user.id;
     document.getElementById('editUserName').value = user.name || '';
     document.getElementById('editUserEmail').value = user.email || '';
-    document.getElementById('editUserRole').value = user.role || 'account';
     document.getElementById('editUserStatus').value = user.status || 'active';
     document.getElementById('editUserPassword').value = '';
+
+    const presetSel = document.getElementById('editRolePreset');
+    const roleInput = document.getElementById('editRoleInput');
+    const customBox = document.getElementById('editCustomRoleBox');
+    const standardRoles = ['account', 'incharge', 'coordinator', 'tender', 'hr', 'admin'];
+
+    if (standardRoles.includes(user.role)) {
+        presetSel.value = user.role;
+        roleInput.value = user.role;
+        customBox.style.display = 'none';
+    } else {
+        presetSel.value = 'custom';
+        roleInput.value = user.role || '';
+        customBox.style.display = 'block';
+    }
 
     const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
     modal.show();

@@ -116,7 +116,7 @@ class AuthController extends Controller {
         $name = trim(Request::input('name', ''));
         $email = strtolower(trim(Request::input('email', '')));
         $password = trim(Request::input('password', ''));
-        $role = trim(Request::input('role', 'account'));
+        $role = trim(Request::input('role', ''));
         $status = trim(Request::input('status', 'active'));
 
         if (empty($name) || empty($email) || empty($password)) {
@@ -124,8 +124,11 @@ class AuthController extends Controller {
             redirect('profile');
         }
 
-        if (!in_array($role, ['admin', 'hr', 'account'])) {
-            $role = 'account';
+        // Clean role and allow custom authority names (e.g. technical, engineering, operations)
+        $role = strtolower(trim(preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $role)));
+        $role = preg_replace('/\s+/', '_', $role);
+        if (empty($role) || $role === 'custom') {
+            $role = 'incharge';
         }
 
         if (!in_array($status, ['active', 'inactive'])) {
@@ -189,8 +192,11 @@ class AuthController extends Controller {
             redirect('profile');
         }
 
-        if (!in_array($role, ['admin', 'hr', 'account'])) {
-            $role = $user['role'];
+        // Clean role and allow custom authority names
+        $role = strtolower(trim(preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $role)));
+        $role = preg_replace('/\s+/', '_', $role);
+        if (empty($role) || $role === 'custom') {
+            $role = $user['role'] ?: 'incharge';
         }
 
         if (!in_array($status, ['active', 'inactive'])) {

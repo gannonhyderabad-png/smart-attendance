@@ -125,7 +125,7 @@
                             $plDeptName      = trim($pl['department_name'] ?? 'General');
 
                             // Step 1: Specific designation/department authority check
-                            $canActStep1     = canUserApproveStep1($plAuthInfo, $currUserRole, $currUserEmail);
+                            $canActStep1     = canUserApproveStep1($plAuthInfo, $currUserRole, $currUserEmail, $pl);
                             // Step 2: HR & Admin review
                             $canActStep2     = ($currUserRole === 'hr' || $currUserRole === 'admin' || $currUserRole === 'superadmin' || str_contains($currUserEmail, 'hr@'));
                             // Step 3: System Administrator final sign-off
@@ -688,7 +688,7 @@
                                             $lvDeptHeadName  = $tblAuthInfo['head_name'];
                                             $lvDeptName      = trim($lv['department_name'] ?? 'General');
 
-                                            $tblCanStep1 = canUserApproveStep1($tblAuthInfo, $tblUserRole, $tblUserEmail);
+                                            $tblCanStep1 = canUserApproveStep1($tblAuthInfo, $tblUserRole, $tblUserEmail, $lv);
                                             $tblCanStep2 = ($tblUserRole === 'hr' || $tblUserRole === 'admin' || $tblUserRole === 'superadmin' || str_contains($tblUserEmail, 'hr@'));
                                             $tblCanStep3 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
                                             $tblCanDirect = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');

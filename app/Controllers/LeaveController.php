@@ -309,7 +309,7 @@ class LeaveController extends Controller {
         } else {
             if ($currentStep <= 1) {
                 // STEP 1: Department Head / Authority Review (Accounts, Incharge, Coordinator, Tender Head)
-                if (!canUserApproveStep1($authInfo, $userRole, $userEmail)) {
+                if (!canUserApproveStep1($authInfo, $userRole, $userEmail, $leave)) {
                     $_SESSION['flash_error'] = "Access Error: This employee belongs to {$deptName}. Step 1 requires approval from {$authInfo['title']} ({$authInfo['head_name']} - {$authInfo['head_email']}) only!";
                     redirect('leaves');
                 }
@@ -392,7 +392,7 @@ class LeaveController extends Controller {
                 $authInfo = getLeaveStep1Authority($leave);
 
                 if ($currentStep <= 1) {
-                    if (!canUserApproveStep1($authInfo, $userRole, $userEmail)) {
+                    if (!canUserApproveStep1($authInfo, $userRole, $userEmail, $leave)) {
                         $_SESSION['flash_error'] = "Access Error: Only {$authInfo['title']} ({$authInfo['head_name']} - {$authInfo['head_email']}) can reject Step 1 for this department.";
                         redirect('leaves');
                     }

@@ -115,6 +115,7 @@ class AuthController extends Controller {
 
         $name = trim(Request::input('name', ''));
         $email = strtolower(trim(Request::input('email', '')));
+        $companyMail = strtolower(trim(Request::input('company_mail', '')));
         $password = trim(Request::input('password', ''));
         $role = trim(Request::input('role', ''));
         $status = trim(Request::input('status', 'active'));
@@ -149,12 +150,13 @@ class AuthController extends Controller {
         User::create([
             'name' => $name,
             'email' => $email,
+            'company_mail' => !empty($companyMail) ? $companyMail : null,
             'password' => $password,
             'role' => $role,
             'status' => $status
         ]);
 
-        Logger::log(Auth::id(), 'USER_LOGIN_CREATED', "Created new {$role} login: {$name} ({$email})");
+        Logger::log(Auth::id(), 'USER_LOGIN_CREATED', "Created new {$role} login: {$name} ({$email}, Company Mail: " . ($companyMail ?: 'none') . ")");
         $this->setFlash('success', "New system login for '{$name}' ({$email}) created successfully!");
         redirect('profile');
     }
@@ -183,6 +185,7 @@ class AuthController extends Controller {
 
         $name = trim(Request::input('name', ''));
         $email = strtolower(trim(Request::input('email', '')));
+        $companyMail = strtolower(trim(Request::input('company_mail', '')));
         $password = trim(Request::input('password', ''));
         $role = trim(Request::input('role', $user['role']));
         $status = trim(Request::input('status', $user['status']));
@@ -212,6 +215,7 @@ class AuthController extends Controller {
         $updateData = [
             'name' => $name,
             'email' => $email,
+            'company_mail' => !empty($companyMail) ? $companyMail : null,
             'role' => $role,
             'status' => $status
         ];

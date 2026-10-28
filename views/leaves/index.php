@@ -134,7 +134,7 @@
 
                             $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
                         ?>
-                            <tr>
+                            <tr id="leave-pending-<?= $pl['id'] ?>" class="<?= (!empty($_GET['review']) && (int)$_GET['review'] === (int)$pl['id']) ? 'table-warning' : '' ?>">
                                 <td class="ps-4">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-sm rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 0.85rem;">
@@ -1852,3 +1852,19 @@ function syncHeadEmail(val) {
         </div>
     </div>
 </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const reviewId = params.get('review');
+    if (reviewId) {
+        const target = document.getElementById('leave-pending-' + reviewId);
+        if (target) {
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+    }
+});
+</script>

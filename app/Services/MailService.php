@@ -71,29 +71,39 @@ class MailService {
      * Notify Department Head (and HR) when a new leave/OD request is submitted from mobile
      */
     public static function sendLeaveApplied(array $leave): bool {
-        $headEmail = trim((string)($leave['department_head_email'] ?? ''));
-        $hrEmail = trim((string)Setting::get('company_email', 'hr@gannondunkerley.com'));
-        $empName = $leave['employee_name'] ?? 'Employee';
-        $empCode = $leave['employee_code'] ?? '—';
-        $deptName = $leave['department_name'] ?? 'General';
-        $headName = $leave['department_head'] ?? 'Department Head';
-        $leaveType = $leave['leave_type'] ?? 'Leave';
-        $days = $leave['days_count'] ?? 1;
-        $startDate = date('d M Y', strtotime($leave['start_date'] ?? 'now'));
-        $endDate = date('d M Y', strtotime($leave['end_date'] ?? 'now'));
-        $dateStr = ($leave['start_date'] === $leave['end_date']) ? $startDate : "{$startDate} to {$endDate}";
-        $reason = !empty($leave['reason']) ? $leave['reason'] : 'No reason provided';
-        $targetSite = !empty($leave['target_site']) ? $leave['target_site'] : null;
+        // Resolve Step 1 authority based on employee designation/department
+        $authInfo = getLeaveStep1Authority($leave);
+        $authorityCompanyMail = trim((string)($authInfo['company_mail'] ?? ''));
+        $authorityLoginEmail  = trim((string)($authInfo['head_email'] ?? ''));
+        $deptHeadEmail        = trim((string)($leave['department_head_email'] ?? ''));
+        $hrEmail              = trim((string)Setting::get('company_email', 'hr@gannondunkerley.com'));
 
-        // Determine recipient: Send to Department Head Email, fallback to HR
-        $to = !empty($headEmail) ? $headEmail : $hrEmail;
+        $empName   = $leave['employee_name'] ?? 'Employee';
+        $empCode   = $leave['employee_code'] ?? '—';
+        $deptName  = $leave['department_name'] ?? 'General';
+        $headName  = $authInfo['title'] ?? ($leave['department_head'] ?? 'Department Authority');
+        $leaveType = $leave['leave_type'] ?? 'Leave';
+        $days      = $leave['days_count'] ?? 1;
+        $startDate = date('d M Y', strtotime($leave['start_date'] ?? 'now'));
+        $endDate   = date('d M Y', strtotime($leave['end_date'] ?? 'now'));
+        $dateStr   = ($leave['start_date'] === $leave['end_date']) ? $startDate : "{$startDate} to {$endDate}";
+        $reason    = !empty($leave['reason']) ? $leave['reason'] : 'No reason provided';
+        $targetSite = !empty($leave['target_site']) ? $leave['target_site'] : null;
+        $attachment = !empty($leave['attachment']) ? $leave['attachment'] : null;
+
+        // Determine recipient: Send to Authority Company Mailbox, fallback to login email, dept head email, or HR
+        $to = !empty($authorityCompanyMail) ? $authorityCompanyMail : (!empty($authorityLoginEmail) ? $authorityLoginEmail : (!empty($deptHeadEmail) ? $deptHeadEmail : $hrEmail));
         $cc = [];
-        if (!empty($headEmail) && !empty($hrEmail) && strcasecmp($headEmail, $hrEmail) !== 0) {
+        if (!empty($hrEmail) && strcasecmp($to, $hrEmail) !== 0) {
             $cc[] = $hrEmail;
+        }
+        if (!empty($authorityCompanyMail) && !empty($authorityLoginEmail) && strcasecmp($authorityCompanyMail, $authorityLoginEmail) !== 0 && strcasecmp($to, $authorityLoginEmail) !== 0) {
+            $cc[] = $authorityLoginEmail;
         }
 
         $subject = "🔔 Action Required: New Leave Request - {$empName} ({$leaveType})";
-        $leavesUrl = base_url('leaves');
+        $leaveId = $leave['id'] ?? '';
+        $leavesUrl = base_url('leaves' . (!empty($leaveId) ? '?review=' . $leaveId : ''));
 
         $odRow = '';
         if ($targetSite) {
@@ -103,9 +113,18 @@ class MailService {
             </tr>";
         }
 
+        $docRow = '';
+        if ($attachment) {
+            $docUrl = base_url($attachment);
+            $docRow = "<tr>
+                <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600;'>Attached Document:</td>
+                <td style='padding: 8px 12px; color: #16a34a; font-size: 14px;'><a href='{$docUrl}' target='_blank' style='color: #16a34a; font-weight: bold;'>📎 View Uploaded Document</a></td>
+            </tr>";
+        }
+
         $html = self::buildEmailTemplate([
             'title' => 'New Leave / OD Request Pending Your Approval',
-            'badge' => 'Step 1 / 3: Department Head Review',
+            'badge' => 'Step 1 / 3: ' . htmlspecialchars($authInfo['badge'] ?? 'Authority') . ' Review',
             'badge_color' => '#f59e0b',
             'lead' => "A new leave application has been submitted by <strong>" . htmlspecialchars($empName) . "</strong> and requires your review.",
             'rows' => "
@@ -126,6 +145,7 @@ class MailService {
                     <td style='padding: 8px 12px; color: #0f172a; font-size: 14px; font-weight: 600;'>{$dateStr} <span style='background: #e2e8f0; color: #334155; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 6px;'>{$days} Day(s)</span></td>
                 </tr>
                 {$odRow}
+                {$docRow}
                 <tr>
                     <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600;'>Reason / Notes:</td>
                     <td style='padding: 8px 12px; color: #334155; font-size: 13px;'>" . htmlspecialchars($reason) . "</td>
@@ -134,10 +154,14 @@ class MailService {
                     <td style='padding: 8px 12px; color: #b45309; font-size: 13px; font-weight: 600;'>Assigned Authority:</td>
                     <td style='padding: 8px 12px; color: #92400e; font-size: 13px; font-weight: bold;'>" . htmlspecialchars($headName) . "</td>
                 </tr>
+                <tr style='background: #f1f5f9;'>
+                    <td style='padding: 8px 12px; color: #64748b; font-size: 13px; font-weight: 600;'>Leave Action Link:</td>
+                    <td style='padding: 8px 12px; font-size: 13px;'><a href='{$leavesUrl}' style='color: #2563eb; word-break: break-all; font-weight: 600;'>{$leavesUrl}</a></td>
+                </tr>
             ",
-            'button_text' => 'Review & Approve Request',
+            'button_text' => 'Review & Approve Request (Step 1)',
             'button_url' => $leavesUrl,
-            'note' => 'Please log in to the attendance portal to approve Step 1 or reject this request. Once approved by the department head, it will be automatically forwarded to Step 2 (HR Quota Audit).'
+            'note' => 'Please click the button above or open the link to log into the portal and approve Step 1. Once approved, the application will proceed to Step 2 (HR & Admin Review).'
         ]);
 
         return self::send($to, $subject, $html, $cc);
@@ -152,7 +176,8 @@ class MailService {
         $empName = $leave['employee_name'] ?? 'Employee';
         $leaveType = $leave['leave_type'] ?? 'Leave';
         $days = $leave['days_count'] ?? 1;
-        $leavesUrl = base_url('leaves');
+        $leaveId = $leave['id'] ?? '';
+        $leavesUrl = base_url('leaves' . (!empty($leaveId) ? '?review=' . $leaveId : ''));
 
         if ($completedStep === 1) {
             // Step 1 approved by HOD -> Notify HR for Step 2
@@ -242,7 +267,8 @@ class MailService {
         $startDate = date('d M Y', strtotime($leave['start_date'] ?? 'now'));
         $endDate = date('d M Y', strtotime($leave['end_date'] ?? 'now'));
         $dateStr = ($leave['start_date'] === $leave['end_date']) ? $startDate : "{$startDate} to {$endDate}";
-        $leavesUrl = base_url('leaves');
+        $leaveId = $leave['id'] ?? '';
+        $leavesUrl = base_url('leaves' . (!empty($leaveId) ? '?review=' . $leaveId : ''));
 
         $to = !empty($empEmail) ? $empEmail : (!empty($headEmail) ? $headEmail : $hrEmail);
         $cc = [];

@@ -837,6 +837,7 @@ class Database {
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step3_approved_by_name TEXT;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN step3_approved_at DATETIME;"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE leaves ADD COLUMN rejected_at_step INTEGER;"); } catch (\Throwable $e) {}
+        try { $pdo->exec("ALTER TABLE users ADD COLUMN company_mail TEXT;"); } catch (\Throwable $e) {}
         try { $pdo->exec("UPDATE leaves SET approval_step = 1, status = 'PENDING_LEVEL_1' WHERE status = 'PENDING' AND (approval_step IS NULL OR approval_step = 0);"); } catch (\Throwable $e) {}
 
         // Seed standard public holidays in SQLite if empty

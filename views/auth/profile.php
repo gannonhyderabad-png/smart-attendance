@@ -168,7 +168,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">User / Name</th>
-                                <th>Login Email</th>
+                                <th>Login &amp; Company Mail</th>
                                 <th>Assigned Role &amp; Permissions</th>
                                 <th>Status</th>
                                 <th>Last Login</th>
@@ -190,7 +190,16 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <code class="text-dark bg-light px-2 py-1 rounded font-monospace small"><?= e($u['email']) ?></code>
+                                        <div><code class="text-dark bg-light px-2 py-1 rounded font-monospace small" title="System Login Username"><?= e($u['email']) ?></code></div>
+                                        <?php if (!empty($u['company_mail'])): ?>
+                                            <div class="mt-1 small" style="font-size: 0.73rem;">
+                                                <span class="text-success fw-semibold" title="Company Notification Mailbox"><i class="fa-solid fa-envelope-open-text me-1"></i><?= e($u['company_mail']) ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="text-muted small mt-1" style="font-size: 0.68rem;" title="Notifications sent to login email">
+                                                <i class="fa-solid fa-arrow-turn-down-right me-1 text-secondary"></i>Mailbox: Uses login mail
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if ($u['role'] === 'admin' || $u['role'] === 'superadmin'): ?>
@@ -297,6 +306,16 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">
+                            <i class="fa-solid fa-envelope-open-text text-primary me-1"></i>Company Mail / Official Mailbox
+                        </label>
+                        <input type="email" name="company_mail" id="createCompanyMail" class="form-control bg-light" placeholder="e.g. employee.name@company.com or dept@gammon.com">
+                        <small class="text-muted" style="font-size:0.7rem;">
+                            When employees in this department apply for leave, email notifications with direct action links will reflect to this company mailbox.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
                         <select name="role_preset" id="createRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'createCustomRoleBox', 'createRoleInput')">
                             <option value="custom" selected>-- Blank Entry: Custom Authority / Enter Below --</option>
@@ -367,6 +386,16 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">
+                            <i class="fa-solid fa-envelope-open-text text-primary me-1"></i>Company Mail / Official Mailbox
+                        </label>
+                        <input type="email" name="company_mail" id="editUserCompanyMail" class="form-control bg-light" placeholder="e.g. employee.name@company.com or dept@gammon.com">
+                        <small class="text-muted" style="font-size:0.7rem;">
+                            When employees in this department apply for leave, email notifications with direct action links will reflect to this company mailbox.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
                         <select name="role_preset" id="editRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'editCustomRoleBox', 'editRoleInput')">
                             <option value="custom">-- Blank Entry: Custom Authority / Enter Below --</option>
@@ -431,6 +460,7 @@ function openEditUserModal(user) {
     document.getElementById('editUserId').value = user.id;
     document.getElementById('editUserName').value = user.name || '';
     document.getElementById('editUserEmail').value = user.email || '';
+    document.getElementById('editUserCompanyMail').value = user.company_mail || '';
     document.getElementById('editUserStatus').value = user.status || 'active';
     document.getElementById('editUserPassword').value = '';
 

@@ -424,7 +424,7 @@ if (!function_exists('getLeaveStep1Authority')) {
         if ($cachedCustomUsers === null) {
             try {
                 $pdo = \Database\Database::getConnection();
-                $stmt = $pdo->query("SELECT id, name, email, role FROM users WHERE status = 'active' AND role NOT IN ('admin', 'superadmin', 'hr')");
+                $stmt = $pdo->query("SELECT id, name, email, company_mail, role FROM users WHERE status = 'active' AND role NOT IN ('admin', 'superadmin', 'hr')");
                 $cachedCustomUsers = $stmt ? $stmt->fetchAll(\PDO::FETCH_ASSOC) : [];
             } catch (\Throwable $e) {
                 $cachedCustomUsers = [];
@@ -449,72 +449,96 @@ if (!function_exists('getLeaveStep1Authority')) {
                 $roleLabel = ucwords(str_replace(['_', '-'], ' ', $r));
                 $title = !empty($cu['name']) ? $cu['name'] : ($roleLabel . ' Authority');
                 return [
-                    'type'        => $r,
-                    'title'       => $title,
-                    'badge'       => $roleLabel,
-                    'button_text' => 'Step 1: Approve as ' . $roleLabel,
-                    'head_name'   => $title,
-                    'head_email'  => $cu['email'] ?? '',
+                    'type'         => $r,
+                    'title'        => $title,
+                    'badge'        => $roleLabel,
+                    'button_text'  => 'Step 1: Approve as ' . $roleLabel,
+                    'head_name'    => $title,
+                    'head_email'   => $cu['email'] ?? '',
+                    'company_mail' => $cu['company_mail'] ?? '',
                 ];
             }
         }
 
+        // Helper to find company mail for built-in roles
+        $findRoleMail = function(string $roleName) use ($cachedCustomUsers): array {
+            foreach ($cachedCustomUsers as $u) {
+                if (($u['role'] ?? '') === $roleName) {
+                    return [
+                        'email' => $u['email'] ?? '',
+                        'company_mail' => $u['company_mail'] ?? '',
+                        'name' => $u['name'] ?? ''
+                    ];
+                }
+            }
+            return ['email' => '', 'company_mail' => '', 'name' => ''];
+        };
+
         // 3. Accounts: designation or department matches accounts
         if (str_contains($designation, 'account') || str_contains($deptName, 'account')) {
+            $acctUser = $findRoleMail('account');
             return [
-                'type'        => 'account',
-                'title'       => 'Accounts Head',
-                'badge'       => 'Accounts',
-                'button_text' => 'Step 1: Approve as Accounts',
-                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Accounts Head',
-                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'account@attendance.local',
+                'type'         => 'account',
+                'title'        => 'Accounts Head',
+                'badge'        => 'Accounts',
+                'button_text'  => 'Step 1: Approve as Accounts',
+                'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($acctUser['name'] ?: 'Accounts Head'),
+                'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($acctUser['email'] ?: 'account@attendance.local'),
+                'company_mail' => $acctUser['company_mail'] ?? '',
             ];
         }
 
         // 4. Tender: designation or department matches tender
         if (str_contains($designation, 'tender') || str_contains($deptName, 'tender')) {
+            $tenderUser = $findRoleMail('tender');
             return [
-                'type'        => 'tender',
-                'title'       => 'Tender Head',
-                'badge'       => 'Tender Head',
-                'button_text' => 'Step 1: Approve as Tender Head',
-                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Tender Head',
-                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'tender@attendance.local',
+                'type'         => 'tender',
+                'title'        => 'Tender Head',
+                'badge'        => 'Tender Head',
+                'button_text'  => 'Step 1: Approve as Tender Head',
+                'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($tenderUser['name'] ?: 'Tender Head'),
+                'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($tenderUser['email'] ?: 'tender@attendance.local'),
+                'company_mail' => $tenderUser['company_mail'] ?? '',
             ];
         }
 
         // 5. Coordinator: designation or department matches coordinator
         if (str_contains($designation, 'coordinator') || str_contains($deptName, 'coordinator')) {
+            $coordUser = $findRoleMail('coordinator');
             return [
-                'type'        => 'coordinator',
-                'title'       => 'Coordinator',
-                'badge'       => 'Coordinator',
-                'button_text' => 'Step 1: Approve as Coordinator',
-                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Coordinator',
-                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'coordinator@attendance.local',
+                'type'         => 'coordinator',
+                'title'        => 'Coordinator',
+                'badge'        => 'Coordinator',
+                'button_text'  => 'Step 1: Approve as Coordinator',
+                'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($coordUser['name'] ?: 'Coordinator'),
+                'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($coordUser['email'] ?: 'coordinator@attendance.local'),
+                'company_mail' => $coordUser['company_mail'] ?? '',
             ];
         }
 
         // 6. Incharge: explicit incharge designation or department
+        $inchUser = $findRoleMail('incharge');
         if (str_contains($designation, 'incharge') || str_contains($deptName, 'incharge')) {
             return [
-                'type'        => 'incharge',
-                'title'       => 'Incharge',
-                'badge'       => 'Incharge',
-                'button_text' => 'Step 1: Approve as Incharge',
-                'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Incharge',
-                'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'incharge@attendance.local',
+                'type'         => 'incharge',
+                'title'        => 'Incharge',
+                'badge'        => 'Incharge',
+                'button_text'  => 'Step 1: Approve as Incharge',
+                'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($inchUser['name'] ?: 'Incharge'),
+                'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($inchUser['email'] ?: 'incharge@attendance.local'),
+                'company_mail' => $inchUser['company_mail'] ?? '',
             ];
         }
 
         // 7. Any other designation => Incharge (default fallback for general staff)
         return [
-            'type'        => 'incharge',
-            'title'       => 'Incharge',
-            'badge'       => 'Incharge',
-            'button_text' => 'Step 1: Approve as Incharge',
-            'head_name'   => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : 'Department Incharge',
-            'head_email'  => !empty($deptHeadEmail) ? $deptHeadEmail : 'incharge@attendance.local',
+            'type'         => 'incharge',
+            'title'        => 'Incharge',
+            'badge'        => 'Incharge',
+            'button_text'  => 'Step 1: Approve as Incharge',
+            'head_name'    => (!empty($deptHeadName) && $deptHeadName !== 'HR / Admin') ? $deptHeadName : ($inchUser['name'] ?: 'Department Incharge'),
+            'head_email'   => !empty($deptHeadEmail) ? $deptHeadEmail : ($inchUser['email'] ?: 'incharge@attendance.local'),
+            'company_mail' => $inchUser['company_mail'] ?? '',
         ];
     }
 }
@@ -534,8 +558,12 @@ if (!function_exists('canUserApproveStep1')) {
         $targetType = strtolower(trim($authority['type'] ?? ''));
         $headEmail  = strtolower(trim($authority['head_email'] ?? ''));
 
-        // Direct email match with department head email or authority email
+        // Direct email match with department head email, authority email, or company mailbox
         if (!empty($headEmail) && $currEmail === $headEmail) {
+            return true;
+        }
+        $companyMail = strtolower(trim($authority['company_mail'] ?? ''));
+        if (!empty($companyMail) && $currEmail === $companyMail) {
             return true;
         }
 

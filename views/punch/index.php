@@ -400,7 +400,7 @@
                     <div class="card-body p-3">
                         <div id="leaveFormAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
 
-                        <form id="mobileLeaveForm" onsubmit="window.submitMobileLeave(event)">
+                        <form id="mobileLeaveForm" onsubmit="window.submitMobileLeave(event)" enctype="multipart/form-data">
                             <input type="hidden" name="employee_code" value="<?= e($employee['employee_code']) ?>">
                             
                             <div class="mb-2">
@@ -432,6 +432,17 @@
                                     <i class="fa-solid fa-location-arrow me-1"></i> Destination / Client Site Name
                                 </label>
                                 <input type="text" name="target_site" id="mTargetSite" class="form-control form-control-sm rounded-3" placeholder="e.g. Client Office / Site B / Field Project">
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold text-muted mb-1">
+                                    <i class="fa-solid fa-paperclip me-1"></i> Attach Document <span class="text-muted fw-normal">(Optional)</span>
+                                </label>
+                                <input type="file" name="attachment" id="mAttachment" class="form-control form-control-sm rounded-3" accept=".pdf,.jpg,.jpeg" onchange="window.validateLeaveAttachment(this)">
+                                <div class="form-text text-muted" style="font-size: 0.68rem;">
+                                    <i class="fa-regular fa-file-lines me-1"></i> PDF or JPEG only &bull; Max 5 MB
+                                </div>
+                                <div id="attachmentError" class="text-danger small d-none mt-1" style="font-size: 0.72rem;"></div>
                             </div>
 
                             <div class="mb-3">
@@ -603,6 +614,41 @@
         }
     };
 
+    window.validateLeaveAttachment = function(input) {
+        const errBox = document.getElementById('attachmentError');
+        const btn = document.getElementById('btnSubmitLeave');
+        if (!errBox) return;
+        errBox.className = 'text-danger small d-none mt-1';
+        errBox.textContent = '';
+        if (btn) btn.disabled = false;
+
+        if (input.files && input.files.length > 0) {
+            const file = input.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5 MB
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+            const ext = file.name.split('.').pop().toLowerCase();
+            const allowedExts = ['pdf', 'jpg', 'jpeg'];
+
+            if (!allowedTypes.includes(file.type) && !allowedExts.includes(ext)) {
+                errBox.className = 'text-danger small d-block mt-1';
+                errBox.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i> Invalid file type! Only PDF and JPEG files are allowed.';
+                input.value = '';
+                if (btn) btn.disabled = true;
+                return;
+            }
+            if (file.size > maxSize) {
+                errBox.className = 'text-danger small d-block mt-1';
+                errBox.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i> File too large! Maximum size is 5 MB. Your file: ' + (file.size / (1024*1024)).toFixed(2) + ' MB';
+                input.value = '';
+                if (btn) btn.disabled = true;
+                return;
+            }
+            // Valid file — show green info
+            errBox.className = 'text-success small d-block mt-1';
+            errBox.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        }
+    };
+
     window.submitMobileLeave = function(e) {
         e.preventDefault();
         const form = document.getElementById('mobileLeaveForm');
@@ -610,6 +656,28 @@
         const btn = document.getElementById('btnSubmitLeave');
         if (!form || !btn) return;
         const origText = btn.innerHTML;
+
+        // Re-validate attachment before submit
+        const fileInput = document.getElementById('mAttachment');
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const maxSize = 5 * 1024 * 1024;
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['pdf','jpg','jpeg'].includes(ext)) {
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                    alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid file type! Only PDF and JPEG files are allowed.';
+                }
+                return;
+            }
+            if (file.size > maxSize) {
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                    alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> File too large! Max 5 MB.';
+                }
+                return;
+            }
+        }
 
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';

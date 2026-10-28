@@ -528,6 +528,27 @@ class LeaveController extends Controller {
         $endTs = strtotime($endDate);
         $daysCount = max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
 
+        // Handle document attachment upload (PDF / JPEG only, max 5MB)
+        $attachmentPath = null;
+        if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+            $uploadFile = $_FILES['attachment'];
+            $ext = strtolower(pathinfo($uploadFile['name'], PATHINFO_EXTENSION));
+            $allowedExts = ['pdf', 'jpg', 'jpeg'];
+            $maxSize = 5 * 1024 * 1024; // 5 MB
+
+            if (!in_array($ext, $allowedExts)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid file type! Only PDF and JPEG files are allowed.']);
+                exit;
+            }
+            if ($uploadFile['size'] > $maxSize) {
+                $sizeMB = round($uploadFile['size'] / (1024 * 1024), 2);
+                echo json_encode(['success' => false, 'message' => "File too large! Maximum size is 5 MB. Your file: {$sizeMB} MB"]);
+                exit;
+            }
+
+            $attachmentPath = upload_leave_attachment($uploadFile);
+        }
+
         // Determine initial step based on whether employee's department has an incharge
         $pdo = \Database\Database::getConnection();
         $deptInchargeEmail = '';
@@ -554,7 +575,7 @@ class LeaveController extends Controller {
                 'days_count' => $daysCount,
                 'origin_site' => $emp['site'] ?? '',
                 'target_site' => $targetSite,
-                'attachment' => null,
+                'attachment' => $attachmentPath,
                 'reason' => $reason,
                 'status' => $initialStatus,
                 'approval_step' => $initialStep
@@ -569,7 +590,7 @@ class LeaveController extends Controller {
                 }
             } catch (\Throwable $e) {}
 
-            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}. " . ($hasIncharge ? "Level 1 approval pending (incharge)." : "Direct HR route (no incharge)."));
+            Logger::log(null, 'EMPLOYEE_LEAVE_APPLIED', "Employee {$emp['name']} ({$emp['employee_code']}) applied for {$leaveType} ({$daysCount}d) from {$startDate} to {$endDate}." . (!empty($attachmentPath) ? " [Document Attached]" : "") . " " . ($hasIncharge ? "Level 1 approval pending (incharge)." : "Direct HR route (no incharge)."));
 
             // Dispatch Email Notification to Department Head & HR
             try {

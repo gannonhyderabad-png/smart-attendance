@@ -65,6 +65,9 @@ class PunchController extends Controller {
             'employee_id' => $employee['id']
         ], 'l.id DESC LIMIT 5');
 
+        $currentStatus = $latestPunch ? strtoupper($latestPunch['punch_type'] ?? 'OUT') : 'OUT';
+        $isNoOutAutoClosed = false;
+
         $this->view('punch.index', [
             'employee' => $employee,
             'latestPunch' => $latestPunch,

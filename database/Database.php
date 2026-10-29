@@ -151,6 +151,30 @@ class Database {
                     $upd->execute([$normS, $normE, $row['id']]);
                 }
             }
+        
+            // Resolve any pre-existing conflicts where pending leaves overlap with recorded attendance punches
+            $pendingL = $pdo->query("SELECT id, employee_id, start_date, end_date FROM leaves WHERE status NOT IN ('REJECTED')")->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($pendingL as $plRow) {
+                $pEmpId = (int)$plRow['employee_id'];
+                $sDate = substr($plRow['start_date'], 0, 10);
+                $eDate = substr($plRow['end_date'], 0, 10);
+                $sTs = strtotime($sDate);
+                $eTs = strtotime($eDate);
+                if (!$sTs || !$eTs) continue;
+
+                $punchQ = $pdo->prepare("SELECT punch_time FROM attendance WHERE employee_id = ?");
+                $punchQ->execute([$pEmpId]);
+                $punches = $punchQ->fetchAll(\PDO::FETCH_ASSOC);
+                foreach ($punches as $pRow) {
+                    $pTs = strtotime(substr($pRow['punch_time'], 0, 10));
+                    if ($pTs && $pTs >= $sTs && $pTs <= $eTs) {
+                        // Punch exists on this leave date! Reject the leave to enforce mutual exclusion
+                        $rej = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reason = 'Conflict Auto-cancelled: Attendance punch was recorded on this date' WHERE id = ?");
+                        $rej->execute([$plRow['id']]);
+                        break;
+                    }
+                }
+            }
         } catch (\Throwable $e) {}
         $hasMigratedInProcess = true;
 

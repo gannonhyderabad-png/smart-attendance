@@ -57,25 +57,30 @@ class Attendance extends Model {
 
         // Validation 2: Mutual Exclusion - Cannot punch attendance if leave has been applied/approved for today
         $pdo = self::db();
-        $leaveCheck = $pdo->prepare("
-            SELECT id, leave_type, status, start_date, end_date 
-            FROM leaves 
-            WHERE employee_id = ? 
-              AND status != 'REJECTED' 
-              AND (? >= start_date AND ? <= end_date)
-            LIMIT 1
-        ");
-        $leaveCheck->execute([$employeeId, $today, $today]);
-        $activeLeave = $leaveCheck->fetch();
-        if ($activeLeave) {
-            $leaveType = $activeLeave['leave_type'] ?: 'Leave';
-            $stText = ($activeLeave['status'] === 'APPROVED') ? 'approved' : 'applied for';
-            return [
-                'success' => false,
-                'message' => "Cannot punch attendance: {$leaveType} is already {$stText} for today (" . date('d M Y', strtotime($today)) . "). You cannot punch attendance on a leave date.",
-                'is_leave_conflict' => true,
-                'leave' => $activeLeave
-            ];
+        $leaveStmt = $pdo->prepare("SELECT id, leave_type, status, start_date, end_date FROM leaves WHERE employee_id = ? AND status != 'REJECTED' ORDER BY id DESC");
+        $leaveStmt->execute([$employeeId]);
+        $empLeaves = $leaveStmt->fetchAll();
+        $todayTs = strtotime($today);
+
+        foreach ($empLeaves as $al) {
+            $sTs = strtotime(substr($al['start_date'], 0, 10));
+            if (!$sTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $al['start_date'], $m)) {
+                $sTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+            }
+            $eTs = strtotime(substr($al['end_date'], 0, 10));
+            if (!$eTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $al['end_date'], $m)) {
+                $eTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+            }
+            if ($sTs && $eTs && $todayTs >= $sTs && $todayTs <= $eTs) {
+                $leaveType = $al['leave_type'] ?: 'Leave';
+                $stText = ($al['status'] === 'APPROVED') ? 'approved' : 'applied for';
+                return [
+                    'success' => false,
+                    'message' => "Cannot punch attendance: {$leaveType} is already {$stText} for today (" . date('d M Y', $todayTs) . "). You cannot punch attendance on a leave date.",
+                    'is_leave_conflict' => true,
+                    'leave' => $al
+                ];
+            }
         }
 
         // --- GEOFENCING & GPS VALIDATION ---

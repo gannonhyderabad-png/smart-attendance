@@ -40,15 +40,24 @@ class PunchController extends Controller {
         $todayLeave = null;
         try {
             $pdo = \Database\Database::getConnection();
-            $stmtLeave = $pdo->prepare("
-                SELECT * FROM leaves 
-                WHERE employee_id = ? 
-                  AND status != 'REJECTED' 
-                  AND (? >= start_date AND ? <= end_date) 
-                ORDER BY id DESC LIMIT 1
-            ");
-            $stmtLeave->execute([$employee['id'], $today, $today]);
-            $todayLeave = $stmtLeave->fetch(\PDO::FETCH_ASSOC) ?: null;
+            $stmtLeave = $pdo->prepare("SELECT * FROM leaves WHERE employee_id = ? AND status != 'REJECTED' ORDER BY id DESC");
+            $stmtLeave->execute([$employee['id']]);
+            $leavesList = $stmtLeave->fetchAll(\PDO::FETCH_ASSOC);
+            $todayTs = strtotime($today);
+            foreach ($leavesList as $l) {
+                $sTs = strtotime(substr($l['start_date'], 0, 10));
+                if (!$sTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $l['start_date'], $m)) {
+                    $sTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+                }
+                $eTs = strtotime(substr($l['end_date'], 0, 10));
+                if (!$eTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $l['end_date'], $m)) {
+                    $eTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+                }
+                if ($sTs && $eTs && $todayTs >= $sTs && $todayTs <= $eTs) {
+                    $todayLeave = $l;
+                    break;
+                }
+            }
         } catch (\Throwable $e) {}
 
         // Fetch recent leaves submitted by employee (last 5)

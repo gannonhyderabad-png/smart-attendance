@@ -127,6 +127,31 @@ class Database {
         }
 
         self::seedDefaultLogins($pdo);
+
+        // Normalize existing leave start_date and end_date to YYYY-MM-DD
+        try {
+            $allL = $pdo->query("SELECT id, start_date, end_date FROM leaves")->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($allL as $row) {
+                $rawS = $row['start_date'] ?? '';
+                $rawE = $row['end_date'] ?? '';
+                $sTs = strtotime($rawS);
+                if (!$sTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawS, $m)) {
+                    $sTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+                }
+                $normS = $sTs ? date('Y-m-d', $sTs) : $rawS;
+
+                $eTs = strtotime($rawE);
+                if (!$eTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawE, $m)) {
+                    $eTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+                }
+                $normE = $eTs ? date('Y-m-d', $eTs) : $rawE;
+
+                if ($normS !== $rawS || $normE !== $rawE) {
+                    $upd = $pdo->prepare("UPDATE leaves SET start_date = ?, end_date = ? WHERE id = ?");
+                    $upd->execute([$normS, $normE, $row['id']]);
+                }
+            }
+        } catch (\Throwable $e) {}
         $hasMigratedInProcess = true;
 
         // Auto-backup SQLite to persistent disk (once per hour)

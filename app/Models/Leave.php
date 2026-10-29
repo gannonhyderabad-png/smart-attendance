@@ -171,17 +171,26 @@ class Leave extends Model {
         $pdo = self::db();
         $stmt = $pdo->prepare("INSERT INTO " . static::$table . " (employee_id, leave_type, start_date, end_date, days_count, origin_site, target_site, attachment, reason, status, approval_step) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
-        $startDate = $data['start_date'];
-        $endDate = !empty($data['end_date']) ? $data['end_date'] : $startDate;
-        
-        $daysCount = 1.0;
-        if (!empty($data['days_count'])) {
-            $daysCount = (float) $data['days_count'];
-        } else {
-            $startTs = strtotime($startDate);
-            $endTs = strtotime($endDate);
-            $daysCount = max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
+        $rawS = (string)($data['start_date'] ?? date('Y-m-d'));
+        $rawE = (string)(!empty($data['end_date']) ? $data['end_date'] : $rawS);
+
+        $startTs = strtotime($rawS);
+        if (!$startTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawS, $m)) {
+            $startTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
         }
+        $startDate = $startTs ? date('Y-m-d', $startTs) : date('Y-m-d');
+
+        $endTs = strtotime($rawE);
+        if (!$endTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawE, $m)) {
+            $endTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+        }
+        $endDate = $endTs ? date('Y-m-d', $endTs) : $startDate;
+        if ($endDate < $startDate) {
+            $endDate = $startDate;
+            $endTs = $startTs;
+        }
+
+        $daysCount = !empty($data['days_count']) ? (float)$data['days_count'] : max(1.0, round(($endTs - $startTs) / 86400) + 1.0);
 
         $status = $data['status'] ?? 'APPROVED';
         $approvalStep = isset($data['approval_step']) ? (int) $data['approval_step'] : ($status === 'APPROVED' ? 4 : 1);

@@ -297,16 +297,26 @@
             <?php endif; ?>
 
             <!-- Status Banner -->
-            <div id="statusBannerBox" class="status-pill-box <?= $currentStatus === 'IN' ? 'status-in' : 'status-out' ?>">
+            <div id="statusBannerBox" class="status-pill-box <?= $hasActiveLeaveToday ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : ($currentStatus === 'IN' ? 'status-in' : 'status-out') ?>">
                 <div class="d-flex align-items-center justify-content-center gap-1">
-                    <span class="pulse-indicator"></span>
+                    <?php if (!$hasActiveLeaveToday): ?>
+                        <span class="pulse-indicator"></span>
+                    <?php else: ?>
+                        <i class="fa-solid fa-calendar-xmark text-warning me-1"></i>
+                    <?php endif; ?>
                     <span class="fw-bold text-uppercase" id="statusLabelText" style="letter-spacing: 0.5px; font-size: 0.88rem;">
-                        <?= $currentStatus === 'IN' ? 'Currently Checked IN' : 'Currently Checked OUT' ?>
+                        <?php if ($hasActiveLeaveToday): ?>
+                            ON LEAVE TODAY (<?= e($todayLeave['leave_type']) ?>)
+                        <?php else: ?>
+                            <?= $currentStatus === 'IN' ? 'Currently Checked IN' : 'Currently Checked OUT' ?>
+                        <?php endif; ?>
                     </span>
                 </div>
 
                 <div class="small mt-1 opacity-75" id="lastPunchSubtext" style="font-size: 0.75rem;">
-                    <?php if ($latestPunch): ?>
+                    <?php if ($hasActiveLeaveToday): ?>
+                        <span class="text-danger fw-semibold"><i class="fa-solid fa-ban me-1"></i>Punching attendance is disabled on leave dates.</span>
+                    <?php elseif ($latestPunch): ?>
                         Last Punch: <strong><?= e($latestPunch['punch_type']) ?></strong> at <?= date('h:i:s A', strtotime($latestPunch['punch_time'])) ?>
                     <?php else: ?>
                         No punches recorded today yet.
@@ -319,8 +329,8 @@
                     </div>
                 <?php endif; ?>
 
-                <!-- Live Duration Timer (When IN) -->
-                <div class="mt-2 pt-2 border-top <?= $currentStatus === 'IN' ? '' : 'd-none' ?>" id="workingDurationBox" style="border-color: rgba(0,0,0,0.08) !important;">
+                <!-- Live Duration Timer (When IN and not on leave) -->
+                <div class="mt-2 pt-2 border-top <?= ($currentStatus === 'IN' && !$hasActiveLeaveToday) ? '' : 'd-none' ?>" id="workingDurationBox" style="border-color: rgba(0,0,0,0.08) !important;">
                     <span class="small text-muted" style="font-size: 0.72rem;">Working Duration Today:</span>
                     <div class="h5 fw-bold text-success font-monospace mb-0" id="liveDurationTimer">
                         <?= format_seconds($workedSeconds) ?>
@@ -468,14 +478,18 @@
                                 </select>
                             </div>
 
+                            <?php
+                                $leaveDefaultDate = $hasPunchesToday ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d');
+                                $leaveMinDate = $hasPunchesToday ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d', strtotime('-30 days'));
+                            ?>
                             <div class="row g-2 mb-2">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-muted mb-1">From Date <span class="text-danger">*</span></label>
-                                    <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" value="<?= date('Y-m-d') ?>" required onchange="document.getElementById('mEndDate').min = this.value; if(document.getElementById('mEndDate').value < this.value) document.getElementById('mEndDate').value = this.value;">
+                                    <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" value="<?= $leaveDefaultDate ?>" min="<?= $leaveMinDate ?>" required onchange="document.getElementById('mEndDate').min = this.value; if(document.getElementById('mEndDate').value < this.value) document.getElementById('mEndDate').value = this.value;">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-muted mb-1">To Date <span class="text-danger">*</span></label>
-                                    <input type="date" name="end_date" id="mEndDate" class="form-control form-control-sm rounded-3" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" required>
+                                    <input type="date" name="end_date" id="mEndDate" class="form-control form-control-sm rounded-3" value="<?= $leaveDefaultDate ?>" min="<?= $leaveDefaultDate ?>" required>
                                 </div>
                             </div>
 
@@ -1006,6 +1020,38 @@
         const outBtn = document.getElementById('punchOutBtn');
         const statusBox = document.getElementById('statusBannerBox');
         const statusText = document.getElementById('statusLabelText');
+        const hasLeaveToday = <?= !empty($todayLeave) ? 'true' : 'false' ?>;
+
+        if (hasLeaveToday) {
+            const conflictHandler = function() {
+                window.showConflictModal(
+                    'Punch Blocked: Leave Active Today',
+                    'Cannot punch attendance while leave is applied for today.',
+                    'You have already applied for <strong><?= addslashes(e($todayLeave['leave_type'] ?? 'Leave')) ?></strong> on today\'s date (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both.'
+                );
+            };
+
+            if (inBtn) {
+                inBtn.classList.add('disabled-action');
+                inBtn.style.pointerEvents = 'auto';
+                inBtn.style.cursor = 'not-allowed';
+                inBtn.onclick = conflictHandler;
+            }
+            if (outBtn) {
+                outBtn.classList.add('disabled-action');
+                outBtn.style.pointerEvents = 'auto';
+                outBtn.style.cursor = 'not-allowed';
+                outBtn.onclick = conflictHandler;
+            }
+            if (statusBox) {
+                statusBox.className = 'status-pill-box bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+            }
+            if (statusText) {
+                statusText.innerHTML = '<i class="fa-solid fa-calendar-xmark me-1 text-warning"></i> ON LEAVE TODAY (<?= addslashes(e($todayLeave['leave_type'] ?? 'Leave')) ?>)';
+            }
+            stopTimer();
+            return;
+        }
 
         if (currentStatus === 'IN') {
             if (inBtn) inBtn.classList.add('disabled-action');
@@ -1360,6 +1406,30 @@
     refreshButtons();
     if (currentStatus === 'IN') {
         startTimer();
+    }
+
+    // Intercept date selection if punches exist today
+    const sDateInput = document.getElementById('mStartDate');
+    const eDateInput = document.getElementById('mEndDate');
+    const hasPunches = <?= !empty($todayPunches) ? 'true' : 'false' ?>;
+    const todayStr = '<?= date('Y-m-d') ?>';
+    const tomorrowStr = '<?= date('Y-m-d', strtotime('+1 day')) ?>';
+
+    if (hasPunches && sDateInput) {
+        sDateInput.addEventListener('change', function() {
+            if (this.value <= todayStr) {
+                window.showConflictModal(
+                    'Leave Blocked: Attendance Punched Today',
+                    'Cannot apply for leave on a day you worked.',
+                    'You have already recorded attendance punches today (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both. Please select a future date starting from tomorrow (' + tomorrowStr + ').'
+                );
+                this.value = tomorrowStr;
+                if (eDateInput && eDateInput.value < tomorrowStr) {
+                    eDateInput.value = tomorrowStr;
+                    eDateInput.min = tomorrowStr;
+                }
+            }
+        });
     }
 })();
 </script>

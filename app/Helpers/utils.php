@@ -278,6 +278,88 @@ if (!function_exists('format_distance')) {
     }
 }
 
+if (!function_exists('guess_upload_mime_type')) {
+    function guess_upload_mime_type(string $path): string {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        return match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'pdf' => 'application/pdf',
+            'csv' => 'text/csv',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            default => 'application/octet-stream',
+        };
+    }
+}
+
+if (!function_exists('store_file_in_db')) {
+    /**
+     * Persist uploaded file content in stored_files table so avatars, selfies, and PDFs
+     * survive ephemeral container restarts/redeploys when connected to a cloud DB.
+     */
+    function store_file_in_db(string $relPath, string $rawBytes): void {
+        if ($rawBytes === '') return;
+        try {
+            $normPath = ltrim(str_replace('\\', '/', $relPath), '/');
+            $mime = guess_upload_mime_type($normPath);
+            $encoded = base64_encode($rawBytes);
+            $pdo = \Database\Database::getConnection();
+            $check = $pdo->prepare("SELECT file_path FROM stored_files WHERE file_path = ? LIMIT 1");
+            $check->execute([$normPath]);
+            if ($check->fetchColumn() !== false) {
+                $upd = $pdo->prepare("UPDATE stored_files SET mime_type = ?, file_data = ? WHERE file_path = ?");
+                $upd->execute([$mime, $encoded, $normPath]);
+            } else {
+                $ins = $pdo->prepare("INSERT INTO stored_files (file_path, mime_type, file_data) VALUES (?, ?, ?)");
+                $ins->execute([$normPath, $mime, $encoded]);
+            }
+        } catch (\Throwable $e) {
+            // Never interrupt user upload if DB backup table isn't ready
+        }
+    }
+}
+
+if (!function_exists('restore_file_from_db')) {
+    /**
+     * Restore a missing public/uploads/* file from stored_files table onto local disk and return its bytes + mime.
+     */
+    function restore_file_from_db(string $relPath): ?array {
+        try {
+            $normPath = ltrim(str_replace('\\', '/', $relPath), '/');
+            if (!str_starts_with($normPath, 'public/uploads/')) {
+                return null;
+            }
+            $pdo = \Database\Database::getConnection();
+            $stmt = $pdo->prepare("SELECT mime_type, file_data FROM stored_files WHERE file_path = ? LIMIT 1");
+            $stmt->execute([$normPath]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$row || empty($row['file_data'])) {
+                return null;
+            }
+            $raw = base64_decode($row['file_data'], true);
+            if ($raw === false) {
+                return null;
+            }
+            $diskPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normPath);
+            $dir = dirname($diskPath);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0777, true);
+            }
+            @file_put_contents($diskPath, $raw);
+            return [
+                'bytes' => $raw,
+                'mime' => $row['mime_type'] ?: guess_upload_mime_type($normPath)
+            ];
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+}
+
 if (!function_exists('save_base64_image')) {
     /**
      * Save base64 image data to public/uploads directory
@@ -312,7 +394,9 @@ if (!function_exists('save_base64_image')) {
         $targetPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
 
         if (file_put_contents($targetPath, $decoded)) {
-            return 'public/uploads/' . $subfolder . '/' . $filename;
+            $relPath = 'public/uploads/' . $subfolder . '/' . $filename;
+            store_file_in_db($relPath, $decoded);
+            return $relPath;
         }
 
         return null;
@@ -346,7 +430,9 @@ if (!function_exists('upload_employee_avatar')) {
         $targetPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
 
         if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-            return 'public/uploads/avatars/' . $filename;
+            $relPath = 'public/uploads/avatars/' . $filename;
+            store_file_in_db($relPath, (string) @file_get_contents($targetPath));
+            return $relPath;
         }
 
         return null;
@@ -377,7 +463,9 @@ if (!function_exists('upload_leave_attachment')) {
         $targetPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
 
         if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-            return 'public/uploads/leaves/' . $filename;
+            $relPath = 'public/uploads/leaves/' . $filename;
+            store_file_in_db($relPath, (string) @file_get_contents($targetPath));
+            return $relPath;
         }
 
         return null;

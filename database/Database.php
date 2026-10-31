@@ -8,6 +8,31 @@ use PDOException;
 class Database {
     private static ?PDO $instance = null;
     private static array $config = [];
+    private static ?string $lastConnectionError = null;
+
+    public static function getDriverName(): string {
+        try {
+            return self::getConnection()->getAttribute(PDO::ATTR_DRIVER_NAME);
+        } catch (\Throwable $e) {
+            return self::$config['default'] ?? 'sqlite';
+        }
+    }
+
+    public static function getLastConnectionError(): ?string {
+        return self::$lastConnectionError;
+    }
+
+    public static function isPersistentStorage(): bool {
+        $driver = self::getDriverName();
+        if ($driver === 'pgsql' || $driver === 'mysql') {
+            return true;
+        }
+        $sqlitePath = self::$config['connections']['sqlite']['database'] ?? '';
+        if (str_starts_with((string) $sqlitePath, '/var/data/') && is_dir('/var/data')) {
+            return true;
+        }
+        return false;
+    }
 
     public static function init(array $config): void {
         self::$config = $config;
@@ -36,9 +61,13 @@ class Database {
                         ]
                     );
                     self::$instance->exec("PRAGMA foreign_keys = ON;");
-                } elseif ($default === 'pgsql') {
+                } elseif ($default === 'pgsql' && ($pgExtraDsn = (
+                    ';connect_timeout=15'
+                    . (!empty($connConfig['sslmode']) ? ';sslmode=' . $connConfig['sslmode'] : '')
+                    . (!empty($connConfig['pg_options']) ? ";options='" . $connConfig['pg_options'] . "'" : '')
+                )) !== false) {
                     $dsn = sprintf(
-                        "pgsql:host=%s;port=%s;dbname=%s",
+                        "pgsql:host=%s;port=%s;dbname=%s" . $pgExtraDsn,
                         $connConfig['host'] ?? '127.0.0.1',
                         $connConfig['port'] ?? '5432',
                         $connConfig['database'] ?? 'attendance_db'
@@ -94,6 +123,18 @@ class Database {
 
                 // If MySQL is completely down or connection is refused, auto-fallback to SQLite
                 if ($default !== 'sqlite') {
+                    // Retry once after 1.5s in case serverless cloud DB (e.g. Neon) is waking from idle
+                    if (empty(self::$config['_retried_cloud'])) {
+                        self::$config['_retried_cloud'] = true;
+                        usleep(1500000);
+                        try {
+                            return self::getConnection();
+                        } catch (\Throwable $retryErr) {
+                            $e = $retryErr;
+                        }
+                    }
+                    self::$lastConnectionError = $e->getMessage();
+                    error_log("Cloud DB connection failed ({$default}), falling back to SQLite: " . $e->getMessage());
                     self::$config['default'] = 'sqlite';
                     self::$instance = null;
                     return self::getConnection();
@@ -155,6 +196,17 @@ class Database {
             // Ensure employee_type and contract_details columns exist across all DB drivers
             try { $pdo->exec("ALTER TABLE employees ADD COLUMN employee_type VARCHAR(50) DEFAULT 'Permanent'"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE employees ADD COLUMN contract_details VARCHAR(255) DEFAULT NULL"); } catch (\Throwable $e) {}
+
+            // Ensure stored_files table exists so avatars, punch selfies, and leave attachments survive container restarts
+            try {
+                $blobColType = ($driver === 'mysql') ? 'LONGTEXT' : 'TEXT';
+                $pdo->exec("CREATE TABLE IF NOT EXISTS stored_files (
+                    file_path VARCHAR(255) PRIMARY KEY,
+                    mime_type VARCHAR(100) NOT NULL,
+                    file_data {$blobColType} NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )");
+            } catch (\Throwable $e) {}
 
             // Resolve any pre-existing conflicts where pending leaves overlap with recorded attendance punches
             $pendingL = $pdo->query("SELECT id, employee_id, start_date, end_date FROM leaves WHERE status NOT IN ('REJECTED') ORDER BY id ASC")->fetchAll(\PDO::FETCH_ASSOC);

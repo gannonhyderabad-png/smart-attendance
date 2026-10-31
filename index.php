@@ -7,6 +7,16 @@
 
 declare(strict_types=1);
 
+// Ultra-fast keep-alive health check endpoint to prevent Render Free Tier idle spin-down
+$__rawReqPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if ($__rawReqPath === '/health' && (!empty($_GET['lite']) || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD')) {
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    echo json_encode(['status' => 'ok', 'ts' => time()]);
+    exit;
+}
+
 // PHP Built-in Server router support for static files with accurate MIME types
 if (php_sapi_name() === 'cli-server') {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -25,7 +35,9 @@ if (php_sapi_name() === 'cli-server') {
             'ico' => 'image/x-icon',
             'woff' => 'font/woff',
             'woff2' => 'font/woff2',
-            'ttf' => 'font/ttf'
+            'ttf' => 'font/ttf',
+            'webp' => 'image/webp',
+            'pdf' => 'application/pdf'
         ];
         if (isset($mimes[$ext])) {
             header('Content-Type: ' . $mimes[$ext]);
@@ -156,6 +168,35 @@ try {
         \Database\Database::autoMigrate();
     } catch (\Throwable $sqliteErr) {
         error_log("Database Init Warning: " . $sqliteErr->getMessage());
+    }
+}
+
+// Full health check endpoint with database persistence status
+if ($__rawReqPath === '/health') {
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    echo json_encode([
+        'status' => 'ok',
+        'driver' => \Database\Database::getDriverName(),
+        'persistent' => \Database\Database::isPersistentStorage(),
+        'ts' => time()
+    ]);
+    exit;
+}
+
+// Rehydrate missing uploaded files (avatars, punch selfies, leave docs) from stored_files DB table after container restarts
+if (str_starts_with($__rawReqPath, '/public/uploads/') && function_exists('restore_file_from_db')) {
+    $restored = restore_file_from_db(ltrim($__rawReqPath, '/'));
+    if ($restored !== null) {
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+        http_response_code(200);
+        header('Content-Type: ' . $restored['mime']);
+        header('Cache-Control: public, max-age=604800, immutable');
+        echo $restored['bytes'];
+        exit;
     }
 }
 

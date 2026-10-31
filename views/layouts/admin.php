@@ -248,6 +248,38 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
                     </div>
                 <?php endif; ?>
 
+                <?php
+                    $__isRenderHost = str_contains($_SERVER['HTTP_HOST'] ?? '', 'onrender.com');
+                    $__isPersistentDb = \Database\Database::isPersistentStorage();
+                    $__cloudDbErr = \Database\Database::getLastConnectionError();
+                ?>
+                <?php if (!$isRestricted && !empty($__cloudDbErr)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 rounded-4 mb-3" role="alert">
+                        <div class="fw-bold"><i class="fa-solid fa-plug-circle-xmark me-2"></i>Cloud Database Connection Error (Fallback to Temporary SQLite)</div>
+                        <div class="small mt-1">Please check your <code>DATABASE_URL</code> in Render Environment Variables: <code><?= e($__cloudDbErr) ?></code></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php elseif (!$isRestricted && $__isRenderHost && !$__isPersistentDb): ?>
+                    <div class="alert alert-warning alert-dismissible fade show shadow-sm border border-warning-subtle rounded-4 mb-3" role="alert">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="fw-bold text-dark">
+                                    <i class="fa-solid fa-database text-warning me-2"></i>Enable Permanent Cloud Database (Prevent Render Free-Tier Data Reset)
+                                </div>
+                                <div class="small text-dark mt-1">
+                                    Render's <strong>Free Plan</strong> resets local container files whenever the server restarts or redeploys.
+                                    To keep <strong>all employees, punches, leaves, and photos 100% permanent forever (free)</strong>:
+                                    create a free PostgreSQL database at <a href="https://neon.tech" target="_blank" class="fw-bold text-decoration-underline">Neon.tech</a> (or Supabase), copy its <code>DATABASE_URL</code>, and add <code>DATABASE_URL</code> in <strong>Render Dashboard &rarr; Environment</strong>.
+                                </div>
+                            </div>
+                            <a href="<?= base_url('backup/download') ?>" class="btn btn-sm btn-dark rounded-pill px-3 fw-semibold text-nowrap">
+                                <i class="fa-solid fa-download me-1"></i> Backup .ZIP Now
+                            </a>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
                 <?= $content ?>
             </main>
 
@@ -258,6 +290,9 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
                         <strong>Smart Attendance Server</strong> &copy; <?= date('Y') ?> &bull; PHP & MySQL Core Engine
                     </div>
                     <div class="col-md-6 text-md-end mt-1 mt-md-0">
+                        <?php if (\Database\Database::isPersistentStorage()): ?>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1"><i class="fa-solid fa-cloud-bolt me-1"></i> Permanent DB (<?= strtoupper(e(\Database\Database::getDriverName())) ?>)</span>
+                        <?php endif; ?>
                         <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fa-solid fa-circle me-1" style="font-size: 6px;"></i> System Live</span>
                     </div>
                 </div>
@@ -298,5 +333,11 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>if (typeof QRCode === 'undefined') { document.write('<script src="<?= asset_url('js/qrcode.min.js') ?>"><\/script>'); }</script>
     <script src="<?= asset_url('js/admin.js') ?>"></script>
+    <script>
+        // Keep Render instance warm while any Admin portal tab is open (every 4 minutes)
+        setInterval(function() {
+            fetch(<?= json_encode(base_url('health?lite=1')) ?>, { cache: 'no-store', keepalive: true }).catch(function() {});
+        }, 240000);
+    </script>
 </body>
 </html>

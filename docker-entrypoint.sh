@@ -1,7 +1,8 @@
 #!/bin/sh
 # =============================================================================
 # Smart Attendance - Docker Entrypoint
-# Handles Render Persistent Disk setup so data NEVER gets erased on redeploy.
+# Supports Cloud PostgreSQL/MySQL (DATABASE_URL) and Render Persistent Disk
+# (/var/data) without shadowing /var/www/html/database/Database.php.
 # =============================================================================
 
 echo "============================================================"
@@ -9,24 +10,35 @@ echo "  SmartPunch Attendance - Starting Up"
 echo "  $(date)"
 echo "============================================================"
 
-# 1. Persistent Database Directory (/var/www/html/database on Render Disk)
-DB_DIR="/var/www/html/database"
-DB_FILE="${DB_DIR}/attendance.sqlite"
-
-mkdir -p "${DB_DIR}" 2>/dev/null || true
-chmod 777 "${DB_DIR}" 2>/dev/null || true
-
-if [ ! -f "${DB_FILE}" ]; then
-    echo "[INIT] First boot detected - creating SQLite database at ${DB_FILE}"
-    touch "${DB_FILE}" 2>/dev/null || true
-    chmod 666 "${DB_FILE}" 2>/dev/null || true
+# 1. Choose Persistent Data Directory (/var/data if Render Disk mounted, else /var/www/html/database)
+if [ -d "/var/data" ] && [ -w "/var/data" ]; then
+    DATA_DIR="/var/data"
+    export DB_SQLITE_PATH="/var/data/attendance.sqlite"
+    echo "[DISK] Persistent Render volume detected at /var/data"
 else
-    chmod 666 "${DB_FILE}" 2>/dev/null || true
-    echo "[OK] Persistent database found: ${DB_FILE}"
+    DATA_DIR="/var/www/html/database"
 fi
 
-# 2. Persistent Uploads Directory inside persistent volume
-PERSISTENT_UPLOADS="${DB_DIR}/_uploads"
+DB_FILE="${DB_SQLITE_PATH:-${DATA_DIR}/attendance.sqlite}"
+
+mkdir -p "${DATA_DIR}" 2>/dev/null || true
+chmod 777 "${DATA_DIR}" 2>/dev/null || true
+
+if [ -z "${DATABASE_URL}" ]; then
+    if [ ! -f "${DB_FILE}" ]; then
+        echo "[INIT] Creating local SQLite database at ${DB_FILE}"
+        touch "${DB_FILE}" 2>/dev/null || true
+        chmod 666 "${DB_FILE}" 2>/dev/null || true
+    else
+        chmod 666 "${DB_FILE}" 2>/dev/null || true
+        echo "[OK] SQLite database ready: ${DB_FILE}"
+    fi
+else
+    echo "[CLOUD DB] DATABASE_URL configured - using external persistent database"
+fi
+
+# 2. Persistent Uploads Directory inside DATA_DIR
+PERSISTENT_UPLOADS="${DATA_DIR}/_uploads"
 APP_UPLOADS="/var/www/html/public/uploads"
 
 mkdir -p "${PERSISTENT_UPLOADS}/avatars" \
@@ -46,8 +58,7 @@ else
     echo "[INIT] Created uploads symlink: ${APP_UPLOADS} -> ${PERSISTENT_UPLOADS}"
 fi
 
-echo "  DB Driver : ${DB_CONNECTION:-sqlite}"
-echo "  DB File   : ${DB_FILE}"
+echo "  Data Dir  : ${DATA_DIR}"
 echo "  Port      : ${PORT:-80}"
 echo "============================================================"
 

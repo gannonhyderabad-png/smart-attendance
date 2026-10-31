@@ -5,6 +5,7 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
     envVars:
       - key: APP_NAME
         value: "Smart Attendance Server"
@@ -14,21 +15,17 @@ services:
         value: false
       - key: APP_TIMEZONE
         value: "Asia/Kolkata"
-      - key: DB_CONNECTION
-        value: sqlite
-      - key: DB_SQLITE_PATH
-        value: /var/www/html/database/attendance.sqlite
       - key: SESSION_LIFETIME
         value: 120
       - key: EMPLOYEE_CODE_PREFIX
         value: "EMP-"
     # ─────────────────────────────────────────────────────────────────────────
-    # Render Persistent Disk — survives ALL redeploys and restarts.
-    # Mount path /var/www/html/database stores:
-    #   - attendance.sqlite  (your database)
-    #   - _uploads/          (all selfie photos, avatars, documents)
+    # NOTE: Render Persistent Disks only mount on Paid plans (Starter $7/mo+).
+    # On Render FREE plan, set DATABASE_URL in Render -> Environment to a free
+    # Neon.tech or Supabase PostgreSQL URL for 100% permanent data + photos!
+    # Mount path /var/data preserves /var/www/html/database/Database.php safely.
     # ─────────────────────────────────────────────────────────────────────────
     disk:
       name: attendance-data
-      mountPath: /var/www/html/database
+      mountPath: /var/data
       sizeGB: 1

@@ -1585,5 +1585,10 @@
             }
         });
     }
+
+    // Keep Render instance warm while employee punch page is open (every 4 minutes)
+    setInterval(function() {
+        fetch(<?= json_encode(public_url('health?lite=1')) ?>, { cache: 'no-store', keepalive: true }).catch(function() {});
+    }, 240000);
 })();
 </script>

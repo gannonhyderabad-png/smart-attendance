@@ -21,7 +21,9 @@ class Employee extends Model {
 
         if (!empty($filters['search'])) {
             $search = '%' . $filters['search'] . '%';
-            $sql .= " AND (e.name LIKE ? OR e.employee_code LIKE ? OR e.email LIKE ? OR e.phone LIKE ? OR e.project LIKE ? OR e.site LIKE ?)";
+            $sql .= " AND (e.name LIKE ? OR e.employee_code LIKE ? OR e.email LIKE ? OR e.phone LIKE ? OR e.project LIKE ? OR e.site LIKE ? OR e.employee_type LIKE ? OR e.contract_details LIKE ?)";
+            $params[] = $search;
+            $params[] = $search;
             $params[] = $search;
             $params[] = $search;
             $params[] = $search;
@@ -234,8 +236,8 @@ class Employee extends Model {
         $deptInfo = self::resolveDepartment($data['department'] ?? null, !empty($data['department_id']) ? (int)$data['department_id'] : null);
 
         $stmt = self::db()->prepare("INSERT INTO employees 
-            (employee_code, name, email, phone, department_id, department, designation, project, site, site_latitude, site_longitude, site_radius, geofence_enabled, punch_token, photo, shift_start, shift_end, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            (employee_code, name, email, phone, department_id, department, designation, project, site, site_latitude, site_longitude, site_radius, geofence_enabled, punch_token, photo, shift_start, shift_end, status, employee_type, contract_details) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         $stmt->execute([
             trim($data['employee_code']),
@@ -255,7 +257,9 @@ class Employee extends Model {
             !empty($data['photo']) ? trim($data['photo']) : null,
             $data['shift_start'] ?? '09:00:00',
             $data['shift_end'] ?? '18:00:00',
-            $data['status'] ?? 'active'
+            $data['status'] ?? 'active',
+            !empty($data['employee_type']) ? trim($data['employee_type']) : 'Permanent',
+            (($data['employee_type'] ?? '') === 'Contract' && !empty($data['contract_details'])) ? trim($data['contract_details']) : null
         ]);
 
         return (int) self::db()->lastInsertId();
@@ -284,7 +288,9 @@ class Employee extends Model {
             photo = ?,
             shift_start = ?,
             shift_end = ?,
-            status = ?
+            status = ?,
+            employee_type = ?,
+            contract_details = ?
             WHERE id = ?");
 
         return $stmt->execute([
@@ -305,6 +311,8 @@ class Employee extends Model {
             $data['shift_start'] ?? '09:00:00',
             $data['shift_end'] ?? '18:00:00',
             $data['status'] ?? 'active',
+            !empty($data['employee_type']) ? trim($data['employee_type']) : 'Permanent',
+            (($data['employee_type'] ?? '') === 'Contract' && !empty($data['contract_details'])) ? trim($data['contract_details']) : null,
             $id
         ]);
     }

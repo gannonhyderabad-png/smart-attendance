@@ -152,6 +152,10 @@ class Database {
                 }
             }
         
+            // Ensure employee_type and contract_details columns exist across all DB drivers
+            try { $pdo->exec("ALTER TABLE employees ADD COLUMN employee_type VARCHAR(50) DEFAULT 'Permanent'"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE employees ADD COLUMN contract_details VARCHAR(255) DEFAULT NULL"); } catch (\Throwable $e) {}
+
             // Resolve any pre-existing conflicts where pending leaves overlap with recorded attendance punches
             $pendingL = $pdo->query("SELECT id, employee_id, start_date, end_date FROM leaves WHERE status NOT IN ('REJECTED') ORDER BY id ASC")->fetchAll(\PDO::FETCH_ASSOC);
             $acceptedRangesByEmp = [];

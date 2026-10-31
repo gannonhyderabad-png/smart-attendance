@@ -103,6 +103,32 @@
                         </div>
                     </div>
 
+                    <?php
+                        $curEmpType = $employee['employee_type'] ?? 'Permanent';
+                        $isContractType = ($curEmpType === 'Contract');
+                    ?>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Employee Type <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-user-tag"></i></span>
+                                <select name="employee_type" id="employeeTypeSelect" class="form-select bg-light border-start-0" required onchange="toggleContractField(this.value)">
+                                    <option value="Probation" <?= $curEmpType === 'Probation' ? 'selected' : '' ?>>Probation</option>
+                                    <option value="Permanent" <?= $curEmpType === 'Permanent' ? 'selected' : '' ?>>Permanent</option>
+                                    <option value="Contract" <?= $curEmpType === 'Contract' ? 'selected' : '' ?>>Contract</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" id="contractDetailsWrapper" style="<?= $isContractType ? 'display: block;' : 'display: none;' ?>">
+                            <label class="form-label small fw-semibold text-primary">Contract Details <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-primary"><i class="fa-solid fa-file-signature"></i></span>
+                                <input type="text" name="contract_details" id="contractDetailsInput" class="form-control bg-light border-start-0" value="<?= e($employee['contract_details'] ?? '') ?>" placeholder="Enter contractor / vendor name or contract details" <?= $isContractType ? 'required' : '' ?>>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Site GPS Geofencing Settings (200m Radius Guard) -->
                     <div class="card border rounded-4 bg-light mb-4 p-3">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -449,6 +475,21 @@
             feedback.className = 'small text-success mt-2 d-block';
             feedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Loaded <strong>${name}</strong> coordinates: <code>${lat}, ${lon}</code>`;
             feedback.classList.remove('d-none');
+        }
+    }
+
+    function toggleContractField(val) {
+        const wrap = document.getElementById('contractDetailsWrapper');
+        const input = document.getElementById('contractDetailsInput');
+        if (!wrap || !input) return;
+        if (val === 'Contract') {
+            wrap.style.display = 'block';
+            input.required = true;
+            input.focus();
+        } else {
+            wrap.style.display = 'none';
+            input.required = false;
+            input.value = '';
         }
     }
 

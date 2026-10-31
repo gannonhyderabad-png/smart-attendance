@@ -24,6 +24,24 @@
                     <div class="col-4 text-muted fw-semibold">Designation:</div>
                     <div class="col-8 text-dark"><?= e($employee['designation'] ?? 'Staff') ?></div>
 
+                    <div class="col-4 text-muted fw-semibold">Employee Type:</div>
+                    <div class="col-8">
+                        <?php
+                            $eType = $employee['employee_type'] ?? 'Permanent';
+                            $eBadge = ($eType === 'Probation')
+                                ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle'
+                                : (($eType === 'Contract')
+                                    ? 'bg-info-subtle text-info-emphasis border-info-subtle'
+                                    : 'bg-success-subtle text-success border-success-subtle');
+                        ?>
+                        <span class="badge <?= $eBadge ?> border px-2 py-1"><?= e($eType) ?></span>
+                        <?php if ($eType === 'Contract' && !empty($employee['contract_details'])): ?>
+                            <div class="small text-dark fw-semibold mt-1">
+                                <i class="fa-solid fa-file-signature text-info me-1"></i><?= e($employee['contract_details']) ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
                     <div class="col-4 text-muted fw-semibold">Assigned Project:</div>
                     <div class="col-8 text-primary fw-bold"><?= e($employee['project'] ?? 'General Operations') ?></div>
 

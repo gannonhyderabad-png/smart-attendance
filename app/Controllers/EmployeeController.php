@@ -122,7 +122,19 @@ class EmployeeController extends Controller {
             $photoPath = upload_employee_avatar($_FILES['photo']);
         }
 
+        $employeeType = trim(Request::input('employee_type', 'Permanent'));
+        if (!in_array($employeeType, ['Probation', 'Permanent', 'Contract'], true)) {
+            $employeeType = 'Permanent';
+        }
+        $contractDetails = trim(Request::input('contract_details', ''));
+        if ($employeeType === 'Contract' && $contractDetails === '') {
+            $this->setFlash('error', 'Please enter Contract Details when Employee Type is Contract.');
+            redirect('employees/create');
+        }
+
         $empId = Employee::create([
+            'employee_type' => $employeeType,
+            'contract_details' => $employeeType === 'Contract' ? $contractDetails : null,
             'employee_code' => $code,
             'name' => $name,
             'email' => $email,
@@ -228,7 +240,19 @@ class EmployeeController extends Controller {
             }
         }
 
+        $employeeType = trim(Request::input('employee_type', 'Permanent'));
+        if (!in_array($employeeType, ['Probation', 'Permanent', 'Contract'], true)) {
+            $employeeType = 'Permanent';
+        }
+        $contractDetails = trim(Request::input('contract_details', ''));
+        if ($employeeType === 'Contract' && $contractDetails === '') {
+            $this->setFlash('error', 'Please enter Contract Details when Employee Type is Contract.');
+            redirect('employees/edit/' . $id);
+        }
+
         Employee::update($empId, [
+            'employee_type' => $employeeType,
+            'contract_details' => $employeeType === 'Contract' ? $contractDetails : null,
             'employee_code' => $code,
             'name' => $name,
             'email' => $email,

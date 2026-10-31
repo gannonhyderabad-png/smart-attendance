@@ -134,6 +134,7 @@
                         <th>Code</th>
                         <th>Employee</th>
                         <th>Department & Role</th>
+                        <th>Employee Type</th>
                         <th>Project & Site</th>
                         <?php if ($currentView === 'trash'): ?>
                             <th>Deleted Date</th>
@@ -148,7 +149,7 @@
                 <tbody class="small">
                     <?php if (empty($employees)): ?>
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="fa-solid fa-<?= $currentView === 'trash' ? 'trash-can' : 'user-slash' ?> fs-2 d-block mb-2 text-secondary opacity-50"></i>
                                 <?= $currentView === 'trash' ? 'Recycle Bin is completely empty.' : 'No active employees found matching the filters.' ?>
                             </td>
@@ -197,6 +198,24 @@
                                         <i class="fa-solid fa-building me-1 text-secondary"></i><?= e($emp['department'] ?: ($emp['department_name'] ?? 'General')) ?>
                                     </span>
                                     <span class="text-muted small d-block"><?= e($emp['designation'] ?? 'Staff') ?></span>
+                                </td>
+                                <td>
+                                    <?php
+                                        $empTypeVal = $emp['employee_type'] ?? 'Permanent';
+                                        $empTypeCls = match ($empTypeVal) {
+                                            'Probation' => 'bg-warning-subtle text-warning-emphasis border-warning-subtle',
+                                            'Contract' => 'bg-info-subtle text-info-emphasis border-info-subtle',
+                                            default => 'bg-success-subtle text-success border-success-subtle',
+                                        };
+                                    ?>
+                                    <span class="badge <?= $empTypeCls ?> border rounded-pill px-2 py-1">
+                                        <?= e($empTypeVal) ?>
+                                    </span>
+                                    <?php if ($empTypeVal === 'Contract' && !empty($emp['contract_details'])): ?>
+                                        <span class="text-muted small d-block mt-1 text-truncate" style="max-width: 140px;" title="<?= e($emp['contract_details']) ?>">
+                                            <i class="fa-solid fa-file-contract me-1 text-primary"></i><?= e($emp['contract_details']) ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty($emp['project'])): ?>

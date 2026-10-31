@@ -153,7 +153,8 @@ class Database {
             }
         
             // Resolve any pre-existing conflicts where pending leaves overlap with recorded attendance punches
-            $pendingL = $pdo->query("SELECT id, employee_id, start_date, end_date FROM leaves WHERE status NOT IN ('REJECTED')")->fetchAll(\PDO::FETCH_ASSOC);
+            $pendingL = $pdo->query("SELECT id, employee_id, start_date, end_date FROM leaves WHERE status NOT IN ('REJECTED') ORDER BY id ASC")->fetchAll(\PDO::FETCH_ASSOC);
+            $acceptedRangesByEmp = [];
             foreach ($pendingL as $plRow) {
                 $pEmpId = (int)$plRow['employee_id'];
                 $sDate = substr($plRow['start_date'], 0, 10);
@@ -162,17 +163,36 @@ class Database {
                 $eTs = strtotime($eDate);
                 if (!$sTs || !$eTs) continue;
 
+                // 1. Check punch conflict
+                $hasPunchConflict = false;
                 $punchQ = $pdo->prepare("SELECT punch_time FROM attendance WHERE employee_id = ?");
                 $punchQ->execute([$pEmpId]);
                 $punches = $punchQ->fetchAll(\PDO::FETCH_ASSOC);
                 foreach ($punches as $pRow) {
                     $pTs = strtotime(substr($pRow['punch_time'], 0, 10));
                     if ($pTs && $pTs >= $sTs && $pTs <= $eTs) {
-                        // Punch exists on this leave date! Reject the leave to enforce mutual exclusion
                         $rej = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reason = 'Conflict Auto-cancelled: Attendance punch was recorded on this date' WHERE id = ?");
                         $rej->execute([$plRow['id']]);
+                        $hasPunchConflict = true;
                         break;
                     }
+                }
+                if ($hasPunchConflict) continue;
+
+                // 2. Check duplicate/overlapping leave on the same date for the same employee
+                $hasDupLeave = false;
+                if (!empty($acceptedRangesByEmp[$pEmpId])) {
+                    foreach ($acceptedRangesByEmp[$pEmpId] as $rng) {
+                        if (!($eTs < $rng[0] || $sTs > $rng[1])) {
+                            $rejDup = $pdo->prepare("UPDATE leaves SET status = 'REJECTED', reason = 'Duplicate Auto-cancelled: Leave already applied on this date' WHERE id = ?");
+                            $rejDup->execute([$plRow['id']]);
+                            $hasDupLeave = true;
+                            break;
+                        }
+                    }
+                }
+                if (!$hasDupLeave) {
+                    $acceptedRangesByEmp[$pEmpId][] = [$sTs, $eTs];
                 }
             }
         } catch (\Throwable $e) {}

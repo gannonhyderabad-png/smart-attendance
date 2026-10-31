@@ -130,20 +130,45 @@ class LeaveController extends Controller {
             redirect($returnUrl);
         }
 
-        // Mutual Exclusion: Cannot record leave if attendance punch exists on those dates
+        // Mutual Exclusion & Duplicate Leave Validation
         try {
             $pdo = \Database\Database::getConnection();
-            $sTs = strtotime($startDate);
-            $eTs = strtotime($endDate);
+            $sTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $startDate, $m)
+                ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                : strtotime(substr($startDate, 0, 10));
+            $eTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $endDate, $m)
+                ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                : strtotime(substr($endDate, 0, 10));
+
             $punchStmt = $pdo->prepare("SELECT punch_time FROM attendance WHERE employee_id = ? ORDER BY punch_time DESC");
             $punchStmt->execute([$employeeId]);
             $empPunches = $punchStmt->fetchAll(\PDO::FETCH_ASSOC);
             foreach ($empPunches as $ep) {
-                $pDate = substr($ep['punch_time'], 0, 10);
+                $pDate = substr((string)$ep['punch_time'], 0, 10);
                 $pTs = strtotime($pDate);
                 if ($pTs && $pTs >= $sTs && $pTs <= $eTs) {
                     $punchDateFmt = date('d M Y', $pTs);
-                    $_SESSION['flash_error'] = "Cannot record leave: Attendance punch already exists for {$emp['name']} on {$punchDateFmt}. Either Punch or Leave can be recorded for any given date, not both.";
+                    $_SESSION['flash_error'] = "Cannot record leave: Attendance punch already exists for {$emp['name']} on {$punchDateFmt}. Same-day Punch and Leave are not allowed — take any one only.";
+                    redirect($returnUrl);
+                }
+            }
+
+            $leaveStmt = $pdo->prepare("SELECT id, leave_type, start_date, end_date FROM leaves WHERE employee_id = ? AND status != 'REJECTED'");
+            $leaveStmt->execute([$employeeId]);
+            $empLeaves = $leaveStmt->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($empLeaves as $el) {
+                $elRawS = trim((string)($el['start_date'] ?? ''));
+                $elRawE = trim((string)($el['end_date'] ?? ''));
+                $elSTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $elRawS, $m)
+                    ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                    : strtotime(substr($elRawS, 0, 10));
+                $elETs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $elRawE, $m)
+                    ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                    : strtotime(substr($elRawE, 0, 10));
+                if ($elSTs && $elETs && !($eTs < $elSTs || $sTs > $elETs)) {
+                    $dupType = $el['leave_type'] ?: 'Leave';
+                    $dupDateStr = date('d M Y', $elSTs) . ($elSTs !== $elETs ? ' to ' . date('d M Y', $elETs) : '');
+                    $_SESSION['flash_error'] = "This day ({$dupDateStr}) is already applied for {$dupType} for {$emp['name']}. Please change the date.";
                     redirect($returnUrl);
                 }
             }
@@ -472,33 +497,36 @@ class LeaveController extends Controller {
             exit;
         }
 
-        $sTs = strtotime($rawS);
-        if (!$sTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawS, $m)) {
-            $sTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
-        }
+        $sTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawS, $m)
+            ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+            : strtotime(substr($rawS, 0, 10));
         $startDate = $sTs ? date('Y-m-d', $sTs) : date('Y-m-d');
+        $sTs = strtotime($startDate);
 
-        $eTs = !empty($rawE) ? strtotime($rawE) : $sTs;
-        if (!$eTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawE, $m)) {
-            $eTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
+        if (!empty($rawE)) {
+            $eTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawE, $m)
+                ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                : strtotime(substr($rawE, 0, 10));
+        } else {
+            $eTs = $sTs;
         }
         $endDate = $eTs ? date('Y-m-d', $eTs) : $startDate;
         if ($endDate < $startDate) {
             $endDate = $startDate;
-            $eTs = $sTs;
         }
+        $eTs = strtotime($endDate);
         $daysCount = max(1.0, round(($eTs - $sTs) / 86400) + 1.0);
 
         $pdo = \Database\Database::getConnection();
 
-        // Validation: Mutual Exclusion - Cannot apply leave on a date where attendance punch is already recorded
+        // Validation: Mutual Exclusion & Duplicate Same-Day Leave Check
         try {
             $punchStmt = $pdo->prepare("SELECT punch_time FROM attendance WHERE employee_id = ? ORDER BY punch_time DESC");
             $punchStmt->execute([$emp['id']]);
             $empPunches = $punchStmt->fetchAll(\PDO::FETCH_ASSOC);
 
             foreach ($empPunches as $ep) {
-                $pDate = substr($ep['punch_time'], 0, 10);
+                $pDate = substr((string)$ep['punch_time'], 0, 10);
                 $pTs = strtotime($pDate);
                 if ($pTs && $pTs >= $sTs && $pTs <= $eTs) {
                     $punchDateFmt = date('d M Y', $pTs);
@@ -506,33 +534,34 @@ class LeaveController extends Controller {
                         'success' => false,
                         'is_punch_conflict' => true,
                         'punch_date' => $punchDateFmt,
-                        'message' => "Cannot apply for leave: Attendance punch is already recorded on {$punchDateFmt}! You cannot apply for leave on a date you worked. The system allows either Attendance Punch OR Leave on any given date, not both."
+                        'message' => "Attendance punch is already recorded on {$punchDateFmt}. Same-day Punch and Leave are not allowed — take any one only. Please change the date."
                     ]);
                     exit;
                 }
             }
 
-            // Check for overlapping active leaves
+            // Check for duplicate or overlapping active leaves on the same date
             $leaveStmt = $pdo->prepare("SELECT id, leave_type, start_date, end_date FROM leaves WHERE employee_id = ? AND status != 'REJECTED'");
             $leaveStmt->execute([$emp['id']]);
             $empLeaves = $leaveStmt->fetchAll(\PDO::FETCH_ASSOC);
 
             foreach ($empLeaves as $el) {
-                $elSTs = strtotime(substr($el['start_date'], 0, 10));
-                if (!$elSTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $el['start_date'], $m)) {
-                    $elSTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
-                }
-                $elETs = strtotime(substr($el['end_date'], 0, 10));
-                if (!$elETs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $el['end_date'], $m)) {
-                    $elETs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
-                }
-                if ($elSTs && $elETs && !( $eTs < $elSTs || $sTs > $elETs )) {
-                    $dupType = $el['leave_type'];
+                $elRawS = trim((string)($el['start_date'] ?? ''));
+                $elRawE = trim((string)($el['end_date'] ?? ''));
+                $elSTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $elRawS, $m)
+                    ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                    : strtotime(substr($elRawS, 0, 10));
+                $elETs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $elRawE, $m)
+                    ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                    : strtotime(substr($elRawE, 0, 10));
+                if ($elSTs && $elETs && !($eTs < $elSTs || $sTs > $elETs)) {
+                    $dupType = $el['leave_type'] ?: 'Leave';
                     $dupDateStr = date('d M Y', $elSTs) . ($elSTs !== $elETs ? ' to ' . date('d M Y', $elETs) : '');
                     echo json_encode([
                         'success' => false,
                         'is_leave_conflict' => true,
-                        'message' => "A leave request ({$dupType}) is already active for {$dupDateStr}. Cannot submit duplicate or overlapping leave applications."
+                        'conflict_date' => $dupDateStr,
+                        'message' => "This day ({$dupDateStr}) is already applied for {$dupType}. Please change the date."
                     ]);
                     exit;
                 }

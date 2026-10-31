@@ -450,14 +450,24 @@
                     <div class="card-body p-3">
                         <div id="leaveFormAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
 
-                        <?php if ($hasPunchesToday): ?>
-                            <div class="alert alert-warning border border-warning-subtle rounded-3 p-2 small mb-3 text-start">
+                        <div id="punchedTodayLeaveBanner" class="alert alert-warning border border-warning-subtle rounded-3 p-2 small mb-3 text-start <?= $hasPunchesToday ? '' : 'd-none' ?>">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <i class="fa-solid fa-clock-rotate-left text-warning"></i>
+                                <span class="fw-bold text-dark">Attendance Punched Today</span>
+                            </div>
+                            <div class="text-muted" style="font-size: 0.72rem;">
+                                You have already recorded attendance punches today (<?= date('d M Y') ?>). Same-day Punch and Leave are not allowed — take any one only. Please select another date.
+                            </div>
+                        </div>
+
+                        <?php if ($hasActiveLeaveToday): ?>
+                            <div class="alert alert-info border border-info-subtle rounded-3 p-2 small mb-3 text-start">
                                 <div class="d-flex align-items-center gap-2 mb-1">
-                                    <i class="fa-solid fa-clock-rotate-left text-warning"></i>
-                                    <span class="fw-bold text-dark">Attendance Punched Today</span>
+                                    <i class="fa-solid fa-calendar-check text-primary"></i>
+                                    <span class="fw-bold text-dark">Today Already Applied (<?= e($todayLeave['leave_type']) ?>)</span>
                                 </div>
                                 <div class="text-muted" style="font-size: 0.72rem;">
-                                    You have already recorded attendance punches today (<?= date('d M Y') ?>). Leave cannot be applied for today. If you need leave, please select a future date.
+                                    Leave is already applied for today (<?= date('d M Y') ?>). Please choose a different date if applying for another leave.
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -479,13 +489,29 @@
                             </div>
 
                             <?php
-                                $leaveDefaultDate = $hasPunchesToday ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d');
-                                $leaveMinDate = $hasPunchesToday ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d', strtotime('-30 days'));
+                                $candTs = strtotime(date('Y-m-d'));
+                                $pDatesLookup = array_flip($punchedDates ?? []);
+                                for ($step = 0; $step < 60; $step++) {
+                                    $candStr = date('Y-m-d', $candTs);
+                                    $blocked = isset($pDatesLookup[$candStr]) || ($step === 0 && $hasPunchesToday);
+                                    if (!$blocked && !empty($appliedLeaveRanges)) {
+                                        foreach ($appliedLeaveRanges as $rng) {
+                                            if ($candStr >= $rng['start'] && $candStr <= $rng['end']) {
+                                                $blocked = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!$blocked) break;
+                                    $candTs = strtotime('+1 day', $candTs);
+                                }
+                                $leaveDefaultDate = date('Y-m-d', $candTs);
+                                $leaveMinDate = ($hasPunchesToday || $hasActiveLeaveToday) ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d', strtotime('-30 days'));
                             ?>
                             <div class="row g-2 mb-2">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-muted mb-1">From Date <span class="text-danger">*</span></label>
-                                    <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" value="<?= $leaveDefaultDate ?>" min="<?= $leaveMinDate ?>" required onchange="document.getElementById('mEndDate').min = this.value; if(document.getElementById('mEndDate').value < this.value) document.getElementById('mEndDate').value = this.value;">
+                                    <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" value="<?= $leaveDefaultDate ?>" min="<?= $leaveMinDate ?>" required>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-muted mb-1">To Date <span class="text-danger">*</span></label>
@@ -702,6 +728,111 @@
     let userDistance = null;
     let isWithinGeofence = true;
 
+    // Mutual Exclusion & Duplicate Leave State
+    const todayIsoStr = <?= json_encode(date('Y-m-d')) ?>;
+    let hasPunchesTodayJs = <?= !empty($todayPunches) ? 'true' : 'false' ?>;
+    const appliedLeaveRanges = <?= json_encode($appliedLeaveRanges ?? []) ?>;
+    const punchedDatesList = <?= json_encode($punchedDates ?? []) ?>;
+
+    function formatDisplayDate(iso) {
+        if (!iso) return '';
+        const parts = iso.split('-');
+        if (parts.length !== 3) return iso;
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const mIdx = parseInt(parts[1], 10) - 1;
+        return parts[2] + ' ' + (months[mIdx] || parts[1]) + ' ' + parts[0];
+    }
+
+    function findNextFreeLeaveDate(baseIso) {
+        const startMs = Date.parse((baseIso || todayIsoStr) + 'T00:00:00');
+        for (let i = 0; i < 90; i++) {
+            const dt = new Date(startMs + i * 86400000);
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            const cand = y + '-' + m + '-' + d;
+            if (cand === todayIsoStr && hasPunchesTodayJs) continue;
+            if (punchedDatesList.indexOf(cand) !== -1) continue;
+            let inLeave = false;
+            for (let k = 0; k < appliedLeaveRanges.length; k++) {
+                const rng = appliedLeaveRanges[k];
+                if (cand >= rng.start && cand <= rng.end) {
+                    inLeave = true;
+                    break;
+                }
+            }
+            if (!inLeave) return cand;
+        }
+        return baseIso || todayIsoStr;
+    }
+
+    function validateLeaveDateSelection(sDate, eDate, showModal) {
+        const alertBox = document.getElementById('leaveFormAlert');
+        if (!sDate) return true;
+        const endCheck = eDate && eDate >= sDate ? eDate : sDate;
+
+        // 1. Check same-day / recorded attendance punch conflict
+        if (hasPunchesTodayJs && sDate <= todayIsoStr && endCheck >= todayIsoStr) {
+            const msg = 'Attendance punch is already recorded today (' + formatDisplayDate(todayIsoStr) + '). Same-day Punch and Leave are not allowed — take any one only. Please change the date.';
+            if (alertBox) {
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + msg;
+            }
+            if (showModal) {
+                window.showConflictModal(
+                    'Same-Day Punch & Leave Not Allowed',
+                    'Take any one only — please change the date.',
+                    'You have already recorded attendance punches on <strong>' + formatDisplayDate(todayIsoStr) + '</strong>.<br><br>The system allows <strong>either Attendance Punch OR Leave</strong> on any given day, not both. Please change the date.'
+                );
+            }
+            return false;
+        }
+
+        for (let i = 0; i < punchedDatesList.length; i++) {
+            const pDate = punchedDatesList[i];
+            if (pDate >= sDate && pDate <= endCheck) {
+                const msg = 'Attendance punch is already recorded on ' + formatDisplayDate(pDate) + '. Same-day Punch and Leave are not allowed — take any one only. Please change the date.';
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                    alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + msg;
+                }
+                if (showModal) {
+                    window.showConflictModal(
+                        'Same-Day Punch & Leave Not Allowed',
+                        'Take any one only — please change the date.',
+                        'Attendance punch is already recorded on <strong>' + formatDisplayDate(pDate) + '</strong>.<br><br>You cannot take both Punch and Leave on the same day. Please change the date.'
+                    );
+                }
+                return false;
+            }
+        }
+
+        // 2. Check duplicate / already-applied leave on the same date
+        for (let j = 0; j < appliedLeaveRanges.length; j++) {
+            const lv = appliedLeaveRanges[j];
+            if (!(endCheck < lv.start || sDate > lv.end)) {
+                const rangeLabel = (lv.start === lv.end)
+                    ? formatDisplayDate(lv.start)
+                    : (formatDisplayDate(lv.start) + ' to ' + formatDisplayDate(lv.end));
+                const msg = 'This day (' + rangeLabel + ') is already applied for ' + lv.type + '. Please change the date.';
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3 d-block';
+                    alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + msg;
+                }
+                if (showModal) {
+                    window.showConflictModal(
+                        'This Day Already Applied!',
+                        'Please change the date.',
+                        'This day (<strong>' + rangeLabel + '</strong>) is already applied for <strong>' + lv.type + '</strong>.<br><br>Duplicate leave on the same day is not allowed. Please change the date.'
+                    );
+                }
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     // --- Mobile Leave / OD Application Handlers ---
     window.toggleTargetSiteField = function() {
         const type = document.getElementById('mLeaveType').value;
@@ -782,15 +913,8 @@
 
         const sDate = document.getElementById('mStartDate') ? document.getElementById('mStartDate').value : '';
         const eDate = document.getElementById('mEndDate') ? document.getElementById('mEndDate').value : '';
-        const todayStr = '<?= date('Y-m-d') ?>';
-        const hasPunches = <?= !empty($todayPunches) ? 'true' : 'false' ?>;
 
-        if (hasPunches && sDate <= todayStr && eDate >= todayStr) {
-            window.showConflictModal(
-                'Leave Blocked: Attendance Punched Today',
-                'Cannot apply for leave on a day you worked.',
-                'You have already recorded attendance punches today (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both. Please select a future date.'
-            );
+        if (!validateLeaveDateSelection(sDate, eDate, true)) {
             return;
         }
 
@@ -826,14 +950,14 @@
             btn.innerHTML = origText;
             if (data.is_punch_conflict) {
                 window.showConflictModal(
-                    'Leave Blocked: Attendance Punch Exists',
-                    'Cannot apply leave on a date with attendance punches.',
+                    'Same-Day Punch & Leave Not Allowed',
+                    'Take any one only — please change the date.',
                     data.message
                 );
             } else if (data.is_leave_conflict) {
                 window.showConflictModal(
-                    'Leave Request Conflict',
-                    'Duplicate or overlapping leave already active.',
+                    'This Day Already Applied!',
+                    'Please change the date.',
                     data.message
                 );
             }
@@ -1363,6 +1487,25 @@
                 if (countBadge) {
                     countBadge.textContent = parseInt(countBadge.textContent || '0') + 1;
                 }
+
+                // Dynamically lock today's leave selection immediately after punch without requiring page reload
+                hasPunchesTodayJs = true;
+                if (punchedDatesList.indexOf(todayIsoStr) === -1) {
+                    punchedDatesList.push(todayIsoStr);
+                }
+                const punchedBanner = document.getElementById('punchedTodayLeaveBanner');
+                if (punchedBanner) punchedBanner.classList.remove('d-none');
+                const sInputLive = document.getElementById('mStartDate');
+                const eInputLive = document.getElementById('mEndDate');
+                const nextFree = findNextFreeLeaveDate(<?= json_encode(date('Y-m-d', strtotime('+1 day'))) ?>);
+                if (sInputLive) {
+                    sInputLive.min = <?= json_encode(date('Y-m-d', strtotime('+1 day'))) ?>;
+                    if (sInputLive.value <= todayIsoStr) sInputLive.value = nextFree;
+                }
+                if (eInputLive) {
+                    eInputLive.min = sInputLive ? sInputLive.value : nextFree;
+                    if (eInputLive.value < eInputLive.min) eInputLive.value = eInputLive.min;
+                }
             } else {
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 playAudio(false);
@@ -1408,26 +1551,37 @@
         startTimer();
     }
 
-    // Intercept date selection if punches exist today
+    // Intercept date selection on From Date & To Date for BOTH punched dates and already-applied leave dates
     const sDateInput = document.getElementById('mStartDate');
     const eDateInput = document.getElementById('mEndDate');
-    const hasPunches = <?= !empty($todayPunches) ? 'true' : 'false' ?>;
-    const todayStr = '<?= date('Y-m-d') ?>';
-    const tomorrowStr = '<?= date('Y-m-d', strtotime('+1 day')) ?>';
 
-    if (hasPunches && sDateInput) {
+    if (sDateInput) {
         sDateInput.addEventListener('change', function() {
-            if (this.value <= todayStr) {
-                window.showConflictModal(
-                    'Leave Blocked: Attendance Punched Today',
-                    'Cannot apply for leave on a day you worked.',
-                    'You have already recorded attendance punches today (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both. Please select a future date starting from tomorrow (' + tomorrowStr + ').'
-                );
-                this.value = tomorrowStr;
-                if (eDateInput && eDateInput.value < tomorrowStr) {
-                    eDateInput.value = tomorrowStr;
-                    eDateInput.min = tomorrowStr;
+            if (eDateInput) {
+                eDateInput.min = this.value;
+                if (eDateInput.value < this.value) {
+                    eDateInput.value = this.value;
                 }
+            }
+            const curS = this.value;
+            const curE = eDateInput ? eDateInput.value : curS;
+            if (!validateLeaveDateSelection(curS, curE, true)) {
+                const fallbackDate = findNextFreeLeaveDate(<?= json_encode(date('Y-m-d', strtotime('+1 day'))) ?>);
+                this.value = fallbackDate;
+                if (eDateInput) {
+                    eDateInput.min = fallbackDate;
+                    eDateInput.value = fallbackDate;
+                }
+            }
+        });
+    }
+
+    if (eDateInput) {
+        eDateInput.addEventListener('change', function() {
+            const curS = sDateInput ? sDateInput.value : this.value;
+            const curE = this.value;
+            if (!validateLeaveDateSelection(curS, curE, true)) {
+                this.value = curS;
             }
         });
     }

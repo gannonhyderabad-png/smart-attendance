@@ -21,25 +21,16 @@ WORKDIR /var/www/html
 # Copy all application files
 COPY . /var/www/html/
 
-# ─────────────────────────────────────────────────────────────────────────────
-# IMPORTANT: Do NOT create or touch /var/www/html/database/attendance.sqlite
-# here. The /database directory is mounted as a Render Persistent Disk.
-# The entrypoint script initialises the DB only on first boot (when empty).
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Pre-create uploads folder structure (only for the image in the build layer;
-# at runtime the entrypoint ensures both /data/uploads and /data/database dirs)
+# Pre-create uploads folder structure
 RUN mkdir -p /var/www/html/public/uploads/avatars \
              /var/www/html/public/uploads/punches \
              /var/www/html/public/uploads/leaves \
     && chmod -R 777 /var/www/html/public/uploads
 
+# Copy entrypoint and strip any Windows CRLF line endings so Linux sh never fails
+COPY docker-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 80 10000
 
-# Use the entrypoint so data directories are initialised before the server starts
-COPY docker-entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# CMD is handled by the entrypoint script (exec php -S ...)
+CMD ["sh", "/usr/local/bin/entrypoint.sh"]

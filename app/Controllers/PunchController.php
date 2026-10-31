@@ -36,8 +36,10 @@ class PunchController extends Controller {
         $todayPunches = Attendance::getDayPunches($employee['id'], $today);
         $workedSeconds = Attendance::calculateWorkSeconds($employee['id'], $today);
 
-        // Check if employee has an active or pending leave/OD entry today
+        // Check if employee has an active or pending leave/OD entry today & collect all applied leave ranges + punched dates
         $todayLeave = null;
+        $appliedLeaveRanges = [];
+        $punchedDates = [];
         try {
             $pdo = \Database\Database::getConnection();
             $stmtLeave = $pdo->prepare("SELECT * FROM leaves WHERE employee_id = ? AND status != 'REJECTED' ORDER BY id DESC");
@@ -45,19 +47,41 @@ class PunchController extends Controller {
             $leavesList = $stmtLeave->fetchAll(\PDO::FETCH_ASSOC);
             $todayTs = strtotime($today);
             foreach ($leavesList as $l) {
-                $sTs = strtotime(substr($l['start_date'], 0, 10));
-                if (!$sTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $l['start_date'], $m)) {
-                    $sTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
-                }
-                $eTs = strtotime(substr($l['end_date'], 0, 10));
-                if (!$eTs && preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $l['end_date'], $m)) {
-                    $eTs = strtotime("{$m[3]}-{$m[2]}-{$m[1]}");
-                }
-                if ($sTs && $eTs && $todayTs >= $sTs && $todayTs <= $eTs) {
-                    $todayLeave = $l;
-                    break;
+                $rawS = trim((string)($l['start_date'] ?? ''));
+                $rawE = trim((string)($l['end_date'] ?? ''));
+                $sTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawS, $m)
+                    ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                    : strtotime(substr($rawS, 0, 10));
+                $eTs = preg_match('/^(\d{1,2})[- \/](\d{1,2})[- \/](\d{4})/', $rawE, $m)
+                    ? strtotime(sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]))
+                    : strtotime(substr($rawE, 0, 10));
+
+                if ($sTs && $eTs) {
+                    $appliedLeaveRanges[] = [
+                        'start' => date('Y-m-d', $sTs),
+                        'end' => date('Y-m-d', $eTs),
+                        'type' => $l['leave_type'] ?: 'Leave',
+                        'status' => $l['status'] ?? 'PENDING'
+                    ];
+                    if ($todayLeave === null && $todayTs >= $sTs && $todayTs <= $eTs) {
+                        $todayLeave = $l;
+                    }
                 }
             }
+
+            $stmtPunches = $pdo->prepare("SELECT punch_time FROM attendance WHERE employee_id = ? ORDER BY punch_time DESC");
+            $stmtPunches->execute([$employee['id']]);
+            $pRows = $stmtPunches->fetchAll(\PDO::FETCH_ASSOC);
+            $seenDates = [];
+            foreach ($pRows as $pr) {
+                $dStr = substr((string)($pr['punch_time'] ?? ''), 0, 10);
+                $pTs = strtotime($dStr);
+                if ($pTs) {
+                    $normD = date('Y-m-d', $pTs);
+                    $seenDates[$normD] = true;
+                }
+            }
+            $punchedDates = array_keys($seenDates);
         } catch (\Throwable $e) {}
 
         // Fetch recent leaves submitted by employee (last 5)
@@ -76,6 +100,8 @@ class PunchController extends Controller {
             'currentStatus' => $currentStatus,
             'isNoOutAutoClosed' => $isNoOutAutoClosed,
             'todayLeave' => $todayLeave,
+            'appliedLeaveRanges' => $appliedLeaveRanges,
+            'punchedDates' => $punchedDates,
             'myLeaves' => $myLeaves,
             'clientIp' => Request::getClientIp(),
             'deviceInfo' => parse_user_agent_details(Request::getUserAgent())

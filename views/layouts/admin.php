@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($title ?? 'Dashboard') ?> | Smart Attendance Admin</title>
+    <title><?= e($title ?? 'Dashboard') ?> | GDCL HYD Web Attendance</title>
+    <link rel="icon" type="image/png" href="<?= asset_url('images/gdcl-logo.png') ?>">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js for Dashboard visual analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom Admin Styles -->
-    <link rel="stylesheet" href="<?= asset_url('css/admin.css') ?>">
+    <link rel="stylesheet" href="<?= asset_url('css/admin.css') ?>?v=2.2">
 </head>
 <body class="bg-body-tertiary">
-    <div class="wrapper d-flex">
 <?php
 $userRole = \App\Core\Auth::role();
 $isSiteUser = \App\Core\Auth::isSiteUser();
@@ -24,8 +24,11 @@ $assignedSite = \App\Core\Auth::assignedSite();
 $isRestricted = \App\Core\Auth::isRestricted();
 $homeUrl = $isSiteUser ? base_url('employees') : ($isRestricted ? base_url('leaves') : base_url('dashboard'));
 
+$showWelcomeSplash = !empty($_SESSION['gdcl_welcome_splash']);
+unset($_SESSION['gdcl_welcome_splash']);
+
 $roleLabel = ucwords(str_replace(['_', '-'], ' ', $userRole));
-$portalBadge = ($userRole === 'admin' || $userRole === 'superadmin') ? 'ADMIN v2.0' :
+$portalBadge = ($userRole === 'admin' || $userRole === 'superadmin') ? 'ADMIN PORTAL' :
                ($isSiteUser ? ('SITE: ' . strtoupper($assignedSite ?: 'VIEW ONLY')) :
                (($userRole === 'hr') ? 'HR PORTAL' :
                (($userRole === 'account') ? 'ACCOUNTS PORTAL' :
@@ -40,15 +43,48 @@ $portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis borde
                     (($userRole === 'coordinator') ? 'bg-primary-subtle text-primary border-primary-subtle' :
                     (($userRole === 'tender') ? 'bg-danger-subtle text-danger border-danger-subtle' : 'bg-primary-subtle text-primary border-primary-subtle')))));
 ?>
+
+    <?php if ($showWelcomeSplash): ?>
+    <!-- Animated Welcome Splash Screen on Login (Any User) -->
+    <div id="gdclWelcomeSplash" class="gdcl-splash-overlay" onclick="dismissGdclSplash()">
+        <div class="gdcl-splash-emblem">
+            <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD Logo">
+        </div>
+        <h1 class="gdcl-splash-title">Welcome to GDCL HYD</h1>
+        <div class="gdcl-splash-subtitle">
+            Hello, <strong class="text-white"><?= e($user['name'] ?? 'User') ?></strong>
+            <?php if ($isSiteUser && !empty($assignedSite)): ?>
+                &bull; <span class="badge bg-warning text-dark rounded-pill px-2 py-1 ms-1"><i class="fa-solid fa-location-dot me-1"></i><?= e($assignedSite) ?></span>
+            <?php else: ?>
+                &bull; <span class="badge bg-primary bg-opacity-75 text-white rounded-pill px-2 py-1 ms-1"><?= e($portalBadge) ?></span>
+            <?php endif; ?>
+        </div>
+        <div class="gdcl-splash-progress">
+            <div class="gdcl-splash-progress-bar"></div>
+        </div>
+        <small class="text-white-50 mt-3" style="font-size: 0.72rem; opacity: 0.7;">Opening Web Attendance Portal...</small>
+    </div>
+    <script>
+        function dismissGdclSplash() {
+            var el = document.getElementById('gdclWelcomeSplash');
+            if (!el) return;
+            el.classList.add('gdcl-splash-hide');
+            setTimeout(function() { if (el && el.parentNode) el.parentNode.removeChild(el); }, 600);
+        }
+        setTimeout(dismissGdclSplash, 2250);
+    </script>
+    <?php endif; ?>
+
+    <div class="wrapper d-flex">
         <!-- Sidebar Navigation -->
         <nav id="sidebar" class="sidebar bg-dark text-white d-flex flex-column flex-shrink-0 p-3">
-            <a href="<?= $homeUrl ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none px-2 py-2">
-                <div class="sidebar-brand-icon me-2 text-primary fs-3">
-                    <i class="fa-solid fa-fingerprint"></i>
+            <a href="<?= $homeUrl ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none px-1 py-2 gap-2">
+                <div class="gdcl-sidebar-logo-wrap" title="Welcome to GDCL HYD">
+                    <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD" class="gdcl-sidebar-logo-img">
                 </div>
                 <div class="sidebar-brand-text">
-                    <span class="fs-5 fw-bold tracking-tight">Smart<span class="text-primary">Punch</span></span>
-                    <span class="badge <?= $portalBadgeClass ?> border d-block font-monospace text-truncate" style="font-size: 0.65rem; max-width: 170px;" title="<?= e($portalBadge) ?>"><?= e($portalBadge) ?></span>
+                    <span class="fs-5 fw-bold tracking-tight d-block lh-sm">GDCL <span class="text-info">HYD</span></span>
+                    <span class="badge <?= $portalBadgeClass ?> border d-inline-block font-monospace text-truncate mt-1" style="font-size: 0.63rem; max-width: 165px;" title="<?= e($portalBadge) ?>"><?= e($portalBadge) ?></span>
                 </div>
             </a>
             <hr class="text-secondary my-3">
@@ -203,7 +239,7 @@ $portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis borde
                     <button class="btn btn-outline-secondary d-md-none me-2" id="sidebarToggle">
                         <i class="fa-solid fa-bars"></i>
                     </button>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <h5 class="mb-0 fw-bold text-dark"><?= e($title ?? 'Dashboard') ?></h5>
                         <?php if ($isSiteUser): ?>
                             <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill px-2 py-1 small d-none d-sm-inline-block">
@@ -212,6 +248,14 @@ $portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis borde
                         <?php endif; ?>
                     </div>
                     <div class="d-flex align-items-center gap-3 ms-auto">
+                        <!-- Animated Welcome to GDCL HYD Brand Pill -->
+                        <div class="gdcl-top-welcome-pill d-none d-md-inline-flex" title="Welcome to GDCL HYD">
+                            <span class="gdcl-top-welcome-logo">
+                                <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD">
+                            </span>
+                            <span class="fw-bold text-primary-emphasis small" style="font-size: 0.8rem; letter-spacing: -0.2px;">Welcome to GDCL HYD</span>
+                        </div>
+
                         <!-- Notification Bell Dropdown -->
                         <div class="dropdown">
                             <button class="btn btn-light rounded-circle position-relative p-2" type="button" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: 40px; height: 40px;" title="Leave Approvals & Notifications">
@@ -329,8 +373,9 @@ $portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis borde
             <!-- Admin Footer -->
             <footer class="bg-white border-top py-3 px-4 text-center text-muted small">
                 <div class="row align-items-center">
-                    <div class="col-md-6 text-md-start">
-                        <strong>Smart Attendance Server</strong> &copy; <?= date('Y') ?> &bull; PHP & MySQL Core Engine
+                    <div class="col-md-6 text-md-start d-flex align-items-center justify-content-center justify-content-md-start gap-2">
+                        <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD" style="width: 20px; height: 20px; object-fit: contain; mix-blend-mode: multiply;">
+                        <span><strong>GDCL HYD Web Attendance</strong> &copy; <?= date('Y') ?></span>
                     </div>
                     <div class="col-md-6 text-md-end mt-1 mt-md-0">
                         <?php if (\Database\Database::isPersistentStorage()): ?>

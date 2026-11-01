@@ -22,7 +22,7 @@ class AuthController extends Controller {
             }
             redirect('dashboard');
         }
-        $this->view('auth.login', ['title' => 'Admin Login'], 'auth');
+        $this->view('auth.login', ['title' => 'Welcome to GDCL HYD'], 'auth');
     }
 
     public function login(): void {
@@ -40,6 +40,7 @@ class AuthController extends Controller {
         }
 
         if (Auth::attempt($email, $password)) {
+            $_SESSION['gdcl_welcome_splash'] = true;
             if (Auth::isSiteUser()) {
                 redirect('employees');
             }

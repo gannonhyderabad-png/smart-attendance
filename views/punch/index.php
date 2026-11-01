@@ -156,12 +156,21 @@
 <div class="mobile-punch-wrap">
     
     <!-- Top Branding -->
+    <style>
+        @keyframes gdclPunchSpinIn { 0% { opacity:0; transform:scale(0.5) rotate(-180deg); } 75% { opacity:1; transform:scale(1.07) rotate(10deg); } 100% { opacity:1; transform:scale(1) rotate(0deg); } }
+        @keyframes gdclPunchOrbit { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+        @keyframes gdclPunchFloat { 0%, 100% { transform:translateY(0); box-shadow:0 8px 20px rgba(37,99,235,0.18), 0 0 0 0 rgba(37,99,235,0.28); } 50% { transform:translateY(-3px); box-shadow:0 12px 24px rgba(37,99,235,0.25), 0 0 0 8px rgba(37,99,235,0); } }
+        .gdcl-punch-emblem { position:relative; width:64px; height:64px; border-radius:50%; background:#ffffff; padding:7px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:6px; border:2px solid #bfdbfe; animation: gdclPunchSpinIn 0.85s cubic-bezier(0.34,1.56,0.64,1) forwards, gdclPunchFloat 3.2s ease-in-out 0.9s infinite; }
+        .gdcl-punch-emblem::before { content:''; position:absolute; inset:-5px; border-radius:50%; border:2px dashed rgba(37,99,235,0.45); animation: gdclPunchOrbit 12s linear infinite; pointer-events:none; }
+        .gdcl-punch-emblem img { width:100%; height:100%; object-fit:contain; mix-blend-mode:multiply; filter:contrast(1.18); transition:transform 0.65s cubic-bezier(0.34,1.56,0.64,1); }
+        .gdcl-punch-emblem:hover img { transform:rotate(360deg) scale(1.06); }
+    </style>
     <div class="text-center mb-3">
-        <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle shadow-sm mb-1" style="width: 46px; height: 46px;">
-            <i class="fa-solid fa-fingerprint fs-4"></i>
+        <div class="gdcl-punch-emblem">
+            <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD Logo">
         </div>
-        <h5 class="fw-bold text-dark mb-0">Smart Attendance</h5>
-        <span class="text-muted" style="font-size: 0.8rem;">Touch Mobile Punch Portal</span>
+        <h5 class="fw-bold text-dark mb-0" style="letter-spacing: -0.3px;">Welcome to GDCL HYD</h5>
+        <span class="text-muted" style="font-size: 0.8rem;">Web Attendance Punch Portal</span>
     </div>
 
     <!-- Main Punch Card -->

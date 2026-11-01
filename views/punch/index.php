@@ -428,6 +428,264 @@
                 </div>
             </div>
 
+            <?php
+                $initDaily = $selfReport['daily'] ?? [];
+                $initMonthly = $selfReport['monthly'] ?? [];
+                $initMSum = $initMonthly['summary'] ?? [
+                    'present_days' => 0,
+                    'absent_days' => 0,
+                    'leave_days' => 0,
+                    'od_days' => 0,
+                    'holiday_weekend_days' => 0,
+                    'formatted_total_duration' => '00:00:00',
+                    'total_hours' => 0,
+                    'attendance_rate' => 0
+                ];
+                $empCodeUrlEnc = rawurlencode($employee['employee_code']);
+                $initMonthVal = $initMonthly['month'] ?? date('Y-m');
+                $initDateVal = $initDaily['date'] ?? date('Y-m-d');
+            ?>
+            <!-- Employee Self-Service Daily & Monthly Attendance Status, Summary & Download Card -->
+            <div class="card rounded-4 border-0 shadow-sm mb-3 mt-3 overflow-hidden text-start" style="background: #ffffff; border: 1px solid #e2e8f0 !important;">
+                <div class="card-header bg-white py-3 px-3 d-flex align-items-center justify-content-between border-bottom"
+                     data-bs-toggle="collapse" data-bs-target="#selfAttendanceCollapse" aria-expanded="true" style="cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fa-solid fa-chart-pie fs-5"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark" style="font-size: 0.92rem;">My Attendance Status &amp; Summary</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Daily &amp; Monthly Status, Summary &amp; Download</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" id="selfHeaderQuickBadge" style="font-size: 0.7rem;">
+                        <?= (int)($initMSum['present_days'] ?? 0) ?>d &bull; <?= e((string)($initMSum['total_hours'] ?? 0)) ?>h
+                    </span>
+                </div>
+
+                <div class="collapse show" id="selfAttendanceCollapse">
+                    <div class="card-body p-3">
+                        <!-- Mode Switcher: Monthly Summary vs Daily Status -->
+                        <div class="btn-group w-100 mb-3 p-1 bg-light rounded-pill border" role="group">
+                            <button type="button" id="tabBtnMonthly" class="btn btn-sm btn-primary rounded-pill fw-bold py-1" onclick="window.switchSelfReportTab('monthly')">
+                                <i class="fa-solid fa-calendar-days me-1"></i> Monthly
+                            </button>
+                            <button type="button" id="tabBtnDaily" class="btn btn-sm btn-light rounded-pill fw-semibold text-muted py-1" onclick="window.switchSelfReportTab('daily')">
+                                <i class="fa-solid fa-calendar-day me-1"></i> Daily
+                            </button>
+                        </div>
+
+                        <!-- ================= MONTHLY STATUS & SUMMARY PANEL ================= -->
+                        <div id="selfMonthlyPanel">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <div class="flex-grow-1">
+                                    <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.7rem;">Select Month</label>
+                                    <input type="month" id="selfMonthInput" class="form-control form-control-sm rounded-3 fw-semibold"
+                                           value="<?= e($initMonthVal) ?>" max="<?= date('Y-m') ?>"
+                                           onchange="window.loadSelfAttendanceData('monthly')">
+                                </div>
+                                <div class="text-end">
+                                    <label class="form-label small fw-bold text-muted mb-1 d-block" style="font-size: 0.7rem;">Download</label>
+                                    <div class="btn-group btn-group-sm">
+                                        <a id="btnDownloadMonthlyExcel"
+                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=monthly&month=' . $initMonthVal . '&format=excel')) ?>"
+                                           class="btn btn-success fw-semibold px-2 rounded-start-3" title="Download Monthly Excel">
+                                            <i class="fa-solid fa-file-excel me-1"></i>Excel
+                                        </a>
+                                        <a id="btnDownloadMonthlyCsv"
+                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=monthly&month=' . $initMonthVal . '&format=csv')) ?>"
+                                           class="btn btn-outline-secondary fw-semibold px-2 rounded-end-3" title="Download Monthly CSV">
+                                            <i class="fa-solid fa-file-csv me-1"></i>CSV
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Monthly KPI Summary Cards -->
+                            <div class="row g-2 mb-3 text-center">
+                                <div class="col-3">
+                                    <div class="p-2 rounded-3 bg-success-subtle border border-success-subtle h-100">
+                                        <div class="fw-bold text-success fs-6" id="mSumPresent"><?= (int)($initMSum['present_days'] ?? 0) ?></div>
+                                        <div class="text-muted" style="font-size: 0.65rem;">Present</div>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="p-2 rounded-3 bg-danger-subtle border border-danger-subtle h-100">
+                                        <div class="fw-bold text-danger fs-6" id="mSumAbsent"><?= (int)($initMSum['absent_days'] ?? 0) ?></div>
+                                        <div class="text-muted" style="font-size: 0.65rem;">Absent</div>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="p-2 rounded-3 bg-primary-subtle border border-primary-subtle h-100">
+                                        <div class="fw-bold text-primary fs-6" id="mSumLeave"><?= (int)(($initMSum['leave_days'] ?? 0) + ($initMSum['od_days'] ?? 0)) ?></div>
+                                        <div class="text-muted" style="font-size: 0.65rem;">Leave/OD</div>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="p-2 rounded-3 bg-light border h-100">
+                                        <div class="fw-bold text-dark fs-6" id="mSumHours"><?= e((string)($initMSum['total_hours'] ?? 0)) ?>h</div>
+                                        <div class="text-muted" style="font-size: 0.65rem;"><span id="mSumRate"><?= e((string)($initMSum['attendance_rate'] ?? 0)) ?></span>%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Monthly Day-by-Day Status Table -->
+                            <div class="border rounded-3 overflow-hidden">
+                                <div class="bg-light px-2 py-1 border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-muted text-uppercase" style="font-size: 0.68rem;" id="mTableTitle">
+                                        <?= e($initMonthly['month_label'] ?? date('F Y')) ?> Log
+                                    </span>
+                                    <span class="text-muted font-monospace" style="font-size: 0.68rem;" id="mTotalDurationLabel">
+                                        Total: <?= e($initMSum['formatted_total_duration'] ?? '00:00:00') ?>
+                                    </span>
+                                </div>
+                                <div style="max-height: 230px; overflow-y: auto;">
+                                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.74rem;">
+                                        <thead class="table-light sticky-top">
+                                            <tr class="text-muted" style="font-size: 0.66rem;">
+                                                <th class="ps-2">Date</th>
+                                                <th>Status</th>
+                                                <th>IN / OUT</th>
+                                                <th class="pe-2 text-end">Hrs</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selfMonthlyTableBody">
+                                            <?php foreach (($initMonthly['records'] ?? []) as $rec): ?>
+                                                <tr>
+                                                    <td class="ps-2 text-nowrap">
+                                                        <div class="fw-semibold text-dark"><?= e($rec['date_short']) ?></div>
+                                                        <div class="text-muted" style="font-size: 0.64rem;"><?= e($rec['day_name']) ?></div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge <?= e($rec['badge_class']) ?> border rounded-pill px-2 py-0" style="font-size: 0.64rem;">
+                                                            <?= e($rec['status_label']) ?>
+                                                        </span>
+                                                        <?php if (!empty($rec['note'])): ?>
+                                                            <div class="text-muted text-truncate" style="font-size: 0.62rem; max-width: 105px;" title="<?= e($rec['note']) ?>">
+                                                                <?= e($rec['note']) ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="font-monospace text-nowrap" style="font-size: 0.66rem;">
+                                                        <?php if (!empty($rec['first_in']) || !empty($rec['last_out'])): ?>
+                                                            <span class="text-success"><?= e($rec['first_in'] ?? '—') ?></span>
+                                                            <span class="text-muted">/</span>
+                                                            <span class="text-danger"><?= e($rec['last_out'] ?? '—') ?></span>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">—</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="pe-2 text-end font-monospace fw-semibold">
+                                                        <?= ($rec['hours'] ?? 0) > 0 ? e((string)$rec['hours']) . 'h' : '—' ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= DAILY STATUS & SUMMARY PANEL ================= -->
+                        <div id="selfDailyPanel" class="d-none">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                                <div class="flex-grow-1">
+                                    <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.7rem;">Select Date</label>
+                                    <input type="date" id="selfDateInput" class="form-control form-control-sm rounded-3 fw-semibold"
+                                           value="<?= e($initDateVal) ?>" max="<?= date('Y-m-d') ?>"
+                                           onchange="window.loadSelfAttendanceData('daily')">
+                                </div>
+                                <div class="text-end">
+                                    <label class="form-label small fw-bold text-muted mb-1 d-block" style="font-size: 0.7rem;">Download</label>
+                                    <div class="btn-group btn-group-sm">
+                                        <a id="btnDownloadDailyExcel"
+                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=daily&date=' . $initDateVal . '&format=excel')) ?>"
+                                           class="btn btn-success fw-semibold px-2 rounded-start-3" title="Download Daily Excel">
+                                            <i class="fa-solid fa-file-excel me-1"></i>Excel
+                                        </a>
+                                        <a id="btnDownloadDailyCsv"
+                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=daily&date=' . $initDateVal . '&format=csv')) ?>"
+                                           class="btn btn-outline-secondary fw-semibold px-2 rounded-end-3" title="Download Daily CSV">
+                                            <i class="fa-solid fa-file-csv me-1"></i>CSV
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Selected Day Summary Card -->
+                            <div class="p-3 rounded-3 bg-light border mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                    <div>
+                                        <div class="fw-bold text-dark small" id="dSumDateLabel">
+                                            <?= e(($initDaily['date_formatted'] ?? date('d M Y')) . ' (' . ($initDaily['day_name'] ?? date('D')) . ')') ?>
+                                        </div>
+                                        <div class="text-muted" style="font-size: 0.68rem;" id="dSumNote">
+                                            <?= !empty($initDaily['note']) ? e($initDaily['note']) : 'Daily Attendance Summary' ?>
+                                        </div>
+                                    </div>
+                                    <span id="dSumStatusBadge" class="badge <?= e($initDaily['badge_class'] ?? 'bg-secondary-subtle text-secondary') ?> border rounded-pill px-2 py-1" style="font-size: 0.7rem;">
+                                        <?= e($initDaily['status_label'] ?? 'Not Punched Yet') ?>
+                                    </span>
+                                </div>
+
+                                <div class="row g-2 text-center">
+                                    <div class="col-4">
+                                        <div class="p-2 bg-white rounded-3 border">
+                                            <div class="text-muted" style="font-size: 0.64rem;">First IN</div>
+                                            <div class="fw-bold text-success font-monospace small" id="dSumFirstIn"><?= e($initDaily['first_in'] ?? '—') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="p-2 bg-white rounded-3 border">
+                                            <div class="text-muted" style="font-size: 0.64rem;">Last OUT</div>
+                                            <div class="fw-bold text-danger font-monospace small" id="dSumLastOut"><?= e($initDaily['last_out'] ?? '—') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="p-2 bg-white rounded-3 border">
+                                            <div class="text-muted" style="font-size: 0.64rem;">Worked</div>
+                                            <div class="fw-bold text-primary font-monospace small" id="dSumDuration"><?= e($initDaily['formatted_duration'] ?? '00:00:00') ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Selected Day Punch Items -->
+                            <div class="border rounded-3 overflow-hidden">
+                                <div class="bg-light px-2 py-1 border-bottom d-flex justify-content-between">
+                                    <span class="fw-bold text-muted text-uppercase" style="font-size: 0.68rem;">Day Punch Log</span>
+                                    <span class="badge bg-white text-dark border font-monospace" style="font-size: 0.65rem;" id="dSumPunchCount">
+                                        <?= (int)($initDaily['punch_count'] ?? 0) ?> punch(es)
+                                    </span>
+                                </div>
+                                <div id="selfDailyPunchList" class="p-2" style="max-height: 160px; overflow-y: auto;">
+                                    <?php if (empty($initDaily['punches'])): ?>
+                                        <div class="text-center text-muted small py-2">No punches recorded on this date.</div>
+                                    <?php else: ?>
+                                        <div class="list-group list-group-flush">
+                                            <?php foreach ($initDaily['punches'] as $dp): ?>
+                                                <div class="list-group-item d-flex justify-content-between align-items-center px-1 py-1 border-0 border-bottom">
+                                                    <div>
+                                                        <span class="badge <?= ($dp['type'] ?? '') === 'IN' ? 'bg-success' : 'bg-danger' ?> me-1" style="font-size: 0.65rem;">
+                                                            <?= e($dp['type'] ?? '') ?>
+                                                        </span>
+                                                        <span class="font-monospace small"><?= e($dp['time'] ?? '') ?></span>
+                                                    </div>
+                                                    <span class="text-muted" style="font-size: 0.66rem;">
+                                                        <?= !empty($dp['location_verified']) ? 'GPS Verified' : 'Recorded' ?>
+                                                    </span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
             <!-- Employee Mobile Leave / Outdoor Duty (OD) Application Card -->
             <div class="card rounded-4 border-0 shadow-sm mb-3 mt-3 overflow-hidden text-start" style="background: #ffffff; border: 1px solid #e2e8f0 !important;">
                 <div class="card-header bg-white py-3 px-3 d-flex align-items-center justify-content-between border-bottom cursor-pointer" 
@@ -1494,6 +1752,9 @@
                     punchedDatesList.push(todayIsoStr);
                 }
                 const punchedBanner = document.getElementById('punchedTodayLeaveBanner');
+                if (typeof window.refreshSelfAttendanceLive === 'function') {
+                    window.refreshSelfAttendanceLive();
+                }
                 if (punchedBanner) punchedBanner.classList.remove('d-none');
                 const sInputLive = document.getElementById('mStartDate');
                 const eInputLive = document.getElementById('mEndDate');
@@ -1585,6 +1846,162 @@
             }
         });
     }
+
+    // --- Employee Self-Service Daily & Monthly Status, Summary & Download Controller ---
+    const selfReportApiBase = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/attendance-report')) ?>;
+    const selfDownloadBase = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/download-report')) ?>;
+
+    function escHtml(val) {
+        return String(val === null || val === undefined ? '' : val)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    window.switchSelfReportTab = function(tab) {
+        const mPanel = document.getElementById('selfMonthlyPanel');
+        const dPanel = document.getElementById('selfDailyPanel');
+        const btnM = document.getElementById('tabBtnMonthly');
+        const btnD = document.getElementById('tabBtnDaily');
+        if (!mPanel || !dPanel || !btnM || !btnD) return;
+
+        if (tab === 'daily') {
+            mPanel.classList.add('d-none');
+            dPanel.classList.remove('d-none');
+            btnD.className = 'btn btn-sm btn-primary rounded-pill fw-bold py-1';
+            btnM.className = 'btn btn-sm btn-light rounded-pill fw-semibold text-muted py-1';
+        } else {
+            dPanel.classList.add('d-none');
+            mPanel.classList.remove('d-none');
+            btnM.className = 'btn btn-sm btn-primary rounded-pill fw-bold py-1';
+            btnD.className = 'btn btn-sm btn-light rounded-pill fw-semibold text-muted py-1';
+        }
+    };
+
+    function updateSelfDownloadLinks() {
+        const mVal = (document.getElementById('selfMonthInput') || {}).value || '';
+        const dVal = (document.getElementById('selfDateInput') || {}).value || '';
+        const mExcel = document.getElementById('btnDownloadMonthlyExcel');
+        const mCsv = document.getElementById('btnDownloadMonthlyCsv');
+        const dExcel = document.getElementById('btnDownloadDailyExcel');
+        const dCsv = document.getElementById('btnDownloadDailyCsv');
+
+        if (mExcel && mVal) mExcel.href = selfDownloadBase + '?mode=monthly&month=' + encodeURIComponent(mVal) + '&format=excel';
+        if (mCsv && mVal) mCsv.href = selfDownloadBase + '?mode=monthly&month=' + encodeURIComponent(mVal) + '&format=csv';
+        if (dExcel && dVal) dExcel.href = selfDownloadBase + '?mode=daily&date=' + encodeURIComponent(dVal) + '&format=excel';
+        if (dCsv && dVal) dCsv.href = selfDownloadBase + '?mode=daily&date=' + encodeURIComponent(dVal) + '&format=csv';
+    }
+
+    function renderSelfMonthly(m) {
+        if (!m || !m.summary) return;
+        const s = m.summary;
+        const elP = document.getElementById('mSumPresent');
+        const elA = document.getElementById('mSumAbsent');
+        const elL = document.getElementById('mSumLeave');
+        const elH = document.getElementById('mSumHours');
+        const elR = document.getElementById('mSumRate');
+        const elTitle = document.getElementById('mTableTitle');
+        const elDur = document.getElementById('mTotalDurationLabel');
+        const quickBadge = document.getElementById('selfHeaderQuickBadge');
+        const tbody = document.getElementById('selfMonthlyTableBody');
+
+        if (elP) elP.textContent = s.present_days;
+        if (elA) elA.textContent = s.absent_days;
+        if (elL) elL.textContent = (parseInt(s.leave_days || 0) + parseInt(s.od_days || 0));
+        if (elH) elH.textContent = s.total_hours + 'h';
+        if (elR) elR.textContent = s.attendance_rate;
+        if (elTitle) elTitle.textContent = (m.month_label || m.month) + ' Log';
+        if (elDur) elDur.textContent = 'Total: ' + (s.formatted_total_duration || '00:00:00');
+        if (quickBadge) quickBadge.innerHTML = s.present_days + 'd &bull; ' + s.total_hours + 'h';
+
+        if (tbody && Array.isArray(m.records)) {
+            let html = '';
+            for (let i = 0; i < m.records.length; i++) {
+                const r = m.records[i];
+                const inOut = (r.first_in || r.last_out)
+                    ? ('<span class="text-success">' + escHtml(r.first_in || '—') + '</span> <span class="text-muted">/</span> <span class="text-danger">' + escHtml(r.last_out || '—') + '</span>')
+                    : '<span class="text-muted">—</span>';
+                const noteHtml = r.note
+                    ? '<div class="text-muted text-truncate" style="font-size: 0.62rem; max-width: 105px;" title="' + escHtml(r.note) + '">' + escHtml(r.note) + '</div>'
+                    : '';
+                html += '<tr>'
+                    + '<td class="ps-2 text-nowrap"><div class="fw-semibold text-dark">' + escHtml(r.date_short) + '</div><div class="text-muted" style="font-size: 0.64rem;">' + escHtml(r.day_name) + '</div></td>'
+                    + '<td><span class="badge ' + escHtml(r.badge_class) + ' border rounded-pill px-2 py-0" style="font-size: 0.64rem;">' + escHtml(r.status_label) + '</span>' + noteHtml + '</td>'
+                    + '<td class="font-monospace text-nowrap" style="font-size: 0.66rem;">' + inOut + '</td>'
+                    + '<td class="pe-2 text-end font-monospace fw-semibold">' + (r.hours > 0 ? escHtml(r.hours) + 'h' : '—') + '</td>'
+                    + '</tr>';
+            }
+            tbody.innerHTML = html;
+        }
+    }
+
+    function renderSelfDaily(d) {
+        if (!d) return;
+        const elDate = document.getElementById('dSumDateLabel');
+        const elNote = document.getElementById('dSumNote');
+        const elBadge = document.getElementById('dSumStatusBadge');
+        const elIn = document.getElementById('dSumFirstIn');
+        const elOut = document.getElementById('dSumLastOut');
+        const elDur = document.getElementById('dSumDuration');
+        const elCnt = document.getElementById('dSumPunchCount');
+        const listEl = document.getElementById('selfDailyPunchList');
+
+        if (elDate) elDate.textContent = (d.date_formatted || d.date) + ' (' + (d.day_name || '') + ')';
+        if (elNote) elNote.textContent = d.note ? d.note : 'Daily Attendance Summary';
+        if (elBadge) {
+            elBadge.className = 'badge ' + (d.badge_class || 'bg-secondary-subtle text-secondary') + ' border rounded-pill px-2 py-1';
+            elBadge.textContent = d.status_label || '—';
+        }
+        if (elIn) elIn.textContent = d.first_in || '—';
+        if (elOut) elOut.textContent = d.last_out || '—';
+        if (elDur) elDur.textContent = d.formatted_duration || '00:00:00';
+        if (elCnt) elCnt.textContent = (d.punch_count || 0) + ' punch(es)';
+
+        if (listEl) {
+            if (!Array.isArray(d.punches) || d.punches.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-muted small py-2">No punches recorded on this date.</div>';
+            } else {
+                let html = '<div class="list-group list-group-flush">';
+                for (let i = 0; i < d.punches.length; i++) {
+                    const p = d.punches[i];
+                    const bCls = p.type === 'IN' ? 'bg-success' : 'bg-danger';
+                    html += '<div class="list-group-item d-flex justify-content-between align-items-center px-1 py-1 border-0 border-bottom">'
+                        + '<div><span class="badge ' + bCls + ' me-1" style="font-size: 0.65rem;">' + escHtml(p.type) + '</span><span class="font-monospace small">' + escHtml(p.time) + '</span></div>'
+                        + '<span class="text-muted" style="font-size: 0.66rem;">' + (p.location_verified ? 'GPS Verified' : 'Recorded') + '</span>'
+                        + '</div>';
+                }
+                html += '</div>';
+                listEl.innerHTML = html;
+            }
+        }
+    }
+
+    window.loadSelfAttendanceData = function(mode) {
+        updateSelfDownloadLinks();
+        const mVal = (document.getElementById('selfMonthInput') || {}).value || '';
+        const dVal = (document.getElementById('selfDateInput') || {}).value || '';
+        const qs = '?mode=' + encodeURIComponent(mode || 'both')
+            + '&month=' + encodeURIComponent(mVal)
+            + '&date=' + encodeURIComponent(dVal);
+
+        fetch(selfReportApiBase + qs, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            cache: 'no-store'
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(resp) {
+            if (resp && resp.success && resp.data) {
+                if (resp.data.monthly) renderSelfMonthly(resp.data.monthly);
+                if (resp.data.daily) renderSelfDaily(resp.data.daily);
+            }
+        })
+        .catch(function() {});
+    };
+
+    window.refreshSelfAttendanceLive = function() {
+        window.loadSelfAttendanceData('both');
+    };
 
     // Keep Render instance warm while employee punch page is open (every 4 minutes)
     setInterval(function() {

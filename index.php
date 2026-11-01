@@ -358,6 +358,8 @@ $router->get('/logout', [\App\Controllers\AuthController::class, 'logout']);
 $router->get('/p/{code}', [\App\Controllers\PunchController::class, 'show']);
 $router->post('/p/{code}', [\App\Controllers\PunchController::class, 'record']);
 $router->get('/p/{code}/status', [\App\Controllers\PunchController::class, 'status']);
+$router->get('/p/{code}/attendance-report', [\App\Controllers\PunchController::class, 'attendanceReport']);
+$router->get('/p/{code}/download-report', [\App\Controllers\PunchController::class, 'downloadReport']);
 $router->post('/p/{code}/leave-apply', [\App\Controllers\LeaveController::class, 'applyLeave']);
 $router->post('/api/leave/apply', [\App\Controllers\LeaveController::class, 'applyLeave']);
 

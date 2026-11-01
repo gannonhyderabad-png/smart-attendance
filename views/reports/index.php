@@ -110,9 +110,11 @@
                         <div class="col-md-2">
                             <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-location-dot me-1 text-danger"></i>Work Site</label>
                             <select name="site" class="form-select form-select-sm bg-white">
+                                <?php if (!\App\Core\Auth::isSiteUser()): ?>
                                 <option value="">All Sites</option>
+                                <?php endif; ?>
                                 <?php foreach ($siteList as $s): ?>
-                                    <option value="<?= e($s) ?>" <?= ($site === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                                    <option value="<?= e($s) ?>" <?= (strcasecmp((string)$site, (string)$s) === 0) ? 'selected' : '' ?>><?= e($s) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -149,9 +151,11 @@
                         <div class="col-md-2">
                             <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-location-dot me-1 text-danger"></i>Work Site</label>
                             <select name="site" class="form-select form-select-sm bg-white">
+                                <?php if (!\App\Core\Auth::isSiteUser()): ?>
                                 <option value="">All Sites</option>
+                                <?php endif; ?>
                                 <?php foreach ($siteList as $s): ?>
-                                    <option value="<?= e($s) ?>" <?= ($site === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                                    <option value="<?= e($s) ?>" <?= (strcasecmp((string)$site, (string)$s) === 0) ? 'selected' : '' ?>><?= e($s) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -186,9 +190,11 @@
                         <div class="col-md-2">
                             <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-location-dot me-1 text-danger"></i>Work Site</label>
                             <select name="site" class="form-select form-select-sm bg-white">
+                                <?php if (!\App\Core\Auth::isSiteUser()): ?>
                                 <option value="">All Sites</option>
+                                <?php endif; ?>
                                 <?php foreach ($siteList as $s): ?>
-                                    <option value="<?= e($s) ?>" <?= ($site === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                                    <option value="<?= e($s) ?>" <?= (strcasecmp((string)$site, (string)$s) === 0) ? 'selected' : '' ?>><?= e($s) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>

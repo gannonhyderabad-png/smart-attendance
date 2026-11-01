@@ -20,6 +20,10 @@ class EmployeeController extends Controller {
         $department = Request::input('department', Request::input('department_id', ''));
         $site = Request::input('site', '');
         $status = Request::input('status', '');
+        if (Auth::isSiteUser()) {
+            $view = 'active';
+            $site = Auth::assignedSite() ?? '__UNASSIGNED_SITE__';
+        }
 
         $employees = Employee::all([
             'view' => $view,
@@ -33,8 +37,11 @@ class EmployeeController extends Controller {
         $departmentList = Employee::getDistinctDepartments();
         $siteList = Employee::getDistinctSites();
         $projectList = Employee::getDistinctProjects();
-        $trashCount = Employee::countTrash();
-        $activeCount = Employee::count();
+        $trashCount = Auth::isSiteUser() ? 0 : Employee::countTrash();
+        $activeCount = Auth::isSiteUser() ? count(Employee::all(['view' => 'active', 'site' => $site])) : Employee::count();
+        if (Auth::isSiteUser()) {
+            $siteList = Auth::assignedSite() ? [Auth::assignedSite()] : [];
+        }
 
         $this->view('employees.index', [
             'title' => $view === 'trash' ? 'Employee Recycle Bin' : 'Employee Directory',
@@ -57,6 +64,7 @@ class EmployeeController extends Controller {
     }
 
     public function create(): void {
+        if (Auth::isRestricted()) { Auth::requireAuth(); $this->setFlash('error', 'Access restricted: Only Administrator can add employees.'); redirect('employees'); }
         Auth::requireAuth();
 
         global $appConfig;
@@ -160,6 +168,7 @@ class EmployeeController extends Controller {
     }
 
     public function edit(string $id): void {
+        if (Auth::isRestricted()) { Auth::requireAuth(); $this->setFlash('error', 'Access restricted: Only Administrator can edit employees.'); redirect('employees'); }
         Auth::requireAuth();
 
         $employee = Employee::find((int) $id);
@@ -286,6 +295,13 @@ class EmployeeController extends Controller {
             redirect('employees');
         }
 
+        if (Auth::isSiteUser()) {
+            $assignedSite = Auth::assignedSite();
+            if (!$assignedSite || strcasecmp(trim((string) ($employee['site'] ?? '')), $assignedSite) !== 0 || !empty($employee['deleted_at'])) {
+                $this->setFlash('error', 'Access restricted: You can only view employees belonging to your assigned site.');
+                redirect('employees');
+            }
+        }
         $punchUrl = punch_url($employee['employee_code']);
         $recentAttendance = Attendance::getPairedSessions(['employee_id' => $employee['id']], 10, 0);
         $todayWorkSeconds = Attendance::calculateWorkSeconds($employee['id'], date('Y-m-d'));

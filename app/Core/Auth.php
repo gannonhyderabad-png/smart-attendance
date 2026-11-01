@@ -6,6 +6,8 @@ use Database\Database;
 use PDO;
 
 class Auth {
+    private static bool $sessionSynced = false;
+
     public static function init(): void {
         if (session_status() === PHP_SESSION_NONE) {
             if (!headers_sent()) {
@@ -17,13 +19,41 @@ class Auth {
                 session_start();
             }
         }
+        self::syncSessionUser();
+    }
+
+    /**
+     * Keep session role, assigned_site, and active status synchronized with the database
+     * so Admin changes to site logins or roles take effect immediately.
+     */
+    private static function syncSessionUser(): void {
+        if (self::$sessionSynced || empty($_SESSION['user_id'])) {
+            return;
+        }
+        self::$sessionSynced = true;
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("SELECT name, email, role, assigned_site, status FROM users WHERE id = ? LIMIT 1");
+            $stmt->execute([(int) $_SESSION['user_id']]);
+            $u = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$u || ($u['status'] ?? 'active') !== 'active') {
+                $_SESSION = [];
+                return;
+            }
+            $_SESSION['user_name'] = $u['name'];
+            $_SESSION['user_email'] = $u['email'];
+            $_SESSION['user_role'] = $u['role'] ?? 'admin';
+            $_SESSION['assigned_site'] = !empty($u['assigned_site']) ? trim((string) $u['assigned_site']) : null;
+        } catch (\Throwable $e) {
+            // Ignore transient sync errors
+        }
     }
 
     public static function attempt(string $email, string $password): bool {
         self::init();
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND status = 'active' LIMIT 1");
-        $stmt->execute([$email]);
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND status = 'active' LIMIT 1");
+        $stmt->execute([trim($email)]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
@@ -35,7 +65,9 @@ class Auth {
             $_SESSION['user_name'] = $user['name'];
             $_SESSION['user_email'] = $user['email'];
             $_SESSION['user_role'] = $user['role'];
+            $_SESSION['assigned_site'] = !empty($user['assigned_site']) ? trim((string) $user['assigned_site']) : null;
             $_SESSION['logged_in_at'] = time();
+            self::$sessionSynced = true;
 
             Logger::log($user['id'], 'USER_LOGIN', "User {$user['name']} ({$user['email']}) logged in successfully.");
             return true;
@@ -60,7 +92,8 @@ class Auth {
             'id' => $_SESSION['user_id'],
             'name' => $_SESSION['user_name'],
             'email' => $_SESSION['user_email'],
-            'role' => $_SESSION['user_role'] ?? 'admin'
+            'role' => $_SESSION['user_role'] ?? 'admin',
+            'assigned_site' => self::assignedSite(),
         ];
     }
 
@@ -95,20 +128,36 @@ class Auth {
 
     public static function role(): string {
         self::init();
-        return $_SESSION['user_role'] ?? 'admin';
+        return strtolower(trim((string) ($_SESSION['user_role'] ?? 'admin')));
+    }
+
+    public static function isAdmin(): bool {
+        $role = self::role();
+        return $role === 'admin' || $role === 'superadmin';
+    }
+
+    public static function isSiteUser(): bool {
+        return self::role() === 'site_user';
+    }
+
+    public static function assignedSite(): ?string {
+        self::init();
+        $site = trim((string) ($_SESSION['assigned_site'] ?? ''));
+        return $site !== '' ? $site : null;
     }
 
     public static function isRestricted(): bool {
-        $role = self::role();
-        return $role !== 'admin' && $role !== 'superadmin';
+        return !self::isAdmin();
     }
 
     public static function canAccess(string $page): bool {
-        $role = self::role();
-        if ($role === 'admin' || $role === 'superadmin') {
+        if (self::isAdmin()) {
             return true;
         }
-        // All department authority roles have access to leaves, employee directory, profile, and logout
-        return in_array($page, ['leaves', 'employees', 'profile', 'logout']);
+        if (self::isSiteUser()) {
+            return in_array($page, ['employees', 'leaves', 'reports', 'holidays', 'logout'], true);
+        }
+        // Department authority roles have access to leaves, employee directory, profile, and logout
+        return in_array($page, ['leaves', 'employees', 'profile', 'logout'], true);
     }
 }

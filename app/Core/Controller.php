@@ -17,9 +17,10 @@ abstract class Controller {
         $pendingLeavesList = [];
         if ($layout === 'admin') {
             try {
-                $pendingLeavesCount = \App\Models\Leave::getPendingCount();
+                $__siteFilter = Auth::isSiteUser() ? (Auth::assignedSite() ?? '__UNASSIGNED_SITE__') : null;
+                $pendingLeavesCount = \App\Models\Leave::getPendingCount($__siteFilter);
                 if ($pendingLeavesCount > 0) {
-                    $pendingLeavesList = \App\Models\Leave::getPendingRequests(6);
+                    $pendingLeavesList = \App\Models\Leave::getPendingRequests(6, $__siteFilter);
                 }
             } catch (\Throwable $e) {}
         }

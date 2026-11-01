@@ -12,6 +12,7 @@ class DashboardController extends Controller {
     public function index(): void {
         Auth::requireAuth();
 
+        if (Auth::isSiteUser()) { redirect('employees'); }
         if (Auth::isRestricted()) {
             redirect('leaves');
         }

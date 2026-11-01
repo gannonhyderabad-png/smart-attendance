@@ -1,10 +1,10 @@
 <div class="row g-4 justify-content-center mb-4">
     <!-- Left Column: Admin Profile Settings -->
-    <div class="col-lg-6">
+    <div class="<?= \App\Core\Auth::isAdmin() ? 'col-lg-6' : 'col-lg-8' ?>">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-user-gear text-primary me-2"></i>Admin Profile & Security</h5>
-                <small class="text-muted">Manage your administrator account credentials and password</small>
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-user-gear text-primary me-2"></i>Account Profile & Security</h5>
+                <small class="text-muted">Manage your account credentials and password</small>
             </div>
 
             <div class="card-body p-4">
@@ -12,7 +12,7 @@
                     <?= csrf_field() ?>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Administrator Name <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold text-muted">Account Name <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-user"></i></span>
                             <input type="text" name="name" class="form-control bg-light border-start-0" value="<?= e($currentUser['name']) ?>" required>
@@ -20,7 +20,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small fw-semibold text-muted">Administrator Email <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold text-muted">Login Email <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-regular fa-envelope"></i></span>
                             <input type="email" name="email" class="form-control bg-light border-start-0" value="<?= e($currentUser['email']) ?>" required>
@@ -28,7 +28,7 @@
                     </div>
 
                     <hr class="my-4 text-secondary opacity-25">
-                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-lock text-secondary me-2"></i>Change Admin Password</h6>
+                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-lock text-secondary me-2"></i>Change Password</h6>
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">New Password (leave blank to keep current)</label>
@@ -51,6 +51,7 @@
         </div>
     </div>
 
+    <?php if (\App\Core\Auth::isAdmin()): ?>
     <!-- Right Column: Full System Backup (Database + Selfie Photos) -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
@@ -143,9 +144,17 @@
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php if (!empty($allUsers)): ?>
+<!-- Datalist of existing Work Sites for Site Logins -->
+<datalist id="systemSiteSuggestions">
+    <?php foreach ($siteList ?? [] as $siteOption): ?>
+        <option value="<?= e($siteOption) ?>"></option>
+    <?php endforeach; ?>
+</datalist>
+
 <!-- Row 2: System User Logins & Roles Management (Admin Only) -->
 <div class="row g-4 justify-content-center">
     <div class="col-12">
@@ -153,13 +162,18 @@
             <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div>
                     <h5 class="fw-bold text-dark mb-1">
-                        <i class="fa-solid fa-users-gear text-primary me-2"></i>System Logins &amp; Role Management
+                        <i class="fa-solid fa-users-gear text-primary me-2"></i>System Logins &amp; Site Login Management
                     </h5>
-                    <p class="text-muted small mb-0">Create and manage role-based login credentials for 3-Step Leave Approvals and Employee Directory access.</p>
+                    <p class="text-muted small mb-0">Create <strong>Site Logins</strong> (strictly read-only access for a specific site's Employees, Leaves, Attendance Reports &amp; Holidays) or Role-based Authority Logins.</p>
                 </div>
-                <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#createUserModal">
-                    <i class="fa-solid fa-user-plus me-1"></i> Create New Login
-                </button>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-danger rounded-pill px-4 shadow-sm fw-semibold" onclick="openCreateSiteLoginModal()">
+                        <i class="fa-solid fa-location-dot me-1"></i> Create Site Login
+                    </button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" onclick="openCreateStandardLoginModal()">
+                        <i class="fa-solid fa-user-plus me-1"></i> Create New Login
+                    </button>
+                </div>
             </div>
 
             <div class="card-body p-4">
@@ -169,7 +183,7 @@
                             <tr>
                                 <th class="ps-3">User / Name</th>
                                 <th>Login &amp; Company Mail</th>
-                                <th>Assigned Role &amp; Permissions</th>
+                                <th>Assigned Role / Site &amp; Permissions</th>
                                 <th>Status</th>
                                 <th>Last Login</th>
                                 <th class="text-end pe-3">Actions</th>
@@ -180,7 +194,7 @@
                                 <tr>
                                     <td class="ps-3">
                                         <div class="d-flex align-items-center gap-2">
-                                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="width: 38px; height: 38px; background: <?= $u['role'] === 'admin' ? '#dc3545' : ($u['role'] === 'hr' ? '#0d6efd' : '#198754') ?>;">
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="width: 38px; height: 38px; background: <?= $u['role'] === 'admin' ? '#dc3545' : ($u['role'] === 'site_user' ? '#7c3aed' : ($u['role'] === 'hr' ? '#0d6efd' : '#198754')) ?>;">
                                                 <?= strtoupper(substr($u['name'] ?? 'U', 0, 1)) ?>
                                             </div>
                                             <div>
@@ -207,6 +221,13 @@
                                                 <i class="fa-solid fa-user-shield me-1"></i> System Administrator (Step 3)
                                             </span>
                                             <div class="text-muted small mt-1" style="font-size:0.68rem;">All modules, Step 3 &amp; Direct Fast-Track</div>
+                                        <?php elseif ($u['role'] === 'site_user'): ?>
+                                            <span class="badge rounded-pill px-3 py-1 border" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe !important;">
+                                                <i class="fa-solid fa-location-dot text-danger me-1"></i> Site Login: <strong><?= e($u['assigned_site'] ?: 'Unassigned') ?></strong>
+                                            </span>
+                                            <div class="text-muted small mt-1" style="font-size:0.68rem;">
+                                                <i class="fa-solid fa-eye me-1 text-secondary"></i>Read-Only: Only <strong><?= e($u['assigned_site'] ?: 'Site') ?></strong> Employees, Leaves, Reports &amp; Holidays (No Edit/Add/Approve)
+                                            </div>
                                         <?php elseif ($u['role'] === 'hr'): ?>
                                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1">
                                                 <i class="fa-solid fa-id-badge me-1"></i> HR &amp; Admin (Step 2 Authority)
@@ -427,30 +448,10 @@
                 <?= csrf_field() ?>
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Full Name <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control bg-light" placeholder="e.g. Accounts Incharge, HR Reviewer" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Login Email Address <span class="text-danger">*</span></label>
-                        <input type="email" name="email" class="form-control bg-light" placeholder="e.g. account@attendance.local" required>
-                        <small class="text-muted" style="font-size:0.7rem;">Will be used as the username to sign into the system.</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">
-                            <i class="fa-solid fa-envelope-open-text text-primary me-1"></i>Company Mail / Official Mailbox
-                        </label>
-                        <input type="email" name="company_mail" id="createCompanyMail" class="form-control bg-light" placeholder="e.g. employee.name@company.com or dept@gammon.com">
-                        <small class="text-muted" style="font-size:0.7rem;">
-                            When employees in this department apply for leave, email notifications with direct action links will reflect to this company mailbox.
-                        </small>
-                    </div>
-
-                    <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
-                        <select name="role_preset" id="createRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'createCustomRoleBox', 'createRoleInput')">
-                            <option value="custom" selected>-- Blank Entry: Custom Authority / Enter Below --</option>
+                        <select name="role_preset" id="createRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'createCustomRoleBox', 'createRoleInput', 'createSiteBox', 'createSiteInput')">
+                            <option value="site_user" selected>📍 Site Login — View Only (Specific Site Employees, Leaves, Reports &amp; Holidays)</option>
+                            <option value="custom">-- Blank Entry: Custom Authority / Enter Below --</option>
                             <option value="account">Accounts Head (Step 1 Approvals for Accounts)</option>
                             <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
                             <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
@@ -458,15 +459,50 @@
                             <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
                             <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
                         </select>
-                        <div id="createCustomRoleBox" class="mt-2">
+
+                        <!-- Conditional Site Name Field for Site Login -->
+                        <div id="createSiteBox" class="mt-2 p-3 rounded-3 border" style="background: #f5f3ff; border-color: #c4b5fd !important;">
+                            <label class="form-label small fw-bold mb-1" style="color: #5b21b6;">
+                                <i class="fa-solid fa-location-dot text-danger me-1"></i> Work Site Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="assigned_site" id="createSiteInput" list="systemSiteSuggestions" class="form-control bg-white" placeholder="Select or type site name (e.g. Hyderabad, Mumbai Site...)" required autocomplete="off">
+                            <div class="small mt-2 text-dark" style="font-size: 0.72rem;">
+                                <i class="fa-solid fa-lock text-danger me-1"></i>
+                                <strong>Strict Read-Only Site Isolation:</strong> Shows <u>only</u> employees belonging to this site across <strong>Employees, Leave Management, Attendance Reports, and Public Holidays</strong>. Cannot add, edit, delete, or approve anything.
+                            </div>
+                        </div>
+
+                        <!-- Conditional Custom Authority Box -->
+                        <div id="createCustomRoleBox" class="mt-2" style="display:none;">
                             <label class="form-label small fw-semibold text-primary mb-1">
                                 <i class="fa-solid fa-pen-nib me-1"></i> Custom Authority Name <span class="text-danger">*</span>
                             </label>
-                            <input type="text" name="role" id="createRoleInput" class="form-control bg-light border-primary" placeholder="Type custom authority (e.g. Technical, Engineering, Operations, Store...)" required>
+                            <input type="text" name="role" id="createRoleInput" class="form-control bg-light border-primary" value="site_user" placeholder="Type custom authority (e.g. Technical, Engineering, Operations, Store...)">
                             <div class="text-muted small mt-1" style="font-size:0.7rem;">
                                 <i class="fa-solid fa-circle-check text-success me-1"></i> This custom entry is automatically taken as the <strong>Step 1 Approving Authority</strong> for employees in this department/designation.
                             </div>
                         </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Full Name / Login Label <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="createUserName" class="form-control bg-light" placeholder="e.g. Hyderabad Site Viewer, Accounts Incharge" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Login Email / Username <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control bg-light" placeholder="e.g. hyderabad@attendance.local" required>
+                        <small class="text-muted" style="font-size:0.7rem;">Will be used as the username to sign into the system.</small>
+                    </div>
+
+                    <div class="mb-3" id="createCompanyMailGroup">
+                        <label class="form-label small fw-semibold text-muted">
+                            <i class="fa-solid fa-envelope-open-text text-primary me-1"></i>Company Mail / Official Mailbox <small class="text-muted">(Optional)</small>
+                        </label>
+                        <input type="email" name="company_mail" id="createCompanyMail" class="form-control bg-light" placeholder="e.g. employee.name@company.com or dept@gammon.com">
+                        <small class="text-muted" style="font-size:0.7rem;">
+                            For department authorities: leave notifications reflect to this company mailbox.
+                        </small>
                     </div>
 
                     <div class="mb-3">
@@ -508,7 +544,43 @@
                 <input type="hidden" name="id" id="editUserId" value="">
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Full Name <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
+                        <select name="role_preset" id="editRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'editCustomRoleBox', 'editRoleInput', 'editSiteBox', 'editSiteInput')">
+                            <option value="site_user">📍 Site Login — View Only (Specific Site Employees, Leaves, Reports &amp; Holidays)</option>
+                            <option value="custom">-- Blank Entry: Custom Authority / Enter Below --</option>
+                            <option value="account">Accounts Head (Step 1 Approvals for Accounts)</option>
+                            <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
+                            <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
+                            <option value="tender">Tender Head (Step 1 Approvals for Tender Staff)</option>
+                            <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
+                            <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
+                        </select>
+
+                        <!-- Conditional Site Name Field for Site Login -->
+                        <div id="editSiteBox" class="mt-2 p-3 rounded-3 border" style="display:none; background: #f5f3ff; border-color: #c4b5fd !important;">
+                            <label class="form-label small fw-bold mb-1" style="color: #5b21b6;">
+                                <i class="fa-solid fa-location-dot text-danger me-1"></i> Work Site Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="assigned_site" id="editSiteInput" list="systemSiteSuggestions" class="form-control bg-white" placeholder="Select or type site name (e.g. Hyderabad, Mumbai Site...)" autocomplete="off">
+                            <div class="small mt-2 text-dark" style="font-size: 0.72rem;">
+                                <i class="fa-solid fa-lock text-danger me-1"></i>
+                                <strong>Strict Read-Only Site Isolation:</strong> Shows <u>only</u> employees belonging to this site. Cannot add, edit, delete, or approve anything.
+                            </div>
+                        </div>
+
+                        <div id="editCustomRoleBox" class="mt-2" style="display:none;">
+                            <label class="form-label small fw-semibold text-primary mb-1">
+                                <i class="fa-solid fa-pen-nib me-1"></i> Custom Authority Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="role" id="editRoleInput" class="form-control bg-light border-primary" placeholder="Type custom authority name...">
+                            <div class="text-muted small mt-1" style="font-size:0.7rem;">
+                                <i class="fa-solid fa-circle-check text-success me-1"></i> This custom entry is taken as the Step 1 Approving Authority.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Full Name / Login Label <span class="text-danger">*</span></label>
                         <input type="text" name="name" id="editUserName" class="form-control bg-light" required>
                     </div>
 
@@ -519,34 +591,12 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">
-                            <i class="fa-solid fa-envelope-open-text text-primary me-1"></i>Company Mail / Official Mailbox
+                            <i class="fa-solid fa-envelope-open-text text-primary me-1"></i>Company Mail / Official Mailbox <small class="text-muted">(Optional)</small>
                         </label>
                         <input type="email" name="company_mail" id="editUserCompanyMail" class="form-control bg-light" placeholder="e.g. employee.name@company.com or dept@gammon.com">
                         <small class="text-muted" style="font-size:0.7rem;">
-                            When employees in this department apply for leave, email notifications with direct action links will reflect to this company mailbox.
+                            For department authorities: leave notifications reflect to this company mailbox.
                         </small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">System Role &amp; Permissions <span class="text-danger">*</span></label>
-                        <select name="role_preset" id="editRolePreset" class="form-select bg-light" onchange="handleRolePresetChange(this, 'editCustomRoleBox', 'editRoleInput')">
-                            <option value="custom">-- Blank Entry: Custom Authority / Enter Below --</option>
-                            <option value="account">Accounts Head (Step 1 Approvals for Accounts)</option>
-                            <option value="incharge">Incharge (Step 1 Approvals for Incharge &amp; General Staff)</option>
-                            <option value="coordinator">Coordinator (Step 1 Approvals for Coordinator Staff)</option>
-                            <option value="tender">Tender Head (Step 1 Approvals for Tender Staff)</option>
-                            <option value="hr">HR &amp; Admin (Step 2 Authority &amp; Employee Directory)</option>
-                            <option value="admin">System Administrator (Full System Access &amp; Step 3 Sign-off)</option>
-                        </select>
-                        <div id="editCustomRoleBox" class="mt-2" style="display:none;">
-                            <label class="form-label small fw-semibold text-primary mb-1">
-                                <i class="fa-solid fa-pen-nib me-1"></i> Custom Authority Name <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" name="role" id="editRoleInput" class="form-control bg-light border-primary" placeholder="Type custom authority name..." required>
-                            <div class="text-muted small mt-1" style="font-size:0.7rem;">
-                                <i class="fa-solid fa-circle-check text-success me-1"></i> This custom entry is taken as the Step 1 Approving Authority.
-                            </div>
-                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -574,18 +624,62 @@
 </div>
 
 <script>
-function handleRolePresetChange(sel, boxId, inputId) {
-    const box = document.getElementById(boxId);
-    const input = document.getElementById(inputId);
-    if (sel.value === 'custom') {
-        box.style.display = 'block';
-        input.value = '';
-        input.placeholder = 'Type custom authority (e.g. Technical, Engineering, Operations...)';
-        input.focus();
+function handleRolePresetChange(sel, customBoxId, roleInputId, siteBoxId, siteInputId) {
+    const customBox = document.getElementById(customBoxId);
+    const roleInput = document.getElementById(roleInputId);
+    const siteBox = document.getElementById(siteBoxId);
+    const siteInput = document.getElementById(siteInputId);
+
+    if (sel.value === 'site_user') {
+        if (customBox) customBox.style.display = 'none';
+        if (roleInput) {
+            roleInput.required = false;
+            roleInput.value = 'site_user';
+        }
+        if (siteBox) siteBox.style.display = 'block';
+        if (siteInput) {
+            siteInput.required = true;
+            setTimeout(() => siteInput.focus(), 100);
+        }
+    } else if (sel.value === 'custom') {
+        if (siteBox) siteBox.style.display = 'none';
+        if (siteInput) {
+            siteInput.required = false;
+            siteInput.value = '';
+        }
+        if (customBox) customBox.style.display = 'block';
+        if (roleInput) {
+            roleInput.required = true;
+            roleInput.value = '';
+            roleInput.placeholder = 'Type custom authority (e.g. Technical, Engineering, Operations...)';
+            setTimeout(() => roleInput.focus(), 100);
+        }
     } else {
-        box.style.display = 'none';
-        input.value = sel.value;
+        if (siteBox) siteBox.style.display = 'none';
+        if (siteInput) {
+            siteInput.required = false;
+            siteInput.value = '';
+        }
+        if (customBox) customBox.style.display = 'none';
+        if (roleInput) {
+            roleInput.required = false;
+            roleInput.value = sel.value;
+        }
     }
+}
+
+function openCreateSiteLoginModal() {
+    const presetSel = document.getElementById('createRolePreset');
+    presetSel.value = 'site_user';
+    handleRolePresetChange(presetSel, 'createCustomRoleBox', 'createRoleInput', 'createSiteBox', 'createSiteInput');
+    new bootstrap.Modal(document.getElementById('createUserModal')).show();
+}
+
+function openCreateStandardLoginModal() {
+    const presetSel = document.getElementById('createRolePreset');
+    presetSel.value = 'custom';
+    handleRolePresetChange(presetSel, 'createCustomRoleBox', 'createRoleInput', 'createSiteBox', 'createSiteInput');
+    new bootstrap.Modal(document.getElementById('createUserModal')).show();
 }
 
 function openEditUserModal(user) {
@@ -599,16 +693,34 @@ function openEditUserModal(user) {
     const presetSel = document.getElementById('editRolePreset');
     const roleInput = document.getElementById('editRoleInput');
     const customBox = document.getElementById('editCustomRoleBox');
+    const siteBox = document.getElementById('editSiteBox');
+    const siteInput = document.getElementById('editSiteInput');
     const standardRoles = ['account', 'incharge', 'coordinator', 'tender', 'hr', 'admin'];
 
-    if (standardRoles.includes(user.role)) {
+    if (user.role === 'site_user') {
+        presetSel.value = 'site_user';
+        roleInput.required = false;
+        roleInput.value = 'site_user';
+        customBox.style.display = 'none';
+        siteBox.style.display = 'block';
+        siteInput.required = true;
+        siteInput.value = user.assigned_site || '';
+    } else if (standardRoles.includes(user.role)) {
         presetSel.value = user.role;
+        roleInput.required = false;
         roleInput.value = user.role;
         customBox.style.display = 'none';
+        siteBox.style.display = 'none';
+        siteInput.required = false;
+        siteInput.value = '';
     } else {
         presetSel.value = 'custom';
+        roleInput.required = true;
         roleInput.value = user.role || '';
         customBox.style.display = 'block';
+        siteBox.style.display = 'none';
+        siteInput.required = false;
+        siteInput.value = '';
     }
 
     const modal = new bootstrap.Modal(document.getElementById('editUserModal'));

@@ -17,7 +17,7 @@ class ReportController extends Controller {
      */
     public function index(): void {
         Auth::requireAuth();
-        if (Auth::isRestricted()) {
+        if (Auth::isRestricted() && !Auth::isSiteUser()) {
             $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
             redirect('leaves');
         }
@@ -33,10 +33,17 @@ class ReportController extends Controller {
         $status = Request::input('status');
         $site = Request::input('site');
 
-        $employees = Employee::all(['status' => 'active']);
+        if (Auth::isSiteUser()) {
+            $site = Auth::assignedSite() ?? '__UNASSIGNED_SITE__';
+        }
+        $employees = Auth::isSiteUser()
+            ? Employee::all(['status' => 'active', 'site' => $site])
+            : Employee::all(['status' => 'active']);
         $departments = Department::all();
         $departmentList = Employee::getDistinctDepartments();
-        $siteList = Employee::getDistinctSites();
+        $siteList = Auth::isSiteUser()
+            ? (Auth::assignedSite() ? [Auth::assignedSite()] : [])
+            : Employee::getDistinctSites();
         $holidaysMap = Holiday::getMapForMonth((string)$year, (string)$month);
         $holidaysList = Holiday::getForMonth((string)$year, (string)$month);
 
@@ -75,6 +82,12 @@ class ReportController extends Controller {
                 'total_holidays' => count($holidaysList)
             ];
         } elseif ($reportType === 'employee') {
+            if (Auth::isSiteUser() && $employeeId) {
+                $allowedEmpIds = array_map('intval', array_column($employees, 'id'));
+                if (!in_array((int) $employeeId, $allowedEmpIds, true)) {
+                    $employeeId = null;
+                }
+            }
             if (!$employeeId && !empty($employees)) {
                 $employeeId = (int) $employees[0]['id'];
             }
@@ -136,7 +149,7 @@ class ReportController extends Controller {
      */
     public function export(): void {
         Auth::requireAuth();
-        if (Auth::isRestricted()) {
+        if (Auth::isRestricted() && !Auth::isSiteUser()) {
             $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
             redirect('leaves');
         }
@@ -170,6 +183,9 @@ class ReportController extends Controller {
     }
 
     private function exportDaily(string $format): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) { redirect('leaves'); }
+        if (Auth::isSiteUser()) { Request::set('site', Auth::assignedSite() ?? '__UNASSIGNED_SITE__'); }
         $date = Request::input('date', date('Y-m-d'));
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
         $status = Request::input('status');
@@ -237,6 +253,9 @@ class ReportController extends Controller {
     }
 
     private function exportWeekly(string $format): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) { redirect('leaves'); }
+        if (Auth::isSiteUser()) { Request::set('site', Auth::assignedSite() ?? '__UNASSIGNED_SITE__'); }
         $startDate = Request::input('start_date', date('Y-m-d', strtotime('-6 days')));
         $endDate = Request::input('end_date', date('Y-m-d'));
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
@@ -299,6 +318,9 @@ class ReportController extends Controller {
     }
 
     private function exportMonthly(string $format): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) { redirect('leaves'); }
+        if (Auth::isSiteUser()) { Request::set('site', Auth::assignedSite() ?? '__UNASSIGNED_SITE__'); }
         $year = (int) Request::input('year', date('Y'));
         $month = (int) Request::input('month', date('n'));
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
@@ -371,6 +393,9 @@ class ReportController extends Controller {
     }
 
     private function exportMonthlyAudit(string $format): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) { redirect('leaves'); }
+        if (Auth::isSiteUser()) { Request::set('site', Auth::assignedSite() ?? '__UNASSIGNED_SITE__'); }
         $year = (int) Request::input('year', date('Y'));
         $month = (int) Request::input('month', date('n'));
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
@@ -436,12 +461,17 @@ class ReportController extends Controller {
     }
 
     private function exportEmployeeWise(string $format): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) { redirect('leaves'); }
         $employeeId = (int) Request::input('employee_id');
         $startDate = Request::input('start_date', date('Y-m-01'));
         $endDate = Request::input('end_date', date('Y-m-d'));
 
         $report = Attendance::getEmployeeWiseReport($employeeId, $startDate, $endDate);
         $emp = $report['employee'];
+        if ($emp && Auth::isSiteUser() && strcasecmp(trim((string) ($emp['site'] ?? '')), (string) (Auth::assignedSite() ?? '__UNASSIGNED_SITE__')) !== 0) {
+            redirect('reports');
+        }
         if (!$emp) {
             redirect('reports');
         }

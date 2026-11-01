@@ -44,7 +44,7 @@ class Employee extends Model {
         }
 
         if (!empty($filters['site'])) {
-            $sql .= " AND e.site = ?";
+            $sql .= " AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))";
             $params[] = $filters['site'];
         }
 

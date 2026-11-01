@@ -9,10 +9,17 @@ use App\Core\Csrf;
 use App\Core\Logger;
 use App\Models\User;
 use App\Models\Setting;
+use App\Models\Employee;
 
 class AuthController extends Controller {
     public function showLogin(): void {
         if (Auth::check()) {
+            if (Auth::isSiteUser()) {
+                redirect('employees');
+            }
+            if (Auth::isRestricted()) {
+                redirect('leaves');
+            }
             redirect('dashboard');
         }
         $this->view('auth.login', ['title' => 'Admin Login'], 'auth');
@@ -33,6 +40,12 @@ class AuthController extends Controller {
         }
 
         if (Auth::attempt($email, $password)) {
+            if (Auth::isSiteUser()) {
+                redirect('employees');
+            }
+            if (Auth::isRestricted()) {
+                redirect('leaves');
+            }
             redirect('dashboard');
         } else {
             $this->setFlash('error', 'Invalid email or password.');
@@ -47,11 +60,18 @@ class AuthController extends Controller {
 
     public function profile(): void {
         Auth::requireAuth();
+        if (Auth::isSiteUser()) {
+            $this->setFlash('error', 'Read-only Site Login: Account settings can only be managed by Administrator.');
+            redirect('employees');
+        }
+
         $user = User::find(Auth::id());
         $allUsers = [];
+        $siteList = [];
         $role = $user['role'] ?? Auth::role();
         if ($role === 'admin' || $role === 'superadmin') {
             $allUsers = User::all();
+            $siteList = Employee::getDistinctSites();
         }
 
         $smtpSettings = [
@@ -69,12 +89,18 @@ class AuthController extends Controller {
             'title' => 'Admin Profile & Security',
             'currentUser' => $user,
             'allUsers' => $allUsers,
+            'siteList' => $siteList,
             'smtpSettings' => $smtpSettings
         ], 'admin');
     }
 
     public function updateProfile(): void {
         Auth::requireAuth();
+        if (Auth::isSiteUser()) {
+            $this->setFlash('error', 'Read-only Site Login: Only Administrator can modify logins.');
+            redirect('employees');
+        }
+
         if (!Csrf::validate(Request::input('_csrf_token'))) {
             $this->setFlash('error', 'Invalid security token.');
             redirect('profile');
@@ -116,7 +142,7 @@ class AuthController extends Controller {
      */
     public function createUser(): void {
         Auth::requireAuth();
-        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+        if (!Auth::isAdmin()) {
             $this->setFlash('error', 'Unauthorized access.');
             redirect('profile');
         }
@@ -130,7 +156,9 @@ class AuthController extends Controller {
         $email = strtolower(trim(Request::input('email', '')));
         $companyMail = strtolower(trim(Request::input('company_mail', '')));
         $password = trim(Request::input('password', ''));
+        $rolePreset = strtolower(trim((string) Request::input('role_preset', '')));
         $role = trim(Request::input('role', ''));
+        $assignedSite = trim((string) Request::input('assigned_site', ''));
         $status = trim(Request::input('status', 'active'));
 
         if (empty($name) || empty($email) || empty($password)) {
@@ -138,11 +166,23 @@ class AuthController extends Controller {
             redirect('profile');
         }
 
-        // Clean role and allow custom authority names (e.g. technical, engineering, operations)
-        $role = strtolower(trim(preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $role)));
-        $role = preg_replace('/\s+/', '_', $role);
-        if (empty($role) || $role === 'custom') {
-            $role = 'incharge';
+        if ($rolePreset === 'site_user' || strtolower($role) === 'site_user') {
+            $role = 'site_user';
+            if ($assignedSite === '') {
+                $this->setFlash('error', 'Please enter or select a Site Name for this Site Login.');
+                redirect('profile');
+            }
+        } else {
+            $assignedSite = '';
+            // Clean role and allow custom authority names (e.g. technical, engineering, operations)
+            if ($rolePreset !== '' && $rolePreset !== 'custom') {
+                $role = $rolePreset;
+            }
+            $role = strtolower(trim(preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $role)));
+            $role = preg_replace('/\s+/', '_', $role);
+            if (empty($role) || $role === 'custom') {
+                $role = 'incharge';
+            }
         }
 
         if (!in_array($status, ['active', 'inactive'])) {
@@ -166,11 +206,15 @@ class AuthController extends Controller {
             'company_mail' => !empty($companyMail) ? $companyMail : null,
             'password' => $password,
             'role' => $role,
+            'assigned_site' => $assignedSite !== '' ? $assignedSite : null,
             'status' => $status
         ]);
 
-        Logger::log(Auth::id(), 'USER_LOGIN_CREATED', "Created new {$role} login: {$name} ({$email}, Company Mail: " . ($companyMail ?: 'none') . ")");
-        $this->setFlash('success', "New system login for '{$name}' ({$email}) created successfully!");
+        $siteLogInfo = ($role === 'site_user') ? ", Assigned Site: {$assignedSite} (Read-Only)" : "";
+        Logger::log(Auth::id(), 'USER_LOGIN_CREATED', "Created new {$role} login: {$name} ({$email}{$siteLogInfo}, Company Mail: " . ($companyMail ?: 'none') . ")");
+        $this->setFlash('success', $role === 'site_user'
+            ? "Site Login for '{$assignedSite}' ({$email}) created successfully with Read-Only access!"
+            : "New system login for '{$name}' ({$email}) created successfully!");
         redirect('profile');
     }
 
@@ -179,7 +223,7 @@ class AuthController extends Controller {
      */
     public function updateUser(): void {
         Auth::requireAuth();
-        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+        if (!Auth::isAdmin()) {
             $this->setFlash('error', 'Unauthorized access.');
             redirect('profile');
         }
@@ -200,7 +244,9 @@ class AuthController extends Controller {
         $email = strtolower(trim(Request::input('email', '')));
         $companyMail = strtolower(trim(Request::input('company_mail', '')));
         $password = trim(Request::input('password', ''));
+        $rolePreset = strtolower(trim((string) Request::input('role_preset', '')));
         $role = trim(Request::input('role', $user['role']));
+        $assignedSite = trim((string) Request::input('assigned_site', ''));
         $status = trim(Request::input('status', $user['status']));
 
         if (empty($name) || empty($email)) {
@@ -208,11 +254,23 @@ class AuthController extends Controller {
             redirect('profile');
         }
 
-        // Clean role and allow custom authority names
-        $role = strtolower(trim(preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $role)));
-        $role = preg_replace('/\s+/', '_', $role);
-        if (empty($role) || $role === 'custom') {
-            $role = $user['role'] ?: 'incharge';
+        if ($rolePreset === 'site_user' || strtolower($role) === 'site_user') {
+            $role = 'site_user';
+            if ($assignedSite === '') {
+                $this->setFlash('error', 'Please enter or select a Site Name for this Site Login.');
+                redirect('profile');
+            }
+        } else {
+            $assignedSite = '';
+            // Clean role and allow custom authority names
+            if ($rolePreset !== '' && $rolePreset !== 'custom') {
+                $role = $rolePreset;
+            }
+            $role = strtolower(trim(preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $role)));
+            $role = preg_replace('/\s+/', '_', $role);
+            if (empty($role) || $role === 'custom') {
+                $role = $user['role'] ?: 'incharge';
+            }
         }
 
         if (!in_array($status, ['active', 'inactive'])) {
@@ -230,6 +288,7 @@ class AuthController extends Controller {
             'email' => $email,
             'company_mail' => !empty($companyMail) ? $companyMail : null,
             'role' => $role,
+            'assigned_site' => $assignedSite !== '' ? $assignedSite : null,
             'status' => $status
         ];
 
@@ -247,9 +306,11 @@ class AuthController extends Controller {
             $_SESSION['user_name'] = $name;
             $_SESSION['user_email'] = $email;
             $_SESSION['user_role'] = $role;
+            $_SESSION['assigned_site'] = $assignedSite !== '' ? $assignedSite : null;
         }
 
-        Logger::log(Auth::id(), 'USER_LOGIN_UPDATED', "Updated login #{$id}: {$name} ({$email}, Role: {$role})");
+        $siteLogInfo = ($role === 'site_user') ? ", Assigned Site: {$assignedSite}" : "";
+        Logger::log(Auth::id(), 'USER_LOGIN_UPDATED', "Updated login #{$id}: {$name} ({$email}, Role: {$role}{$siteLogInfo})");
         $this->setFlash('success', "User login for '{$name}' updated successfully!");
         redirect('profile');
     }
@@ -259,7 +320,7 @@ class AuthController extends Controller {
      */
     public function deleteUser(): void {
         Auth::requireAuth();
-        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+        if (!Auth::isAdmin()) {
             $this->setFlash('error', 'Unauthorized access.');
             redirect('profile');
         }
@@ -290,7 +351,7 @@ class AuthController extends Controller {
      */
     public function updateSmtp(): void {
         Auth::requireAuth();
-        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+        if (!Auth::isAdmin()) {
             $this->setFlash('error', 'Unauthorized access.');
             redirect('profile');
         }
@@ -330,7 +391,7 @@ class AuthController extends Controller {
      */
     public function testSmtp(): void {
         Auth::requireAuth();
-        if (Auth::role() !== 'admin' && Auth::role() !== 'superadmin') {
+        if (!Auth::isAdmin()) {
             $this->setFlash('error', 'Unauthorized access.');
             redirect('profile');
         }

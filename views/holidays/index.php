@@ -1,3 +1,4 @@
+<?php $canManageHolidays = \App\Core\Auth::isAdmin(); ?>
 <div class="row mb-4 align-items-center">
     <div class="col-md-7">
         <h4 class="fw-bold mb-1 text-dark">
@@ -6,9 +7,15 @@
         <p class="text-muted small mb-0">Official company & public holidays automatically reflected in monthly attendance timesheets.</p>
     </div>
     <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end">
+        <?php if ($canManageHolidays): ?>
         <button type="button" class="btn btn-primary rounded-pill shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addHolidayModal">
             <i class="fa-solid fa-plus me-1"></i> Add Holiday
         </button>
+        <?php else: ?>
+        <span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">
+            <i class="fa-solid fa-lock text-secondary me-1"></i> View Only (Official Holiday Schedule)
+        </span>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -87,15 +94,17 @@
                     <th>Holiday Title</th>
                     <th>Description</th>
                     <th>Status</th>
-                    <th class="text-end pe-4">Actions</th>
+                    <?php if ($canManageHolidays): ?>
+                        <th class="text-end pe-4">Actions</th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($holidays)): ?>
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
+                        <td colspan="<?= $canManageHolidays ? 6 : 5 ?>" class="text-center py-5 text-muted">
                             <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-secondary opacity-50 d-block"></i>
-                            No public holidays added yet. Click <strong>Add Holiday</strong> above to add company holidays.
+                            No public holidays added yet.
                         </td>
                     </tr>
                 <?php else: ?>
@@ -129,6 +138,7 @@
                                     <span class="badge bg-success rounded-pill px-3">Upcoming</span>
                                 <?php endif; ?>
                             </td>
+                            <?php if ($canManageHolidays): ?>
                             <td class="text-end pe-4">
                                 <div class="btn-group btn-group-sm">
                                     <button type="button" class="btn btn-outline-secondary rounded-pill px-3 me-1" 
@@ -144,6 +154,7 @@
                                     </form>
                                 </div>
                             </td>
+                            <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -152,6 +163,7 @@
     </div>
 </div>
 
+<?php if ($canManageHolidays): ?>
 <!-- Add Holiday Modal -->
 <div class="modal fade" id="addHolidayModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -242,3 +254,4 @@ function openEditHolidayModal(hol) {
     modal.show();
 }
 </script>
+<?php endif; ?>

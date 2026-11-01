@@ -18,23 +18,27 @@
 <body class="bg-body-tertiary">
     <div class="wrapper d-flex">
 <?php
-$userRole = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
-$isRestricted = ($userRole !== 'admin' && $userRole !== 'superadmin');
-$homeUrl = $isRestricted ? base_url('leaves') : base_url('dashboard');
+$userRole = \App\Core\Auth::role();
+$isSiteUser = \App\Core\Auth::isSiteUser();
+$assignedSite = \App\Core\Auth::assignedSite();
+$isRestricted = \App\Core\Auth::isRestricted();
+$homeUrl = $isSiteUser ? base_url('employees') : ($isRestricted ? base_url('leaves') : base_url('dashboard'));
 
 $roleLabel = ucwords(str_replace(['_', '-'], ' ', $userRole));
-$portalBadge = ($userRole === 'admin' || $userRole === 'superadmin') ? 'ADMIN v2.0' : 
-               (($userRole === 'hr') ? 'HR PORTAL' : 
-               (($userRole === 'account') ? 'ACCOUNTS PORTAL' : 
-               (($userRole === 'incharge') ? 'INCHARGE PORTAL' : 
-               (($userRole === 'coordinator') ? 'COORDINATOR PORTAL' : 
-               (($userRole === 'tender') ? 'TENDER PORTAL' : strtoupper($roleLabel) . ' PORTAL')))));
+$portalBadge = ($userRole === 'admin' || $userRole === 'superadmin') ? 'ADMIN v2.0' :
+               ($isSiteUser ? ('SITE: ' . strtoupper($assignedSite ?: 'VIEW ONLY')) :
+               (($userRole === 'hr') ? 'HR PORTAL' :
+               (($userRole === 'account') ? 'ACCOUNTS PORTAL' :
+               (($userRole === 'incharge') ? 'INCHARGE PORTAL' :
+               (($userRole === 'coordinator') ? 'COORDINATOR PORTAL' :
+               (($userRole === 'tender') ? 'TENDER PORTAL' : strtoupper($roleLabel) . ' PORTAL'))))));
 
-$portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' : 
-                    (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 
-                    (($userRole === 'incharge') ? 'bg-success-subtle text-success border-success-subtle' : 
-                    (($userRole === 'coordinator') ? 'bg-primary-subtle text-primary border-primary-subtle' : 
-                    (($userRole === 'tender') ? 'bg-danger-subtle text-danger border-danger-subtle' : 'bg-primary-subtle text-primary border-primary-subtle'))));
+$portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' :
+                    (($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' :
+                    (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' :
+                    (($userRole === 'incharge') ? 'bg-success-subtle text-success border-success-subtle' :
+                    (($userRole === 'coordinator') ? 'bg-primary-subtle text-primary border-primary-subtle' :
+                    (($userRole === 'tender') ? 'bg-danger-subtle text-danger border-danger-subtle' : 'bg-primary-subtle text-primary border-primary-subtle')))));
 ?>
         <!-- Sidebar Navigation -->
         <nav id="sidebar" class="sidebar bg-dark text-white d-flex flex-column flex-shrink-0 p-3">
@@ -44,13 +48,43 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
                 </div>
                 <div class="sidebar-brand-text">
                     <span class="fs-5 fw-bold tracking-tight">Smart<span class="text-primary">Punch</span></span>
-                    <span class="badge <?= $portalBadgeClass ?> border d-block font-monospace" style="font-size: 0.65rem;"><?= $portalBadge ?></span>
+                    <span class="badge <?= $portalBadgeClass ?> border d-block font-monospace text-truncate" style="font-size: 0.65rem; max-width: 170px;" title="<?= e($portalBadge) ?>"><?= e($portalBadge) ?></span>
                 </div>
             </a>
             <hr class="text-secondary my-3">
 
             <ul class="nav nav-pills flex-column mb-auto gap-1">
-                <?php if ($isRestricted): ?>
+                <?php if ($isSiteUser): ?>
+                    <!-- Site Login Sidebar: Read-Only Access for Assigned Site -->
+                    <li class="nav-header text-uppercase text-muted fw-bold small px-3 mb-1" style="font-size: 0.7rem;">
+                        <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($assignedSite ?: 'Assigned Site') ?> (View Only)
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-users me-2 fa-fw text-info"></i> Employees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                            <div>
+                                <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                            </div>
+                            <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('reports') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-chart-column me-2 fa-fw text-info"></i> Attendance Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('holidays') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'holidays') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-calendar-star me-2 fa-fw text-warning"></i> Public Holidays
+                        </a>
+                    </li>
+                <?php elseif ($isRestricted): ?>
                     <!-- Restricted Sidebar: Only Leave Management & Employees -->
                     <li class="nav-item">
                         <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
@@ -135,16 +169,20 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
             <div class="user-panel d-flex align-items-center justify-content-between px-2">
                 <div class="d-flex align-items-center">
                     <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
-                        <i class="fa-solid fa-user-tie"></i>
+                        <i class="fa-solid <?= $isSiteUser ? 'fa-location-dot' : 'fa-user-tie' ?>"></i>
                     </div>
                     <div class="user-info">
                         <div class="fw-semibold text-white small text-truncate" style="max-width: 120px;"><?= e($user['name'] ?? 'Admin') ?></div>
                         <div class="text-muted small text-truncate" style="font-size: 0.7rem;"><?= e($user['email'] ?? '') ?></div>
                         <div class="mt-1">
-                            <?php if ($userRole === 'hr'): ?>
+                            <?php if ($isSiteUser): ?>
+                                <span class="badge bg-warning text-dark text-truncate" style="font-size: 0.6rem; max-width: 125px;"><i class="fa-solid fa-eye me-1"></i><?= e($assignedSite ?: 'Site') ?> (View Only)</span>
+                            <?php elseif ($userRole === 'hr'): ?>
                                 <span class="badge bg-info text-white" style="font-size: 0.6rem;">HR Reviewer</span>
                             <?php elseif ($userRole === 'account'): ?>
                                 <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">Accounts Reviewer</span>
+                            <?php elseif ($isRestricted): ?>
+                                <span class="badge bg-secondary text-white" style="font-size: 0.6rem;"><?= e($roleLabel) ?></span>
                             <?php else: ?>
                                 <span class="badge bg-primary text-white" style="font-size: 0.6rem;">Super Admin</span>
                             <?php endif; ?>
@@ -165,8 +203,13 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
                     <button class="btn btn-outline-secondary d-md-none me-2" id="sidebarToggle">
                         <i class="fa-solid fa-bars"></i>
                     </button>
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center gap-2">
                         <h5 class="mb-0 fw-bold text-dark"><?= e($title ?? 'Dashboard') ?></h5>
+                        <?php if ($isSiteUser): ?>
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill px-2 py-1 small d-none d-sm-inline-block">
+                                <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($assignedSite) ?> &bull; Read-Only
+                            </span>
+                        <?php endif; ?>
                     </div>
                     <div class="d-flex align-items-center gap-3 ms-auto">
                         <!-- Notification Bell Dropdown -->
@@ -185,7 +228,7 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
                                     <span class="fw-bold small text-dark"><i class="fa-solid fa-bell me-1 text-primary"></i> Notifications</span>
                                     <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
                                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
-                                            <?= $pendingLeavesCount ?> Action Required
+                                            <?= $pendingLeavesCount ?> <?= $isSiteUser ? 'Pending' : 'Action Required' ?>
                                         </span>
                                     <?php endif; ?>
                                 </li>
@@ -194,7 +237,7 @@ $portalBadgeClass = ($userRole === 'hr') ? 'bg-info-subtle text-info border-info
                                         <?php if (empty($pendingLeavesList)): ?>
                                             <div class="text-center py-4 text-muted small">
                                                 <i class="fa-regular fa-bell-slash fs-4 d-block mb-2 text-secondary opacity-50"></i>
-                                                All caught up! No pending leave approvals.
+                                                All caught up! No pending leave requests.
                                             </div>
                                         <?php else: ?>
                                             <?php foreach ($pendingLeavesList as $pnl): 

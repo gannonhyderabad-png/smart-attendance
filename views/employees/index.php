@@ -8,7 +8,11 @@
                     <?= $currentView === 'trash' ? '<i class="fa-solid fa-trash-arrow-up text-danger me-2"></i> Employee Recycle Bin' : '<i class="fa-solid fa-users text-primary me-2"></i> Staff Directory' ?>
                 </h5>
                 <p class="text-muted small mb-0">
-                    <?= $currentView === 'trash' ? 'Manage deleted employee records, restore them back to active directory, or permanently purge.' : 'Manage workforce members, generate their unique punch links, and assign work sites.' ?>
+                    <?php if (\App\Core\Auth::isSiteUser()): ?>
+                        Viewing staff members assigned to work site <strong><?= e(\App\Core\Auth::assignedSite()) ?></strong> (Read-Only Access).
+                    <?php else: ?>
+                        <?= $currentView === 'trash' ? 'Manage deleted employee records, restore them back to active directory, or permanently purge.' : 'Manage workforce members, generate their unique punch links, and assign work sites.' ?>
+                    <?php endif; ?>
                 </p>
             </div>
             <div class="col-md-6 text-md-end d-flex justify-content-md-end gap-2 flex-wrap">
@@ -26,12 +30,17 @@
                     <a href="<?= base_url('employees/create') ?>" class="btn btn-primary rounded-pill px-3 shadow-sm">
                         <i class="fa-solid fa-user-plus me-1"></i> Add New Employee
                     </a>
+                    <?php elseif (\App\Core\Auth::isSiteUser()): ?>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">
+                        <i class="fa-solid fa-location-dot text-danger me-1"></i> Site: <strong><?= e(\App\Core\Auth::assignedSite()) ?></strong> &bull; <span class="text-secondary"><i class="fa-solid fa-lock ms-1 me-1"></i>View Only</span>
+                    </span>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
 
         <!-- Directory / Recycle Bin View Tabs -->
+        <?php if (!\App\Core\Auth::isRestricted()): ?>
         <ul class="nav nav-pills mb-4 p-1 bg-light rounded-pill d-inline-flex border">
             <li class="nav-item">
                 <a class="nav-link rounded-pill px-4 fw-semibold <?= $currentView !== 'trash' ? 'active shadow-sm' : 'text-muted' ?>" href="<?= base_url('employees') ?>">
@@ -47,6 +56,7 @@
                 </a>
             </li>
         </ul>
+        <?php endif; ?>
 
         <?php if ($currentView === 'trash'): ?>
             <div class="alert alert-warning border-0 rounded-4 py-2 px-3 mb-4 d-flex align-items-center">
@@ -85,9 +95,11 @@
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-location-dot"></i></span>
                     <select name="site" class="form-select bg-light border-start-0 ps-0">
-                        <option value="">All Sites</option>
+                        <?php if (!\App\Core\Auth::isSiteUser()): ?>
+                            <option value="">All Sites</option>
+                        <?php endif; ?>
                         <?php foreach ($siteList as $sName): ?>
-                            <option value="<?= e($sName) ?>" <?= (($filters['site'] ?? '') === $sName) ? 'selected' : '' ?>>
+                            <option value="<?= e($sName) ?>" <?= (strcasecmp((string)($filters['site'] ?? ''), (string)$sName) === 0) ? 'selected' : '' ?>>
                                 <?= e($sName) ?>
                             </option>
                         <?php endforeach; ?>
@@ -122,7 +134,9 @@
                     <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1"><i class="fa-solid fa-magnifying-glass me-1"></i> Search: <strong><?= e($filters['search']) ?></strong></span>
                 <?php endif; ?>
             </div>
-            <small class="text-muted font-monospace">Count updates dynamically based on site filter</small>
+            <small class="text-muted font-monospace">
+                <?= \App\Core\Auth::isSiteUser() ? 'Scoped strictly to ' . e(\App\Core\Auth::assignedSite()) : 'Count updates dynamically based on site filter' ?>
+            </small>
         </div>
 
         <!-- Employees Table -->
@@ -229,7 +243,7 @@
                                         </span>
                                     <?php endif; ?>
                                     <?php if (empty($emp['project']) && empty($emp['site'])): ?>
-                                        <span class="text-muted small">â€”</span>
+                                        <span class="text-muted small">—</span>
                                     <?php endif; ?>
                                 </td>
 
@@ -360,4 +374,3 @@ function showEmployeeQr(punchUrl, name, code) {
     modal.show();
 }
 </script>
-

@@ -712,15 +712,15 @@ class Attendance extends Model {
         $empSql = "SELECT e.*, d.name as department_name 
                    FROM employees e 
                    LEFT JOIN departments d ON e.department_id = d.id 
-                   WHERE e.status = 'active'";
+                   WHERE e.status = 'active' AND e.deleted_at IS NULL";
         $empParams = [];
         if ($departmentId) {
             $empSql .= " AND e.department_id = ?";
             $empParams[] = $departmentId;
         }
         if ($site) {
-            $empSql .= " AND e.site LIKE ?";
-            $empParams[] = '%' . $site . '%';
+            $empSql .= " AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))";
+            $empParams[] = $site;
         }
         $empSql .= " ORDER BY e.name ASC";
 
@@ -825,14 +825,14 @@ class Attendance extends Model {
         $empSql = "SELECT e.*, d.name as department_name 
                    FROM employees e 
                    LEFT JOIN departments d ON e.department_id = d.id 
-                   WHERE e.status = 'active'";
+                   WHERE e.status = 'active' AND e.deleted_at IS NULL";
         $empParams = [];
         if ($departmentId) {
             $empSql .= " AND e.department_id = ?";
             $empParams[] = $departmentId;
         }
         if (!empty($site)) {
-            $empSql .= " AND e.site = ?";
+            $empSql .= " AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))";
             $empParams[] = $site;
         }
         $empSql .= " ORDER BY e.name ASC";
@@ -980,15 +980,15 @@ class Attendance extends Model {
         $empSql = "SELECT e.*, d.name as department_name 
                    FROM employees e 
                    LEFT JOIN departments d ON e.department_id = d.id 
-                   WHERE e.status = 'active'";
+                   WHERE e.status = 'active' AND e.deleted_at IS NULL";
         $empParams = [];
         if ($departmentId) {
             $empSql .= " AND e.department_id = ?";
             $empParams[] = $departmentId;
         }
         if ($site) {
-            $empSql .= " AND e.site LIKE ?";
-            $empParams[] = '%' . $site . '%';
+            $empSql .= " AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))";
+            $empParams[] = $site;
         }
         $empSql .= " ORDER BY e.name ASC";
 

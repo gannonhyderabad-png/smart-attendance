@@ -123,9 +123,15 @@
                     <h5 class="fw-bold text-dark mb-0">Recent Attendance History</h5>
                     <small class="text-muted">Last 10 punch entries with live selfie verification</small>
                 </div>
-                <a href="<?= base_url('attendance?employee_id=' . $employee['id']) ?>" class="btn btn-light btn-sm border rounded-pill px-3">
-                    Full Log History <i class="fa-solid fa-arrow-right ms-1"></i>
-                </a>
+                <?php if (\App\Core\Auth::isAdmin()): ?>
+                    <a href="<?= base_url('attendance?employee_id=' . $employee['id']) ?>" class="btn btn-light btn-sm border rounded-pill px-3">
+                        Full Log History <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                <?php elseif (\App\Core\Auth::isSiteUser()): ?>
+                    <a href="<?= base_url('reports?report_type=employee&employee_id=' . $employee['id']) ?>" class="btn btn-light btn-sm border rounded-pill px-3">
+                        Attendance Report <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                <?php endif; ?>
             </div>
 
             <div class="card-body p-0">
@@ -248,7 +254,7 @@
                     <small class="text-muted">Recorded leave periods, outdoor duties, target sites, and attached sheets</small>
                 </div>
                 <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm border rounded-pill px-3">
-                    Manage Leaves <i class="fa-solid fa-arrow-right ms-1"></i>
+                    <?= \App\Core\Auth::isSiteUser() ? 'View Leaves' : 'Manage Leaves' ?> <i class="fa-solid fa-arrow-right ms-1"></i>
                 </a>
             </div>
 
@@ -335,11 +341,13 @@
             <a href="<?= base_url('employees') ?>" class="btn btn-outline-secondary rounded-pill px-4">
                 <i class="fa-solid fa-arrow-left me-1"></i> Back to Employee List
             </a>
+            <?php if (!\App\Core\Auth::isRestricted()): ?>
             <div class="d-flex gap-2">
                 <a href="<?= base_url('employees/edit/' . $employee['id']) ?>" class="btn btn-outline-primary rounded-pill px-3">
                     <i class="fa-solid fa-pen-to-square me-1"></i> Edit Profile
                 </a>
             </div>
+            <?php endif; ?>
         </div>
 
     </div>

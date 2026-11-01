@@ -27,6 +27,10 @@ class Leave extends Model {
             $sql .= " AND e.department_id = ?";
             $params[] = (int) $conditions['department_id'];
         }
+        if (!empty($conditions['site'])) {
+            $sql .= " AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))";
+            $params[] = $conditions['site'];
+        }
         if (!empty($conditions['leave_type'])) {
             $sql .= " AND l.leave_type = ?";
             $params[] = $conditions['leave_type'];
@@ -73,16 +77,25 @@ class Leave extends Model {
     /**
      * Get count of pending leave requests
      */
-    public static function getPendingCount(): int {
+    public static function getPendingCount(?string $site = null): int {
         $pdo = self::db();
+        if ($site !== null && $site !== '') {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM " . static::$table . " l JOIN employees e ON l.employee_id = e.id WHERE (l.status = 'PENDING' OR l.status LIKE 'PENDING_%') AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))");
+            $stmt->execute([$site]);
+            return (int) $stmt->fetchColumn();
+        }
         return (int) $pdo->query("SELECT COUNT(*) FROM " . static::$table . " WHERE status = 'PENDING' OR status LIKE 'PENDING_%'")->fetchColumn();
     }
 
     /**
      * Get recent pending leave requests
      */
-    public static function getPendingRequests(int $limit = 5): array {
-        return self::all(['status' => 'PENDING'], "l.id DESC LIMIT {$limit}");
+    public static function getPendingRequests(int $limit = 5, ?string $site = null): array {
+        $cond = ['status' => 'PENDING'];
+        if ($site !== null && $site !== '') {
+            $cond['site'] = $site;
+        }
+        return self::all($cond, "l.id DESC LIMIT {$limit}");
     }
 
     /**

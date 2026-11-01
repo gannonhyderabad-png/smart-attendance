@@ -513,7 +513,7 @@ if (!function_exists('getLeaveStep1Authority')) {
         if ($cachedCustomUsers === null) {
             try {
                 $pdo = \Database\Database::getConnection();
-                $stmt = $pdo->query("SELECT id, name, email, company_mail, role FROM users WHERE status = 'active' AND role NOT IN ('admin', 'superadmin', 'hr')");
+                $stmt = $pdo->query("SELECT id, name, email, company_mail, role FROM users WHERE status = 'active' AND role NOT IN ('admin', 'superadmin', 'hr', 'site_user')");
                 $cachedCustomUsers = $stmt ? $stmt->fetchAll(\PDO::FETCH_ASSOC) : [];
             } catch (\Throwable $e) {
                 $cachedCustomUsers = [];
@@ -646,6 +646,9 @@ if (!function_exists('canUserApproveStep1')) {
      * Check if the logged-in user is authorized to approve/reject Step 1
      */
     function canUserApproveStep1(array $authority, string $userRole, string $userEmail, ?array $leave = null): bool {
+        if (strtolower(trim($userRole)) === 'site_user') {
+            return false;
+        }
         // Admin / Superadmin has full authority over all steps
         if ($userRole === 'admin' || $userRole === 'superadmin') {
             return true;

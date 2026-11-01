@@ -28,6 +28,11 @@ class Request {
         return $data[$key] ?? $default;
     }
 
+    public static function set(string $key, mixed $value): void {
+        $_GET[$key] = $value;
+        $_POST[$key] = $value;
+    }
+
     public static function all(): array {
         $data = [];
         if (self::isGet()) {

@@ -20,15 +20,34 @@ class LeaveController extends Controller {
         $leaveType = Request::input('leave_type');
         $departmentId = Request::input('department_id');
 
+        $isSiteUser = Auth::isSiteUser();
+        $assignedSite = $isSiteUser ? (Auth::assignedSite() ?? '__UNASSIGNED_SITE__') : null;
+
         $conditions = [];
-        if ($employeeId) $conditions['employee_id'] = (int) $employeeId;
+        if ($isSiteUser) {
+            $conditions['site'] = $assignedSite;
+        }
+        if ($employeeId) {
+            if ($isSiteUser) {
+                $empCheck = Employee::find((int) $employeeId);
+                if ($empCheck && strcasecmp(trim((string) ($empCheck['site'] ?? '')), (string) $assignedSite) === 0) {
+                    $conditions['employee_id'] = (int) $employeeId;
+                } else {
+                    $employeeId = null;
+                }
+            } else {
+                $conditions['employee_id'] = (int) $employeeId;
+            }
+        }
         if ($leaveType) $conditions['leave_type'] = $leaveType;
         if ($departmentId) $conditions['department_id'] = (int) $departmentId;
 
         $leaves = Leave::all($conditions, 'l.start_date DESC');
-        $employees = Employee::all(['status' => 'active']);
+        $employees = $isSiteUser
+            ? Employee::all(['status' => 'active', 'site' => $assignedSite])
+            : Employee::all(['status' => 'active']);
         $departments = Department::all();
-        $siteList = Employee::getDistinctSites();
+        $siteList = $isSiteUser ? (Auth::assignedSite() ? [Auth::assignedSite()] : []) : Employee::getDistinctSites();
 
         // Calculate summary counters
         $totalLeaves = count($leaves);
@@ -47,8 +66,12 @@ class LeaveController extends Controller {
 
         $companyQuotas = Leave::getCompanyAssignedLeaves();
         $employeeBalances = Leave::getAllEmployeesLeaveBalances();
+        if ($isSiteUser) {
+            $allowedEmpIds = array_flip(array_map('intval', array_column($employees, 'id')));
+            $employeeBalances = array_intersect_key($employeeBalances, $allowedEmpIds);
+        }
 
-        $allLeaves = Leave::all([], 'l.start_date DESC');
+        $allLeaves = Leave::all($isSiteUser ? ['site' => $assignedSite] : [], 'l.start_date DESC');
         $leavesByEmployee = [];
         foreach ($allLeaves as $l) {
             $leavesByEmployee[$l['employee_id']][] = $l;
@@ -61,7 +84,7 @@ class LeaveController extends Controller {
             $pdo->exec("UPDATE leaves SET approval_step = 1, status = 'PENDING_LEVEL_1', step1_approved_by_name = NULL WHERE approval_step = 2 AND (step1_approved_by_name LIKE '%Direct HR Route%' OR step1_approved_by IS NULL)");
         } catch (\Throwable $e) {}
 
-        $pendingLeaves = Leave::all(['status' => 'PENDING'], 'l.id DESC');
+        $pendingLeaves = Leave::all($isSiteUser ? ['status' => 'PENDING', 'site' => $assignedSite] : ['status' => 'PENDING'], 'l.id DESC');
 
         $selectedDepartment = null;
         if (!empty($departmentId)) {
@@ -74,7 +97,7 @@ class LeaveController extends Controller {
             'pendingLeaves' => $pendingLeaves,
             'employees' => $employees,
             'departments' => $departments,
-            'systemUsers' => User::all(),
+            'systemUsers' => $isSiteUser ? [] : User::all(),
             'selectedDepartment' => $selectedDepartment,
             'siteList' => $siteList,
             'companyQuotas' => $companyQuotas,
@@ -98,6 +121,10 @@ class LeaveController extends Controller {
 
     public function store(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can add or modify leave entries.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $employeeInput = Request::input('employee_id');
@@ -212,6 +239,10 @@ class LeaveController extends Controller {
 
     public function delete(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can delete leave records.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
@@ -234,6 +265,10 @@ class LeaveController extends Controller {
      */
     public function updateCompanyQuota(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can modify company leave quotas.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $cl = max(0, (float) Request::input('cl_quota', 12));
@@ -256,6 +291,10 @@ class LeaveController extends Controller {
      */
     public function updateEmployeeQuota(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can modify employee leave quotas.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $employeeId = (int) Request::input('employee_id', 0);
@@ -294,6 +333,10 @@ class LeaveController extends Controller {
      */
     public function approve(): void {
         Auth::requireAuth();
+        if (Auth::isSiteUser()) {
+            $_SESSION['flash_error'] = 'Read-only Site Login: Site users are not permitted to approve leaves. Only Administrator can modify or approve.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
@@ -421,6 +464,10 @@ class LeaveController extends Controller {
      */
     public function reject(): void {
         Auth::requireAuth();
+        if (Auth::isSiteUser()) {
+            $_SESSION['flash_error'] = 'Read-only Site Login: Site users are not permitted to reject leaves. Only Administrator can modify or reject.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $id = (int) Request::input('id', 0);
@@ -656,6 +703,10 @@ class LeaveController extends Controller {
      */
     public function updateDepartmentHead(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can modify departments and authorities.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $deptId = (int) Request::input('department_id', 0);
@@ -697,6 +748,10 @@ class LeaveController extends Controller {
      */
     public function deleteDepartment(): void {
         Auth::requireAuth();
+        if (Auth::isRestricted()) {
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can delete departments.';
+            redirect('leaves');
+        }
         Csrf::verify();
 
         $deptId = (int) Request::input('department_id', 0);

@@ -12,7 +12,7 @@ use App\Models\Holiday;
 class HolidayController extends Controller {
     public function index(): void {
         Auth::requireAuth();
-        if (Auth::isRestricted()) {
+        if (Auth::isRestricted() && !Auth::isSiteUser()) {
             $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
             redirect('leaves');
         }
@@ -29,7 +29,7 @@ class HolidayController extends Controller {
         }
 
         $this->view('holidays.index', [
-            'title' => 'Public Holidays Management',
+            'title' => Auth::isSiteUser() ? 'Public Holidays Calendar' : 'Public Holidays Management',
             'holidays' => $holidays,
             'groupedHolidays' => $groupedHolidays,
             'selectedYear' => $selectedYear
@@ -39,8 +39,8 @@ class HolidayController extends Controller {
     public function store(): void {
         Auth::requireAuth();
         if (Auth::isRestricted()) {
-            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
-            redirect('leaves');
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can add public holidays.';
+            redirect(Auth::isSiteUser() ? 'holidays' : 'leaves');
         }
         Csrf::verify();
 
@@ -79,8 +79,8 @@ class HolidayController extends Controller {
     public function update(): void {
         Auth::requireAuth();
         if (Auth::isRestricted()) {
-            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
-            redirect('leaves');
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can edit public holidays.';
+            redirect(Auth::isSiteUser() ? 'holidays' : 'leaves');
         }
         Csrf::verify();
 
@@ -113,8 +113,8 @@ class HolidayController extends Controller {
     public function delete(): void {
         Auth::requireAuth();
         if (Auth::isRestricted()) {
-            $_SESSION['flash_error'] = 'Access restricted: Your login is limited to Employee Directory and Leave Approvals.';
-            redirect('leaves');
+            $_SESSION['flash_error'] = 'Access restricted: Only Administrator can delete public holidays.';
+            redirect(Auth::isSiteUser() ? 'holidays' : 'leaves');
         }
         Csrf::verify();
 

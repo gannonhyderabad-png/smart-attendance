@@ -319,6 +319,9 @@ try {
         try {
             $pdo->exec("ALTER TABLE employees ADD COLUMN pl_quota REAL DEFAULT NULL;");
         } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE users ADD COLUMN assigned_site TEXT DEFAULT NULL;");
+        } catch (\Throwable $e) {}
 
         // Ensure default admin exists
         $adminStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
@@ -344,6 +347,7 @@ $router = new \App\Core\Router();
 // -------------------------------------------------------------
 $router->get('/', function() {
     if (\App\Core\Auth::check()) {
+        if (\App\Core\Auth::isSiteUser()) { redirect('employees'); }
         redirect('dashboard');
     } else {
         redirect('login');

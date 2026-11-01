@@ -196,6 +196,7 @@ class Database {
             // Ensure employee_type and contract_details columns exist across all DB drivers
             try { $pdo->exec("ALTER TABLE employees ADD COLUMN employee_type VARCHAR(50) DEFAULT 'Permanent'"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE employees ADD COLUMN contract_details VARCHAR(255) DEFAULT NULL"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE users ADD COLUMN assigned_site VARCHAR(150) DEFAULT NULL"); } catch (\Throwable $e) {}
 
             // Ensure stored_files table exists so avatars, punch selfies, and leave attachments survive container restarts
             try {

@@ -6,11 +6,16 @@
         <p class="text-muted small mb-0">Record and manage approved leaves, sick days, on-duty visits, and custom time-offs for employees.</p>
     </div>
     <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end">
-        <?php $hdrRole = $_SESSION['user_role'] ?? 'admin'; ?>
-        <button type="button" class="btn btn-outline-info rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#deptAuthoritiesModal">
+        <?php $hdrRole = \App\Core\Auth::role(); ?>
+        <?php if (\App\Core\Auth::isSiteUser()): ?>
+            <span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">
+                <i class="fa-solid fa-location-dot text-danger me-1"></i> Site: <strong><?= e(\App\Core\Auth::assignedSite()) ?></strong> &bull; <span class="text-secondary"><i class="fa-solid fa-lock ms-1 me-1"></i>View Only</span>
+            </span>
+        <?php endif; ?>
+        <button type="button" class="btn btn-outline-info rounded-pill shadow-sm px-3 <?= \App\Core\Auth::isRestricted() ? 'd-none' : '' ?>" data-bs-toggle="modal" data-bs-target="#deptAuthoritiesModal">
             <i class="fa-solid fa-user-shield me-1"></i> Department Authorities
         </button>
-        <?php if (!in_array($hdrRole, ['hr', 'account'])): ?>
+        <?php if (\App\Core\Auth::isAdmin()): ?>
         <button type="button" class="btn btn-outline-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#editCompanyQuotaModal">
             <i class="fa-solid fa-sliders me-1"></i> Edit Company Leave Quota
         </button>
@@ -227,7 +232,9 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="d-inline-flex align-items-center gap-1">
-                                        <?php if ($isStepAuthorized): ?>
+                                        <?php if (\App\Core\Auth::isSiteUser()): ?>
+                                            <span class="badge bg-light text-secondary border rounded-pill px-3 py-1"><i class="fa-solid fa-eye me-1"></i> View Only</span>
+                                        <?php elseif ($isStepAuthorized): ?>
                                             <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="id" value="<?= $pl['id'] ?>">
@@ -378,7 +385,7 @@
                                         <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" title="View Complete Leave Sheet">
                                             <i class="fa-solid fa-file-lines me-1"></i> Sheet
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openEditEmpQuota(<?= htmlspecialchars(json_encode([
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 <?= \App\Core\Auth::isRestricted() ? 'd-none' : '' ?>" onclick="openEditEmpQuota(<?= htmlspecialchars(json_encode([
                                             'id' => $emp['id'],
                                             'name' => $emp['name'],
                                             'code' => $emp['employee_code'],
@@ -469,7 +476,7 @@
                     </div>
                 </div>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" onclick="openEditDeptHeadModal(<?= $selectedDepartment['id'] ?>, '<?= addslashes($selectedDepartment['name']) ?>', '<?= addslashes($selectedDepartment['head_name'] ?? '') ?>', '<?= addslashes($selectedDepartment['head_email'] ?? '') ?>')">
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm <?= \App\Core\Auth::isRestricted() ? 'd-none' : '' ?>" onclick="openEditDeptHeadModal(<?= $selectedDepartment['id'] ?>, '<?= addslashes($selectedDepartment['name']) ?>', '<?= addslashes($selectedDepartment['head_name'] ?? '') ?>', '<?= addslashes($selectedDepartment['head_email'] ?? '') ?>')">
                 <i class="fa-solid fa-user-pen me-1"></i> Change Department Authority
             </button>
         </div>
@@ -695,7 +702,9 @@
 
                                             $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
                                     ?>
-                                        <?php if ($tblIsAuthorized): ?>
+                                        <?php if (\App\Core\Auth::isSiteUser()): ?>
+                                            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1"><i class="fa-solid fa-eye me-1"></i> View Only</span>
+                                        <?php elseif ($tblIsAuthorized): ?>
                                             <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="id" value="<?= $lv['id'] ?>">
@@ -735,7 +744,7 @@
                                     <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="View Complete Leave Sheet">
                                         <i class="fa-solid fa-file-lines"></i>
                                     </button>
-                                    <form action="<?= base_url('leaves/delete') ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this leave entry?');">
+                                    <form action="<?= base_url('leaves/delete') ?>" method="POST" class="<?= \App\Core\Auth::isRestricted() ? 'd-none' : 'd-inline' ?>" onsubmit="return confirm('Are you sure you want to delete this leave entry?');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="id" value="<?= $lv['id'] ?>">
                                         <input type="hidden" name="return_url" value="leaves">

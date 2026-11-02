@@ -268,6 +268,13 @@ class Database {
         try { $pdo->exec("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'admin';"); } catch (\Throwable $e) {}
         try { $pdo->exec("ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50);"); } catch (\Throwable $e) {}
 
+        // Only seed default logins if the users table is completely empty (initial setup)
+        // If users already exist, NEVER re-create accounts deleted by an administrator!
+        try {
+            $userCount = (int) ($pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?? 0);
+            if ($userCount > 0) return;
+        } catch (\Throwable $e) { return; }
+
         $defaultUsers = [
             [
                 'email' => 'admin@attendance.local',

@@ -324,9 +324,10 @@ try {
         } catch (\Throwable $e) {}
 
         // Ensure default admin exists
-        $adminStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-        $adminStmt->execute(['admin@attendance.local']);
-        if (!$adminStmt->fetch()) {
+        $userCount = (int) ($pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?? 0);
+        if ($userCount === 0) {
+
+
             $adminHash = password_hash('admin123', PASSWORD_BCRYPT);
             $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'active')");
             $stmt->execute(['System Administrator', 'admin@attendance.local', $adminHash]);

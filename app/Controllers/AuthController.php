@@ -235,6 +235,10 @@ class AuthController extends Controller {
         }
 
         $id = (int) Request::input('id', 0);
+        if ($id <= 0) {
+            $this->setFlash('error', 'Invalid user ID.');
+            redirect('profile');
+        }
         $user = User::find($id);
         if (!$user) {
             $this->setFlash('error', 'User login not found.');
@@ -332,6 +336,10 @@ class AuthController extends Controller {
         }
 
         $id = (int) Request::input('id', 0);
+        if ($id <= 0) {
+            $this->setFlash('error', 'Invalid user ID.');
+            redirect('profile');
+        }
         if ($id === Auth::id()) {
             $this->setFlash('error', 'You cannot delete your own logged-in administrator account.');
             redirect('profile');
@@ -339,9 +347,20 @@ class AuthController extends Controller {
 
         $user = User::find($id);
         if ($user) {
-            User::delete($id);
-            Logger::log(Auth::id(), 'USER_LOGIN_DELETED', "Deleted system login #{$id}: {$user['name']} ({$user['email']})");
-            $this->setFlash('success', "Login for '{$user['name']}' ({$user['email']}) deleted.");
+            $deleted = User::delete($id);
+            if ($deleted) {
+    
+                Logger::log(Auth::id(), 'USER_LOGIN_DELETED', "Deleted system login #{$id}: {$user['name']} ({$user['email']})");
+                $this->setFlash('success', "Login for '{$user['name']}' ({$user['email']}) deleted successfully.");
+
+            } else {
+                $this->setFlash('error', "Could not delete user account #{$id}.");
+            }
+
+
+
+        } else {
+            $this->setFlash('error', "User account not found or already deleted.");
         }
 
         redirect('profile');

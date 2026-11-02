@@ -54,8 +54,17 @@ class User extends Model {
     }
 
     public static function delete(int $id): bool {
-        $stmt = self::db()->prepare("DELETE FROM users WHERE id = ?");
-        return $stmt->execute([$id]);
+        try {
+            $uStmt = self::db()->prepare("UPDATE activity_logs SET user_id = NULL WHERE user_id = ?");
+            $uStmt->execute([$id]);
+        } catch (\Throwable $e) {}
+        try {
+            $stmt = self::db()->prepare("DELETE FROM users WHERE id = ?");
+            return $stmt->execute([$id]);
+        } catch (\Throwable $e) {
+            error_log("User::delete error: " . $e->getMessage());
+            return false;
+        }
     }
 
     public static function updatePassword(int $id, string $newPassword): bool {

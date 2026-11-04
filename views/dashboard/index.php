@@ -105,15 +105,20 @@ try {
     <!-- Stat 1: Total Employees -->
     <div class="col-6 col-lg-3">
         <a href="<?= base_url('employees') ?>" class="stat-card-link" title="Click to view all employees">
-            <div class="card stat-card stat-card-interactive border-0 shadow-sm rounded-4 h-100 p-3 bg-white border-start border-primary border-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Total Employees</span>
-                    <span class="badge bg-primary-subtle text-primary rounded-circle p-2"><i class="fa-solid fa-users fs-6"></i></span>
+            <div class="card stat-card stat-card-interactive border rounded-3 shadow-sm h-100 p-3 bg-white border-top border-3 border-primary">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-secondary small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-users text-primary me-1" style="font-size: 0.85rem;"></i> Total Employees
+                    </span>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.65rem;">Active</span>
                 </div>
-                <h3 class="fw-bold text-dark mb-0"><?= $stats['total_employees'] ?></h3>
-                <div class="d-flex justify-content-between align-items-center mt-1">
-                    <small class="text-muted" style="font-size: 0.75rem;">Active workforce</small>
-                    <small class="text-primary fw-semibold" style="font-size: 0.7rem;">View list <i class="fa-solid fa-chevron-right ms-1"></i></small>
+                <div class="d-flex align-items-baseline gap-2 my-1">
+                    <span class="fs-2 fw-bold text-dark font-sans-serif"><?= $stats['total_employees'] ?></span>
+                    <small class="text-muted" style="font-size: 0.75rem;">Staff</small>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-light">
+                    <small class="text-muted" style="font-size: 0.72rem;">Total workforce</small>
+                    <small class="text-primary fw-semibold" style="font-size: 0.72rem;">View list &rarr;</small>
                 </div>
             </div>
         </a>
@@ -122,15 +127,20 @@ try {
     <!-- Stat 2: Currently IN -->
     <div class="col-6 col-lg-3">
         <a href="<?= base_url('reports/daily?status=IN&date=' . date('Y-m-d')) ?>" class="stat-card-link" title="Click to view employees currently on duty">
-            <div class="card stat-card stat-card-interactive border-0 shadow-sm rounded-4 h-100 p-3 bg-white border-start border-success border-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Working Now (IN)</span>
-                    <span class="badge bg-success-subtle text-success rounded-circle p-2"><i class="fa-solid fa-user-check fs-6"></i></span>
+            <div class="card stat-card stat-card-interactive border rounded-3 shadow-sm h-100 p-3 bg-white border-top border-3 border-success">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-secondary small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-user-check text-success me-1" style="font-size: 0.85rem;"></i> Working Now
+                    </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.65rem;"><i class="fa-solid fa-circle fa-beat-fade me-1" style="font-size: 5px;"></i>Live</span>
                 </div>
-                <h3 class="fw-bold text-success mb-0"><?= $stats['currently_in'] ?></h3>
-                <div class="d-flex justify-content-between align-items-center mt-1">
-                    <small class="text-muted" style="font-size: 0.75rem;">Currently on duty</small>
-                    <small class="text-success fw-semibold" style="font-size: 0.7rem;">View IN <i class="fa-solid fa-chevron-right ms-1"></i></small>
+                <div class="d-flex align-items-baseline gap-2 my-1">
+                    <span class="fs-2 fw-bold text-success font-sans-serif"><?= $stats['currently_in'] ?></span>
+                    <small class="text-muted" style="font-size: 0.75rem;">On Duty</small>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-light">
+                    <small class="text-muted" style="font-size: 0.72rem;">Currently checked in</small>
+                    <small class="text-success fw-semibold" style="font-size: 0.72rem;">View IN &rarr;</small>
                 </div>
             </div>
         </a>
@@ -139,15 +149,20 @@ try {
     <!-- Stat 3: Punched Out -->
     <div class="col-6 col-lg-3">
         <a href="<?= base_url('reports/daily?status=OUT&date=' . date('Y-m-d')) ?>" class="stat-card-link" title="Click to view employees punched out today">
-            <div class="card stat-card stat-card-interactive border-0 shadow-sm rounded-4 h-100 p-3 bg-white border-start border-warning border-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Punched Out</span>
-                    <span class="badge bg-warning-subtle text-warning rounded-circle p-2"><i class="fa-solid fa-clock-rotate-left fs-6"></i></span>
+            <div class="card stat-card stat-card-interactive border rounded-3 shadow-sm h-100 p-3 bg-white border-top border-3 border-warning">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-secondary small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-clock-rotate-left text-warning me-1" style="font-size: 0.85rem;"></i> Punched Out
+                    </span>
+                    <span class="badge bg-light text-warning border" style="font-size: 0.65rem;">Shift</span>
                 </div>
-                <h3 class="fw-bold text-warning mb-0"><?= $stats['currently_out'] ?></h3>
-                <div class="d-flex justify-content-between align-items-center mt-1">
-                    <small class="text-muted" style="font-size: 0.75rem;">Completed shifts / on break</small>
-                    <small class="text-warning fw-semibold" style="font-size: 0.7rem;">View OUT <i class="fa-solid fa-chevron-right ms-1"></i></small>
+                <div class="d-flex align-items-baseline gap-2 my-1">
+                    <span class="fs-2 fw-bold text-warning font-sans-serif"><?= $stats['currently_out'] ?></span>
+                    <small class="text-muted" style="font-size: 0.75rem;">Completed</small>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-light">
+                    <small class="text-muted" style="font-size: 0.72rem;">Shifts / On break</small>
+                    <small class="text-warning fw-semibold" style="font-size: 0.72rem;">View OUT &rarr;</small>
                 </div>
             </div>
         </a>
@@ -156,20 +171,24 @@ try {
     <!-- Stat 4: Absent Today -->
     <div class="col-6 col-lg-3">
         <a href="<?= base_url('reports/daily?status=ABSENT&date=' . date('Y-m-d')) ?>" class="stat-card-link" title="Click to view absent employees for today">
-            <div class="card stat-card stat-card-interactive border-0 shadow-sm rounded-4 h-100 p-3 bg-white border-start border-danger border-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Absent Today</span>
-                    <span class="badge bg-danger-subtle text-danger rounded-circle p-2"><i class="fa-solid fa-user-xmark fs-6"></i></span>
+            <div class="card stat-card stat-card-interactive border rounded-3 shadow-sm h-100 p-3 bg-white border-top border-3 border-danger">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-secondary small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-user-xmark text-danger me-1" style="font-size: 0.85rem;"></i> Absent Today
+                    </span>
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.65rem;"><?= $stats['attendance_rate'] ?>%</span>
                 </div>
-                <h3 class="fw-bold text-danger mb-0"><?= $stats['absent_today'] ?></h3>
-                <div class="d-flex justify-content-between align-items-center mt-1">
-                    <small class="text-muted" style="font-size: 0.75rem;"><?= $stats['attendance_rate'] ?>% present rate</small>
-                    <small class="text-danger fw-semibold" style="font-size: 0.7rem;">View Absent <i class="fa-solid fa-chevron-right ms-1"></i></small>
+                <div class="d-flex align-items-baseline gap-2 my-1">
+                    <span class="fs-2 fw-bold text-danger font-sans-serif"><?= $stats['absent_today'] ?></span>
+                    <small class="text-muted" style="font-size: 0.75rem;">Absent</small>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-light">
+                    <small class="text-muted" style="font-size: 0.72rem;"><?= $stats['attendance_rate'] ?>% present rate</small>
+                    <small class="text-danger fw-semibold" style="font-size: 0.72rem;">View Absent &rarr;</small>
                 </div>
             </div>
         </a>
     </div>
-</div>
 
 <!-- Charts & Highlights Row -->
 <div class="row g-3 mb-4">

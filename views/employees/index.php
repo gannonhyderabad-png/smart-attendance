@@ -202,7 +202,7 @@
                                                 <?php endif; ?>
                                             </div>
                                             <div class="text-muted small">
-                                                <?= e($emp['email'] ?? 'No email') ?> &bull; <?= e($emp['phone'] ?? 'No phone') ?>
+                                                <?php if (!empty($emp['phone']) && $emp['phone'] !== 'No phone'): ?><i class="fa-solid fa-phone me-1 text-secondary" style="font-size: 0.65rem;"></i><?= e($emp['phone']) ?><?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
@@ -270,7 +270,7 @@
                                         </div>
                                     </td>
                                 <?php else: ?>
-                                    <td style="min-width: 220px;">
+                                    <td style="min-width: 170px;">
                                         <div class="d-flex align-items-center gap-1">
                                             <a href="<?= e($empPunchUrl) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-sm text-nowrap" title="Open Mobile Attendance Punch Page">
                                                 <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Punch
@@ -282,9 +282,9 @@
                                                 <i class="fa-regular fa-copy text-secondary"></i>
                                             </button>
                                         </div>
-                                        <div class="mt-1">
+                                        <div class="d-none">
                                             <small class="font-monospace text-muted text-truncate d-block" style="font-size: 0.68rem; max-width: 210px;" title="<?= e($empPunchUrl) ?>">
-                                                <?= e($empPunchUrl) ?>
+
                                             </small>
                                         </div>
                                     </td>

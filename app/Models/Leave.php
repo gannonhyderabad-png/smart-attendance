@@ -27,6 +27,11 @@ class Leave extends Model {
             $sql .= " AND e.department_id = ?";
             $params[] = (int) $conditions['department_id'];
         }
+        if (!empty($conditions['search'])) {
+            $sql .= " AND (LOWER(e.name) LIKE ? OR LOWER(e.employee_code) LIKE ?)";
+            $params[] = '%' . strtolower(trim($conditions['search'])) . '%';
+            $params[] = '%' . strtolower(trim($conditions['search'])) . '%';
+        }
         if (!empty($conditions['site'])) {
             $sql .= " AND LOWER(TRIM(COALESCE(e.site, ''))) = LOWER(TRIM(?))";
             $params[] = $conditions['site'];

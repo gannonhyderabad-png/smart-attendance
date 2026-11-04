@@ -28,7 +28,12 @@ class ReportController extends Controller {
         $month = (int) Request::input('month', date('n'));
         $startDate = Request::input('start_date', date('Y-m-d', strtotime('-6 days')));
         $endDate = Request::input('end_date', date('Y-m-d'));
-        $employeeId = Request::input('employee_id') ? (int) Request::input('employee_id') : null;
+        $rawEmployeeInput = Request::input('employee_id');
+        $employeeId = null;
+        if (!empty($rawEmployeeInput)) {
+            $resolvedEmp = Employee::resolveEmployee($rawEmployeeInput);
+            $employeeId = $resolvedEmp ? (int) $resolvedEmp['id'] : null;
+        }
         $departmentId = Request::input('department_id') ? (int) Request::input('department_id') : null;
         $status = Request::input('status');
         $site = Request::input('site');
@@ -105,6 +110,7 @@ class ReportController extends Controller {
             'startDate' => $startDate,
             'endDate' => $endDate,
             'employeeId' => $employeeId,
+            'rawEmployeeInput' => $rawEmployeeInput,
             'departmentId' => $departmentId,
             'status' => $status,
             'site' => $site,
@@ -463,7 +469,9 @@ class ReportController extends Controller {
     private function exportEmployeeWise(string $format): void {
         Auth::requireAuth();
         if (Auth::isRestricted() && !Auth::isSiteUser()) { redirect('leaves'); }
-        $employeeId = (int) Request::input('employee_id');
+        $rawEmployeeInput = Request::input('employee_id');
+        $resolvedEmp = Employee::resolveEmployee($rawEmployeeInput);
+        $employeeId = $resolvedEmp ? (int) $resolvedEmp['id'] : (int) $rawEmployeeInput;
         $startDate = Request::input('start_date', date('Y-m-01'));
         $endDate = Request::input('end_date', date('Y-m-d'));
 

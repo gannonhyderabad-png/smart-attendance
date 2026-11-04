@@ -19,6 +19,7 @@ class LeaveController extends Controller {
         $employeeId = Request::input('employee_id');
         $leaveType = Request::input('leave_type');
         $departmentId = Request::input('department_id');
+        $search = trim((string) Request::input('search', ''));
 
         $isSiteUser = Auth::isSiteUser();
         $assignedSite = $isSiteUser ? (Auth::assignedSite() ?? '__UNASSIGNED_SITE__') : null;
@@ -41,6 +42,7 @@ class LeaveController extends Controller {
         }
         if ($leaveType) $conditions['leave_type'] = $leaveType;
         if ($departmentId) $conditions['department_id'] = (int) $departmentId;
+        if ($search !== '') $conditions['search'] = $search;
 
         $leaves = Leave::all($conditions, 'l.start_date DESC');
         $employees = $isSiteUser
@@ -106,7 +108,8 @@ class LeaveController extends Controller {
             'filters' => [
                 'employee_id' => $employeeId,
                 'leave_type' => $leaveType,
-                'department_id' => $departmentId
+                'department_id' => $departmentId,
+                'search' => $search
             ],
             'stats' => [
                 'total' => $totalLeaves,

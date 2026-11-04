@@ -202,15 +202,27 @@
                     <?php elseif ($reportType === 'employee'): ?>
                         <!-- Employee-wise Filters -->
                         <div class="col-md-4">
-                            <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-user me-1 text-primary"></i>Select Employee <span class="text-danger">*</span></label>
-                            <select name="employee_id" class="form-select form-select-sm bg-white" required>
-                                <option value="">-- Choose Employee --</option>
-                                <?php foreach ($employees as $emp): ?>
-                                    <option value="<?= $emp['id'] ?>" <?= ($employeeId == $emp['id']) ? 'selected' : '' ?>>
-                                        <?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?> (<?= e($emp['department'] ?? 'General') ?>)
-                                    </option>
+                            <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-magnifying-glass me-1 text-primary"></i>Search Employee Name or ID <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-user-check"></i></span>
+                                <input type="text" 
+                                       name="employee_id" 
+                                       id="employeeSearchInput" 
+                                       class="form-control form-control-sm bg-white border-start-0" 
+                                       placeholder="Type name or ID (e.g. kumar or EMP980)..." 
+                                       value="<?= e(!empty($emp) ? ($emp['employee_code'] . ' — ' . $emp['name']) : ($rawEmployeeInput ?? '')) ?>" 
+                                       list="employeeReportList" 
+                                       required 
+                                       autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('employeeSearchInput').value=''; document.getElementById('employeeSearchInput').focus();" title="Clear">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <datalist id="employeeReportList">
+                                <?php foreach ($employees as $empOption): ?>
+                                    <option value="<?= e($empOption['employee_code']) ?> — <?= e($empOption['name']) ?> (<?= e($empOption['department'] ?? 'General') ?>)"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-regular fa-calendar-plus me-1 text-primary"></i>From Date</label>

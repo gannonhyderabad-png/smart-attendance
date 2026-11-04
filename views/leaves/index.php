@@ -42,52 +42,29 @@
     <?php unset($_SESSION['flash_error']); ?>
 <?php endif; ?>
 
-<!-- Quick Leave KPI Cards -->
+<!-- Quick Leave KPI Card: Company Assigned Only (Click to show leave list details) -->
 <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-2">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-secondary h-100">
-            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Company Assigned</div>
-            <h4 class="fw-bold mb-0 mt-1 text-dark"><?= $companyQuotas['total'] ?? 37 ?> <span class="fs-6 text-muted fw-normal">Days/Yr</span></h4>
-            <div class="text-muted small mt-1" style="font-size: 0.68rem;">12 CL &bull; 10 SL &bull; 15 PL</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-2">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-primary h-100">
-            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Total Entries</div>
-            <h4 class="fw-bold mb-0 mt-1 text-primary"><?= count($leaves) ?></h4>
-            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Recorded leaves</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-2">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-info h-100">
-            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Casual Leave (CL)</div>
-            <h4 class="fw-bold mb-0 mt-1 text-info"><?= $stats['cl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h4>
-            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Assigned: <?= $companyQuotas['CL'] ?? 12 ?> Days</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-2">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-warning h-100">
-            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Sick Leave (SL)</div>
-            <h4 class="fw-bold mb-0 mt-1 text-warning"><?= $stats['sl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h4>
-            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Assigned: <?= $companyQuotas['SL'] ?? 10 ?> Days</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-2">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-success h-100">
-            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Paid Leave (PL)</div>
-            <h4 class="fw-bold mb-0 mt-1 text-success"><?= $stats['pl'] ?> <span class="fs-6 text-muted fw-normal">Days</span></h4>
-            <div class="text-muted small mt-1" style="font-size: 0.68rem;">Assigned: <?= $companyQuotas['PL'] ?? 15 ?> Days</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-2">
-        <div class="card border-0 rounded-4 shadow-sm bg-white p-3 border-start border-4 border-dark h-100">
-            <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Outdoor Duty (OD)</div>
-            <h4 class="fw-bold mb-0 mt-1 text-dark"><?= $stats['od'] ?> <span class="fs-6 text-muted fw-normal">Visits</span></h4>
-            <div class="text-muted small mt-1" style="font-size: 0.68rem;">On-Duty site visits</div>
+    <div class="col-12 col-md-5 col-lg-4">
+        <div class="card border rounded-3 shadow-sm bg-white p-3 border-top border-3 border-primary stat-card-interactive" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#companyAssignedLeaveDetailsModal" title="Click to view full company leave list and quota details">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-secondary small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-building-user text-primary me-1" style="font-size: 0.85rem;"></i> Company Assigned
+                </span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> View Detail List
+                </span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2 my-1">
+                <span class="fs-2 fw-bold text-dark font-sans-serif"><?= $companyQuotas['total'] ?? 37 ?></span>
+                <span class="text-muted small">Days / Year</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-light">
+                <small class="text-muted" style="font-size: 0.72rem;">12 CL &bull; 10 SL &bull; 15 PL</small>
+                <small class="text-primary fw-semibold" style="font-size: 0.72rem;">Click for Leave List &rarr;</small>
+            </div>
         </div>
     </div>
 </div>
-
 <!-- Pending Approvals for Department Heads & HR -->
 <?php if (!empty($pendingLeaves)): ?>
     <div class="card border-0 rounded-4 shadow-sm mb-4 border-start border-4 border-warning overflow-hidden" style="background: #fffdf5;">
@@ -408,7 +385,28 @@
 </div>
 
 <!-- Filter Bar -->
-<form method="GET" action="<?= base_url('leaves') ?>" class="row g-2 mb-4 p-3 bg-light rounded-4 border">
+<form method="GET" action="<?= base_url('leaves') ?>" class="row g-2 mb-4 p-3 bg-light rounded-4 border align-items-end">
+    <div class="col-md-3">
+        <label class="form-label small text-muted fw-semibold mb-1">
+            <i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Search Employee Name or ID
+        </label>
+        <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
+            <input type="text" 
+                   name="search" 
+                   id="leaveSearchInput" 
+                   class="form-control form-control-sm bg-white border-start-0" 
+                   placeholder="Type Name or Code..." 
+                   value="<?= e($filters['search'] ?? '') ?>" 
+                   list="leaveEmployeeSuggestions" 
+                   autocomplete="off">
+        </div>
+        <datalist id="leaveEmployeeSuggestions">
+            <?php foreach ($employees as $empOpt): ?>
+                <option value="<?= e($empOpt['employee_code']) ?> — <?= e($empOpt['name']) ?>"></option>
+            <?php endforeach; ?>
+        </datalist>
+    </div>
     <div class="col-md-3">
         <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-sitemap me-1 text-primary"></i> Department</label>
         <select name="department_id" class="form-select form-select-sm bg-white" onchange="this.form.submit()">
@@ -420,7 +418,7 @@
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label class="form-label small text-muted fw-semibold mb-1">Staff Member</label>
         <select name="employee_id" class="form-select form-select-sm bg-white">
             <option value="">All Employees</option>
@@ -431,7 +429,7 @@
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label class="form-label small text-muted fw-semibold mb-1">Leave Type</label>
         <select name="leave_type" class="form-select form-select-sm bg-white">
             <option value="">All Leave Types</option>
@@ -444,9 +442,9 @@
             <option value="Special Holiday" <?= (($filters['leave_type'] ?? '') === 'Special Holiday') ? 'selected' : '' ?>>Special Holiday / Restricted Off</option>
         </select>
     </div>
-    <div class="col-md-3 d-flex align-items-end gap-2">
-        <button type="submit" class="btn btn-dark btn-sm rounded-pill px-4"><i class="fa-solid fa-filter me-1"></i> Filter</button>
-        <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm rounded-pill px-3 border"><i class="fa-solid fa-arrow-rotate-left me-1"></i> Reset</a>
+    <div class="col-md-2 d-flex gap-1">
+        <button type="submit" class="btn btn-dark btn-sm rounded-pill px-3 flex-grow-1"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+        <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm rounded-pill px-3 border" title="Reset"><i class="fa-solid fa-arrow-rotate-left"></i></a>
     </div>
 </form>
 
@@ -484,7 +482,7 @@
 <?php endif; ?>
 
 <!-- Leaves Table -->
-<div class="card border-0 rounded-4 shadow-sm bg-white overflow-hidden mb-4">
+<div class="card border-0 rounded-4 shadow-sm bg-white overflow-hidden mb-4" id="leaveRecordsCard">
     <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
         <h6 class="fw-bold mb-0 text-dark">
             <i class="fa-solid fa-list-check text-primary me-2"></i>Employee Leave Records
@@ -1865,8 +1863,152 @@ function syncHeadEmail(val) {
 </div>
 
 
+<!-- Company Assigned Leave Detail List Modal -->
+<div class="modal fade" id="companyAssignedLeaveDetailsModal" tabindex="-1" aria-labelledby="companyAssignedModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+            <div class="modal-header border-0 py-3 px-4 text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+                <div>
+                    <h5 class="modal-title fw-bold text-white mb-0" id="companyAssignedModalTitle">
+                        <i class="fa-solid fa-building-user me-2"></i>Company Assigned Leave Quotas &amp; Detail Leave Records
+                    </h5>
+                    <small class="text-white-50">Standard annual entitlement: <strong><?= $companyQuotas['total'] ?? 37 ?> Days</strong> per staff member &bull; Full list of recorded leaves</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <!-- Quota Cards Row -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-secondary">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Total Assigned</span>
+                            <div class="fs-4 fw-bold text-dark mt-1"><?= $companyQuotas['total'] ?? 37 ?> <small class="fs-6 text-muted fw-normal">Days/Yr</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Combined Annual Quota</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-info">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Casual Leave (CL)</span>
+                            <div class="fs-4 fw-bold text-info mt-1"><?= $companyQuotas['CL'] ?? 12 ?> <small class="fs-6 text-muted fw-normal">Days</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Monthly / casual time-offs</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-warning">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Sick Leave (SL)</span>
+                            <div class="fs-4 fw-bold text-warning mt-1"><?= $companyQuotas['SL'] ?? 10 ?> <small class="fs-6 text-muted fw-normal">Days</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Medical &amp; recovery days</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-success">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Paid Leave (PL)</span>
+                            <div class="fs-4 fw-bold text-success mt-1"><?= $companyQuotas['PL'] ?? 15 ?> <small class="fs-6 text-muted fw-normal">Days</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Earned / annual privilege leave</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail Leave List Table Card -->
+                <div class="card border-0 rounded-3 shadow-sm bg-white overflow-hidden">
+                    <div class="card-header bg-white border-bottom py-3 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-list text-primary me-2"></i>Recorded Leaves List (<?= count($leaves) ?> Entries)</h6>
+                            <small class="text-muted">Applications submitted and approved in the system</small>
+                        </div>
+                        <div style="max-width: 280px; width: 100%;">
+                            <input type="text" id="modalLeaveFilterInput" class="form-control form-control-sm rounded-pill" placeholder="Instant filter in list..." onkeyup="filterModalLeaveTable(this.value)">
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" id="modalLeaveDetailTable">
+                            <thead class="table-light text-muted small text-uppercase sticky-top" style="font-size: 0.72rem;">
+                                <tr>
+                                    <th class="ps-3">Employee</th>
+                                    <th>Leave Type</th>
+                                    <th>Period (From &rarr; To)</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Reason / Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($leaves)): ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">No recorded leave entries found.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($leaves as $ml): ?>
+                                        <tr class="modal-leave-row">
+                                            <td class="ps-3">
+                                                <div class="fw-bold text-dark"><?= e($ml['employee_name'] ?? 'Employee') ?></div>
+                                                <small class="text-muted font-monospace"><?= e($ml['employee_code'] ?? '') ?> &bull; <?= e($ml['department_name'] ?? 'General') ?></small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
+                                                    <?= e($ml['leave_type']) ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="text-dark fw-semibold small"><?= date('d M Y', strtotime($ml['start_date'])) ?> &rarr; <?= date('d M Y', strtotime($ml['end_date'])) ?></div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border font-monospace"><?= $ml['days_count'] ?> d</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge <?= str_contains($ml['status'] ?? '', 'APPROVED') ? 'bg-success text-white' : (str_contains($ml['status'] ?? '', 'REJECT') ? 'bg-danger text-white' : 'bg-warning text-dark') ?> rounded-pill px-2 py-1">
+                                                    <?= e($ml['status']) ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="small text-truncate" style="max-width: 220px;" title="<?= e($ml['reason']) ?>"><?= e($ml['reason'] ?: '—') ?></div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-white py-2 px-4 d-flex justify-content-between align-items-center">
+                <small class="text-muted">Showing all leave records matching current site/company filters</small>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" data-bs-dismiss="modal" onclick="document.getElementById('leaveRecordsCard')?.scrollIntoView({behavior: 'smooth'})">
+                        <i class="fa-solid fa-arrow-down me-1"></i> Jump to Table Below
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+function filterModalLeaveTable(query) {
+    const q = (query || '').toLowerCase().trim();
+    document.querySelectorAll('#modalLeaveDetailTable .modal-leave-row').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Live filter for leaves records table when user types in search bar
+    const leaveSearch = document.getElementById('leaveSearchInput');
+    if (leaveSearch) {
+        leaveSearch.addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#leaveRecordsCard tbody tr');
+            if (q.length > 0) {
+                rows.forEach(r => {
+                    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+                });
+            } else {
+                rows.forEach(r => { r.style.display = ''; });
+            }
+        });
+    }
+
     const params = new URLSearchParams(window.location.search);
     const reviewId = params.get('review');
     if (reviewId) {

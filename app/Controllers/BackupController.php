@@ -10,7 +10,7 @@ use PDO;
 
 class BackupController extends Controller {
     /**
-     * Generate and download a complete ZIP backup of the database and all upload photos
+     * Generate and download a complete ZIP backup of the database, readable CSV reports, and all upload photos
      */
     public function download(): void {
         Auth::requireAuth();
@@ -27,83 +27,137 @@ class BackupController extends Controller {
             die("Could not create backup zip file.");
         }
 
-        // 1. Backup SQLite Database file if exists
-        $sqliteCandidates = [
-            '/var/data/attendance.sqlite',
-            __DIR__ . '/../../database/attendance.sqlite'
-        ];
-        foreach ($sqliteCandidates as $sqlitePath) {
-            if (file_exists($sqlitePath) && filesize($sqlitePath) > 0) {
-                $zip->addFile($sqlitePath, 'database/attendance.sqlite');
-                break;
-            }
-        }
-
-        // 2. Backup ANSI SQL Data Dump (works across SQLite, PostgreSQL, and MySQL)
+        $pdo = null;
         try {
             $pdo = Database::getConnection();
-            $sqlDump = "-- Smart Attendance System Complete SQL Backup\n";
-            $sqlDump .= "-- Generated on: " . date('Y-m-d H:i:s') . "\n\n";
+        } catch (\Throwable $e) {}
 
-            $tables = ['users', 'departments', 'employees', 'attendance', 'holidays', 'leaves', 'devices', 'device_logs', 'activity_logs', 'settings'];
-            foreach ($tables as $table) {
-                try {
-                    $stmt = $pdo->query("SELECT * FROM {$table}");
-                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    if (!empty($rows)) {
-                        $sqlDump .= "-- Table: {$table} (" . count($rows) . " rows)\n";
-                        foreach ($rows as $row) {
-                            $keys = array_keys($row);
-                            $values = array_map(function($val) use ($pdo) {
-                                return $val === null ? 'NULL' : $pdo->quote((string)$val);
-                            }, array_values($row));
-                            $sqlDump .= "INSERT INTO {$table} (" . implode(', ', $keys) . ") VALUES (" . implode(', ', $values) . ");\n";
-                        }
-                        $sqlDump .= "\n";
+        $punchesCount = 0;
+        $leavesCount = 0;
+        $empCount = 0;
+        $tempSqlitePath = null;
+
+        if ($pdo) {
+            // 1. Generate & Add Employee Attendance Punches Log (CSV)
+            $punchesCsv = $this->generatePunchesCsv($pdo, $punchesCount);
+            $zip->addFromString('reports/employee_punches_log.csv', $punchesCsv);
+
+            // 2. Generate & Add Leave & OD Attendance Log (CSV)
+            $leavesCsv = $this->generateLeavesCsv($pdo, $leavesCount);
+            $zip->addFromString('reports/leave_od_attendance_log.csv', $leavesCsv);
+
+            // 3. Generate & Add All Employees Directory (CSV)
+            $empCsv = $this->generateEmployeesCsv($pdo, $empCount);
+            $zip->addFromString('reports/all_employees_directory.csv', $empCsv);
+
+            // 4. Create a fresh, live SQLite snapshot directly from live PDO
+            $tempSqlitePath = $this->createLiveSqliteSnapshot($pdo);
+            if ($tempSqlitePath && file_exists($tempSqlitePath) && filesize($tempSqlitePath) > 0) {
+                $zip->addFile($tempSqlitePath, 'database/attendance.sqlite');
+            } else {
+                // Fallback to SQLite database file on disk if live snapshot couldn't be built
+                $sqliteCandidates = [
+                    '/var/data/attendance.sqlite',
+                    __DIR__ . '/../../database/attendance.sqlite'
+                ];
+                foreach ($sqliteCandidates as $sqlitePath) {
+                    if (file_exists($sqlitePath) && filesize($sqlitePath) > 0) {
+                        $zip->addFile($sqlitePath, 'database/attendance.sqlite');
+                        break;
                     }
-                } catch (\Throwable $tblErr) {
-                    // Skip if table doesn't exist
                 }
             }
-            $zip->addFromString('database/database_dump.sql', $sqlDump);
-        } catch (\Throwable $e) {
-            // SQL dump fallback
+
+            // 5. Generate ANSI SQL Data Dump
+            try {
+                $sqlDump = "-- Smart Attendance System Complete SQL Backup\n";
+                $sqlDump .= "-- Generated on: " . date('Y-m-d H:i:s') . "\n\n";
+
+                $tables = ['users', 'departments', 'employees', 'attendance', 'holidays', 'leaves', 'devices', 'device_logs', 'activity_logs', 'settings'];
+                foreach ($tables as $table) {
+                    try {
+                        $stmt = $pdo->query("SELECT * FROM \"{$table}\"");
+                    } catch (\Throwable $quoteErr) {
+                        try {
+                            $stmt = $pdo->query("SELECT * FROM {$table}");
+                        } catch (\Throwable $noQuoteErr) {
+                            $stmt = null;
+                        }
+                    }
+
+                    if ($stmt) {
+                        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                        if (!empty($rows)) {
+                            $sqlDump .= "-- Table: {$table} (" . count($rows) . " rows)\n";
+                            foreach ($rows as $row) {
+                                $keys = array_keys($row);
+                                $values = array_map(function($val) use ($pdo) {
+                                    return $val === null ? 'NULL' : $pdo->quote((string)$val);
+                                }, array_values($row));
+                                $sqlDump .= "INSERT INTO {$table} (" . implode(', ', $keys) . ") VALUES (" . implode(', ', $values) . ");\n";
+                            }
+                            $sqlDump .= "\n";
+                        }
+                    }
+                }
+                $zip->addFromString('database/database_dump.sql', $sqlDump);
+            } catch (\Throwable $e) {}
         }
 
-        // 3. Backup Avatars, Punch Selfies & Leave Attachments (from disk + stored_files DB table)
+        // 6. Backup Avatars, Punch Selfies & Leave Attachments (from disk + stored_files DB table)
         $addedUploadPaths = [];
         $uploadsDir = __DIR__ . '/../../public/uploads';
         if (is_dir($uploadsDir)) {
             $this->addFolderToZip($zip, $uploadsDir, 'public/uploads', $addedUploadPaths);
         }
-        try {
-            $pdo = Database::getConnection();
-            $sfStmt = $pdo->query("SELECT file_path, file_data FROM stored_files");
-            if ($sfStmt) {
-                while ($sfRow = $sfStmt->fetch(PDO::FETCH_ASSOC)) {
-                    $fp = ltrim(str_replace('\\', '/', $sfRow['file_path'] ?? ''), '/');
-                    if ($fp !== '' && empty($addedUploadPaths[$fp]) && !empty($sfRow['file_data'])) {
-                        $raw = base64_decode($sfRow['file_data'], true);
-                        if ($raw !== false) {
-                            $zip->addFromString($fp, $raw);
-                            $addedUploadPaths[$fp] = true;
+        if ($pdo) {
+            try {
+                $sfStmt = $pdo->query("SELECT file_path, file_data FROM stored_files");
+                if ($sfStmt) {
+                    while ($sfRow = $sfStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $fp = ltrim(str_replace('\\', '/', $sfRow['file_path'] ?? ''), '/');
+                        if ($fp !== '' && empty($addedUploadPaths[$fp]) && !empty($sfRow['file_data'])) {
+                            $raw = base64_decode($sfRow['file_data'], true);
+                            if ($raw !== false) {
+                                $zip->addFromString($fp, $raw);
+                                $addedUploadPaths[$fp] = true;
+                            }
                         }
                     }
                 }
-            }
-        } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {}
+        }
 
-        // 4. Add Backup Metadata
+        // 7. Add Backup Metadata
         $meta = [
             'backup_date' => date('Y-m-d H:i:s'),
             'system' => 'Smart Attendance System',
-            'version' => '2.1',
+            'version' => '2.2',
             'db_driver' => Database::getDriverName(),
             'created_by' => Auth::user()['name'] ?? 'Admin',
+            'records_exported' => [
+                'employee_punches' => $punchesCount,
+                'leaves_and_od' => $leavesCount,
+                'employees' => $empCount,
+            ],
+            'files_included' => [
+                'reports/employee_punches_log.csv',
+                'reports/leave_od_attendance_log.csv',
+                'reports/all_employees_directory.csv',
+                'database/attendance.sqlite',
+                'database/database_dump.sql',
+                'public/uploads/punches/',
+                'public/uploads/avatars/'
+            ]
         ];
         $zip->addFromString('backup_info.json', json_encode($meta, JSON_PRETTY_PRINT));
 
         $zip->close();
+
+        // Clean up temporary live SQLite file if created
+        if (!empty($tempSqlitePath) && file_exists($tempSqlitePath)) {
+            @unlink($tempSqlitePath);
+        }
 
         // Send ZIP download to browser
         if (file_exists($tempZipPath)) {
@@ -117,6 +171,330 @@ class BackupController extends Controller {
             exit;
         } else {
             die("Backup file generation failed.");
+        }
+    }
+
+    /**
+     * Download Employee Attendance Punches as standalone CSV
+     */
+    public function exportPunchesCsv(): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited.';
+            redirect('leaves');
+        }
+        $pdo = Database::getConnection();
+        $count = 0;
+        $csv = $this->generatePunchesCsv($pdo, $count);
+        $fileName = 'employee_punches_log_' . date('Y-m-d_His') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        echo $csv;
+        exit;
+    }
+
+    /**
+     * Download Leave & OD Attendance Log as standalone CSV
+     */
+    public function exportLeavesCsv(): void {
+        Auth::requireAuth();
+        if (Auth::isRestricted() && !Auth::isSiteUser()) {
+            $_SESSION['flash_error'] = 'Access restricted: Your login is limited.';
+            redirect('leaves');
+        }
+        $pdo = Database::getConnection();
+        $count = 0;
+        $csv = $this->generateLeavesCsv($pdo, $count);
+        $fileName = 'leave_od_attendance_log_' . date('Y-m-d_His') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        echo $csv;
+        exit;
+    }
+
+    /**
+     * Generate complete CSV string for all Employee Attendance Punches
+     */
+    private function generatePunchesCsv(PDO $pdo, int &$rowCount = 0): string {
+        $out = fopen('php://temp', 'r+');
+        // UTF-8 BOM for Microsoft Excel compatibility
+        fputs($out, "\xEF\xBB\xBF");
+        
+        $headers = [
+            'Punch ID',
+            'Date',
+            'Time',
+            'Punch Type',
+            'Employee Code',
+            'Employee Name',
+            'Department',
+            'Designation',
+            'Project',
+            'Site',
+            'Location Verified',
+            'Distance (Meters)',
+            'Latitude',
+            'Longitude',
+            'Device Info',
+            'IP Address',
+            'Selfie Photo',
+            'Notes',
+            'Recorded At'
+        ];
+        fputcsv($out, $headers);
+
+        try {
+            $sql = "SELECT a.*, e.name as employee_name, e.employee_code, e.designation, e.project as employee_project, e.site as employee_site, d.name as department_name 
+                    FROM attendance a 
+                    JOIN employees e ON a.employee_id = e.id 
+                    LEFT JOIN departments d ON e.department_id = d.id 
+                    ORDER BY a.punch_time DESC, a.id DESC";
+            $stmt = $pdo->query($sql);
+            if ($stmt) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $rowCount++;
+                    $punchTime = !empty($row['punch_time']) ? $row['punch_time'] : '';
+                    $timeOnly = $punchTime ? date('h:i:s A', strtotime($punchTime)) : '';
+                    $dateOnly = !empty($row['punch_date']) ? $row['punch_date'] : ($punchTime ? date('Y-m-d', strtotime($punchTime)) : '');
+                    $locVerified = !empty($row['location_verified']) ? 'YES' : 'NO';
+                    
+                    fputcsv($out, [
+                        $row['id'] ?? '',
+                        $dateOnly,
+                        $timeOnly,
+                        strtoupper($row['punch_type'] ?? 'IN'),
+                        $row['employee_code'] ?? '',
+                        $row['employee_name'] ?? '',
+                        $row['department_name'] ?? 'General',
+                        $row['designation'] ?? '',
+                        $row['project'] ?: ($row['employee_project'] ?? ''),
+                        $row['site'] ?: ($row['employee_site'] ?? ''),
+                        $locVerified,
+                        $row['distance_meters'] ?? '0',
+                        $row['latitude'] ?? '',
+                        $row['longitude'] ?? '',
+                        $row['device_info'] ?? '',
+                        $row['ip_address'] ?? '',
+                        $row['punch_photo'] ?? '',
+                        $row['notes'] ?? '',
+                        $row['created_at'] ?? $punchTime
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        rewind($out);
+        $csv = stream_get_contents($out);
+        fclose($out);
+        return $csv ?: '';
+    }
+
+    /**
+     * Generate complete CSV string for all Leaves and On-Duty (OD) records
+     */
+    private function generateLeavesCsv(PDO $pdo, int &$rowCount = 0): string {
+        $out = fopen('php://temp', 'r+');
+        // UTF-8 BOM for Microsoft Excel compatibility
+        fputs($out, "\xEF\xBB\xBF");
+        
+        $headers = [
+            'Leave ID',
+            'Employee Code',
+            'Employee Name',
+            'Department',
+            'Designation',
+            'Leave / OD Type',
+            'Start Date',
+            'End Date',
+            'Days Count',
+            'Origin Site',
+            'Target Site / Project',
+            'Reason / Purpose',
+            'Status',
+            'Approved By',
+            'Attachment',
+            'Applied Date'
+        ];
+        fputcsv($out, $headers);
+
+        try {
+            $sql = "SELECT l.*, e.name as employee_name, e.employee_code, e.designation as employee_designation, e.project as employee_project, e.site as employee_site, 
+                           d.name as department_name, u.name as approver_name 
+                    FROM leaves l 
+                    JOIN employees e ON l.employee_id = e.id 
+                    LEFT JOIN departments d ON e.department_id = d.id 
+                    LEFT JOIN users u ON l.approved_by = u.id 
+                    ORDER BY l.start_date DESC, l.id DESC";
+            $stmt = $pdo->query($sql);
+            if ($stmt) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $rowCount++;
+                    $type = trim((string)($row['leave_type'] ?? ''));
+                    $typeLabel = $type;
+                    if (strtoupper($type) === 'OD' || stripos($type, 'on-duty') !== false || stripos($type, 'on duty') !== false) {
+                        $typeLabel = 'On-Duty (OD)';
+                    } elseif (strtoupper($type) === 'CL' || stripos($type, 'casual') !== false) {
+                        $typeLabel = 'Casual Leave (CL)';
+                    } elseif (strtoupper($type) === 'SL' || stripos($type, 'sick') !== false) {
+                        $typeLabel = 'Sick Leave (SL)';
+                    } elseif (strtoupper($type) === 'PL' || stripos($type, 'paid') !== false || stripos($type, 'earned') !== false) {
+                        $typeLabel = 'Paid Leave (PL)';
+                    }
+
+                    fputcsv($out, [
+                        $row['id'] ?? '',
+                        $row['employee_code'] ?? '',
+                        $row['employee_name'] ?? '',
+                        $row['department_name'] ?? 'General',
+                        $row['employee_designation'] ?? '',
+                        $typeLabel,
+                        $row['start_date'] ?? '',
+                        $row['end_date'] ?? '',
+                        $row['days_count'] ?? '1.0',
+                        $row['origin_site'] ?: ($row['site'] ?? ''),
+                        $row['target_site'] ?: ($row['project'] ?? ''),
+                        $row['reason'] ?? '',
+                        strtoupper($row['status'] ?? 'APPROVED'),
+                        $row['approver_name'] ?? 'Admin',
+                        $row['attachment'] ?? '',
+                        $row['created_at'] ?? ($row['start_date'] ?? '')
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        rewind($out);
+        $csv = stream_get_contents($out);
+        fclose($out);
+        return $csv ?: '';
+    }
+
+    /**
+     * Generate complete CSV string for all Employees Directory
+     */
+    private function generateEmployeesCsv(PDO $pdo, int &$rowCount = 0): string {
+        $out = fopen('php://temp', 'r+');
+        fputs($out, "\xEF\xBB\xBF");
+        
+        $headers = [
+            'Employee ID',
+            'Employee Code',
+            'Name',
+            'Email',
+            'Phone',
+            'Department',
+            'Designation',
+            'Project',
+            'Site',
+            'Shift Start',
+            'Shift End',
+            'Status',
+            'Created At'
+        ];
+        fputcsv($out, $headers);
+
+        try {
+            $sql = "SELECT e.*, d.name as department_name FROM employees e LEFT JOIN departments d ON e.department_id = d.id ORDER BY e.id ASC";
+            $stmt = $pdo->query($sql);
+            if ($stmt) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $rowCount++;
+                    fputcsv($out, [
+                        $row['id'] ?? '',
+                        $row['employee_code'] ?? '',
+                        $row['name'] ?? '',
+                        $row['email'] ?? '',
+                        $row['phone'] ?? '',
+                        $row['department_name'] ?? 'General',
+                        $row['designation'] ?? '',
+                        $row['project'] ?? '',
+                        $row['site'] ?? '',
+                        $row['shift_start'] ?? '09:00:00',
+                        $row['shift_end'] ?? '18:00:00',
+                        strtoupper($row['status'] ?? 'ACTIVE'),
+                        $row['created_at'] ?? ''
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        rewind($out);
+        $csv = stream_get_contents($out);
+        fclose($out);
+        return $csv ?: '';
+    }
+
+    /**
+     * Dynamically create a complete, fresh SQLite database from the live PDO connection
+     */
+    private function createLiveSqliteSnapshot(PDO $srcPdo): ?string {
+        try {
+            $tmpSqlite = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'live_attendance_' . uniqid() . '.sqlite';
+            if (file_exists($tmpSqlite)) @unlink($tmpSqlite);
+
+            $sqlite = new PDO('sqlite:' . $tmpSqlite, null, null, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+            ]);
+
+            $sqlite->exec("PRAGMA foreign_keys = OFF;");
+            
+            $tableSchemas = [
+                'users' => "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT DEFAULT 'admin', status TEXT DEFAULT 'active', last_login DATETIME, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'departments' => "CREATE TABLE departments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, code TEXT, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'employees' => "CREATE TABLE employees (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, email TEXT, phone TEXT, department_id INTEGER, designation TEXT, project TEXT, site TEXT, site_latitude NUMERIC, site_longitude NUMERIC, site_radius INTEGER DEFAULT 200, geofence_enabled INTEGER DEFAULT 1, punch_token TEXT NOT NULL UNIQUE, photo TEXT, shift_start TIME DEFAULT '09:00:00', shift_end TIME DEFAULT '18:00:00', status TEXT DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'attendance' => "CREATE TABLE attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER NOT NULL, punch_type TEXT NOT NULL, punch_time DATETIME NOT NULL, punch_date DATE NOT NULL, project TEXT, site TEXT, ip_address TEXT, user_agent TEXT, device_info TEXT, latitude NUMERIC, longitude NUMERIC, distance_meters NUMERIC, location_verified INTEGER DEFAULT 0, punch_photo TEXT, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'leaves' => "CREATE TABLE leaves (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER NOT NULL, leave_type TEXT NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, days_count NUMERIC DEFAULT 1.0, origin_site TEXT, target_site TEXT, attachment TEXT, reason TEXT, status TEXT DEFAULT 'APPROVED', approval_step INTEGER DEFAULT 1, approved_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'holidays' => "CREATE TABLE holidays (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, holiday_date DATE NOT NULL UNIQUE, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'devices' => "CREATE TABLE devices (id INTEGER PRIMARY KEY AUTOINCREMENT, device_name TEXT NOT NULL, serial_number TEXT NOT NULL UNIQUE, ip_address TEXT, port INTEGER DEFAULT 4370, protocol TEXT DEFAULT 'standalone', status TEXT DEFAULT 'ONLINE', last_seen DATETIME, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'device_logs' => "CREATE TABLE device_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id INTEGER, log_type TEXT DEFAULT 'INFO', message TEXT NOT NULL, raw_payload TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'activity_logs' => "CREATE TABLE activity_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT NOT NULL, description TEXT, ip_address TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+                'settings' => "CREATE TABLE settings (setting_key TEXT PRIMARY KEY, setting_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+            ];
+
+            foreach ($tableSchemas as $tbl => $schemaSql) {
+                try {
+                    $sqlite->exec($schemaSql);
+                } catch (\Throwable $e) {}
+            }
+
+            $tablesToCopy = ['users', 'departments', 'employees', 'attendance', 'leaves', 'holidays', 'devices', 'device_logs', 'activity_logs', 'settings'];
+            foreach ($tablesToCopy as $table) {
+                try {
+                    $stmt = null;
+                    try {
+                        $stmt = $srcPdo->query("SELECT * FROM \"{$table}\"");
+                    } catch (\Throwable $qe) {
+                        $stmt = $srcPdo->query("SELECT * FROM {$table}");
+                    }
+                    if (!$stmt) continue;
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (empty($rows)) continue;
+
+                    $cols = array_keys($rows[0]);
+                    $colList = implode(', ', $cols);
+                    $placeholders = implode(', ', array_fill(0, count($cols), '?'));
+                    $insertStmt = $sqlite->prepare("INSERT INTO {$table} ({$colList}) VALUES ({$placeholders})");
+
+                    $sqlite->beginTransaction();
+                    foreach ($rows as $row) {
+                        $insertStmt->execute(array_values($row));
+                    }
+                    $sqlite->commit();
+                } catch (\Throwable $tblErr) {
+                    if ($sqlite->inTransaction()) {
+                        $sqlite->rollBack();
+                    }
+                }
+            }
+
+            return $tmpSqlite;
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 

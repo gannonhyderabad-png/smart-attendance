@@ -481,6 +481,8 @@ $router->post('/users/delete', [\App\Controllers\AuthController::class, 'deleteU
 $router->post('/settings/smtp', [\App\Controllers\AuthController::class, 'updateSmtp']);
 $router->post('/settings/smtp-test', [\App\Controllers\AuthController::class, 'testSmtp']);
 $router->get('/backup/download', [\App\Controllers\BackupController::class, 'download']);
+$router->get('/backup/export-punches', [\App\Controllers\BackupController::class, 'exportPunchesCsv']);
+$router->get('/backup/export-leaves', [\App\Controllers\BackupController::class, 'exportLeavesCsv']);
 $router->post('/backup/restore', [\App\Controllers\BackupController::class, 'restore']);
 $router->post('/backup/clean-photos', [\App\Controllers\BackupController::class, 'cleanOldPhotos']);
 

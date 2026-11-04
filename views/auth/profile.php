@@ -70,11 +70,13 @@
                         <p class="small text-muted mb-0">
                             The backup engine bundles everything into a single <code>.zip</code> file including:
                         </p>
-                        <ul class="small text-dark mb-0 mt-2 ps-3">
-                            <li><strong>All Selfie Punch Pictures</strong> (<code>public/uploads/punches/</code>)</li>
-                            <li><strong>All Employee Avatar Photos</strong> (<code>public/uploads/avatars/</code>)</li>
-                            <li><strong>SQLite Database File</strong> (<code>database/attendance.sqlite</code>)</li>
-                            <li><strong>SQL Database Dump</strong> (<code>database/database_dump.sql</code>)</li>
+                        <ul class="small text-dark mb-0 mt-2 ps-3" style="line-height: 1.7;">
+                            <li><strong class="text-success"><i class="fa-solid fa-file-csv text-success me-1"></i>Employee Attendance Punches (CSV)</strong> (<code>reports/employee_punches_log.csv</code>)</li>
+                            <li><strong class="text-primary"><i class="fa-solid fa-file-csv text-primary me-1"></i>Leave & OD Attendance Log (CSV)</strong> (<code>reports/leave_od_attendance_log.csv</code>)</li>
+                            <li><strong><i class="fa-solid fa-users text-secondary me-1"></i>All Employees Directory (CSV)</strong> (<code>reports/all_employees_directory.csv</code>)</li>
+                            <li><strong><i class="fa-solid fa-database text-info me-1"></i>Live SQLite Database Snapshot</strong> (<code>database/attendance.sqlite</code>)</li>
+                            <li><strong><i class="fa-solid fa-code text-warning me-1"></i>Complete ANSI SQL Database Dump</strong> (<code>database/database_dump.sql</code>)</li>
+                            <li><strong><i class="fa-solid fa-camera text-danger me-1"></i>All Selfie Punch Pictures & Avatars</strong> (<code>public/uploads/</code>)</li>
                         </ul>
                     </div>
 
@@ -94,10 +96,22 @@
                     </div>
                 </div>
 
-                <div class="d-grid gap-2 mb-3">
-                    <a href="<?= base_url('backup/download') ?>" class="btn btn-success rounded-pill shadow-sm py-2 fw-bold">
+                <div class="d-grid gap-2 mb-2">
+                    <a href="<?= base_url('backup/download') ?>" class="btn btn-success rounded-pill shadow-sm py-2 fw-bold fs-6">
                         <i class="fa-solid fa-download me-2"></i> Download Full Backup (.ZIP)
                     </a>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <a href="<?= base_url('backup/export-punches') ?>" class="btn btn-outline-success btn-sm w-100 rounded-pill py-2 fw-semibold shadow-sm" title="Directly export all punch records to CSV">
+                            <i class="fa-solid fa-file-csv me-1 text-success"></i> Punches (CSV)
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="<?= base_url('backup/export-leaves') ?>" class="btn btn-outline-primary btn-sm w-100 rounded-pill py-2 fw-semibold shadow-sm" title="Directly export all leave & OD records to CSV">
+                            <i class="fa-solid fa-file-csv me-1 text-primary"></i> Leave & OD (CSV)
+                        </a>
+                    </div>
                 </div>
 
                 <hr class="my-3 text-secondary opacity-25">

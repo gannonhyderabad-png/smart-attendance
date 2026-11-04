@@ -1005,113 +1005,145 @@
 
             <div class="modal-body p-4 p-md-5" id="printableLeaveSheetArea">
                 <!-- Company Official Printable Header -->
-                <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-4 bg-primary bg-opacity-10 text-primary p-3 d-flex align-items-center justify-content-center">
-                            <i class="fa-solid fa-building-circle-check fs-2"></i>
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fa-solid fa-building-circle-check text-primary fs-5"></i>
                         </div>
                         <div>
-                            <h4 class="fw-bold text-dark mb-1 font-monospace" style="letter-spacing: -0.5px;">Gannon Dunkerley & Co. Ltd.</h4>
-                            <div class="text-uppercase small fw-bold text-primary tracking-wider" style="font-size: 0.75rem; letter-spacing: 1px;">
-                                Employee Leave Statement & Dossier Sheet
+                            <h4 class="fw-bold text-dark mb-0 font-monospace" style="letter-spacing: -0.5px;">Gannon Dunkerley & Co. Ltd.</h4>
+                            <div class="text-uppercase small fw-bold text-primary tracking-wider" style="font-size: 0.72rem; letter-spacing: 1px;">
+                                <i class="fa-solid fa-file-waveform me-1"></i>Employee Leave Statement & Dossier Sheet
                             </div>
                         </div>
                     </div>
                     <div class="text-end text-muted small">
-                        <div><strong>Report Date:</strong> <?= date('d M Y, h:i A') ?></div>
-                        <div><strong>Calendar Year:</strong> <?= date('Y') ?></div>
-                        <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill mt-1">Official Company Record</div>
+                        <div><i class="fa-regular fa-clock me-1 text-secondary"></i><strong>Report Date:</strong> <?= date('d M Y, h:i A') ?></div>
+                        <div><i class="fa-regular fa-calendar me-1 text-secondary"></i><strong>Calendar Year:</strong> <?= date('Y') ?></div>
+                        <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill mt-1">
+                            <i class="fa-solid fa-circle-check me-1"></i>Official Company Record
+                        </div>
                     </div>
                 </div>
 
-                <!-- Employee Profile Card -->
-                <div class="row g-3 mb-4 p-3 bg-light rounded-4 border">
+                <!-- Employee Profile Card with Small Icons -->
+                <div class="row g-3 mb-4 p-3 bg-light rounded-3 border">
                     <div class="col-md-3">
-                        <small class="text-muted fw-semibold d-block">Employee Name</small>
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-regular fa-user text-primary me-1" style="font-size: 0.72rem;"></i>Employee Name</small>
                         <span class="fs-6 fw-bold text-dark" id="sheetEmpName">—</span>
                     </div>
                     <div class="col-md-2">
-                        <small class="text-muted fw-semibold d-block">Employee Code</small>
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-id-badge text-primary me-1" style="font-size: 0.72rem;"></i>Employee Code</small>
                         <span class="fs-6 fw-bold text-primary font-monospace" id="sheetEmpCode">—</span>
                     </div>
                     <div class="col-md-3">
-                        <small class="text-muted fw-semibold d-block">Department</small>
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-sitemap text-primary me-1" style="font-size: 0.72rem;"></i>Department</small>
                         <span class="fs-6 fw-semibold text-dark" id="sheetEmpDept">—</span>
                     </div>
                     <div class="col-md-2">
-                        <small class="text-muted fw-semibold d-block">Base Work Site</small>
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-location-dot text-danger me-1" style="font-size: 0.72rem;"></i>Base Work Site</small>
                         <span class="fs-6 fw-semibold text-dark" id="sheetEmpSite">—</span>
                     </div>
                     <div class="col-md-2">
-                        <small class="text-muted fw-semibold d-block">Designation / Role</small>
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-briefcase text-primary me-1" style="font-size: 0.72rem;"></i>Designation / Role</small>
                         <span class="fs-6 fw-semibold text-dark" id="sheetEmpRole">—</span>
                     </div>
                 </div>
 
-                <!-- Leave Quota & Balance KPI Grid -->
-                <div class="row g-3 mb-4 text-center">
+                <!-- Leave Quota & Balance Classic KPI Grid with Small Icons -->
+                <div class="row g-3 mb-4">
                     <div class="col-6 col-md-2">
-                        <div class="p-3 bg-light border rounded-4">
-                            <small class="text-muted fw-semibold d-block mb-1">Total Quota</small>
-                            <h5 class="fw-bold text-dark mb-0 font-monospace" id="sheetTotalAssigned">0</h5>
-                            <small class="text-muted" style="font-size: 0.7rem;">Assigned / Year</small>
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #6c757d !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-muted text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total Quota</span>
+                                    <i class="fa-solid fa-scale-balanced text-secondary" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-dark mb-0 font-monospace" id="sheetTotalAssigned">0 Days</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;"><i class="fa-regular fa-calendar-check me-1"></i>Assigned / Year</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="p-3 bg-info bg-opacity-10 border border-info-subtle rounded-4">
-                            <small class="text-info-emphasis fw-semibold d-block mb-1">Casual Leave (CL)</small>
-                            <h5 class="fw-bold text-info mb-0 font-monospace" id="sheetClBalance">0 / 0</h5>
-                            <small class="text-muted" style="font-size: 0.7rem;" id="sheetClTaken">0 Used</small>
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #0dcaf0 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-info-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Casual Leave</span>
+                                    <i class="fa-solid fa-umbrella-beach text-info" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-info-emphasis mb-0 font-monospace" id="sheetClBalance">0 / 0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;" id="sheetClTaken"><i class="fa-solid fa-chart-pie text-info me-1" style="font-size: 0.65rem;"></i>0 Days Used</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="p-3 bg-warning bg-opacity-10 border border-warning-subtle rounded-4">
-                            <small class="text-warning-emphasis fw-semibold d-block mb-1">Sick Leave (SL)</small>
-                            <h5 class="fw-bold text-warning-emphasis mb-0 font-monospace" id="sheetSlBalance">0 / 0</h5>
-                            <small class="text-muted" style="font-size: 0.7rem;" id="sheetSlTaken">0 Used</small>
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #ffc107 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-warning-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Sick Leave</span>
+                                    <i class="fa-solid fa-heart-pulse text-warning" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-warning-emphasis mb-0 font-monospace" id="sheetSlBalance">0 / 0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;" id="sheetSlTaken"><i class="fa-solid fa-chart-pie text-warning me-1" style="font-size: 0.65rem;"></i>0 Days Used</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="p-3 bg-success bg-opacity-10 border border-success-subtle rounded-4">
-                            <small class="text-success-emphasis fw-semibold d-block mb-1">Paid Leave (PL)</small>
-                            <h5 class="fw-bold text-success mb-0 font-monospace" id="sheetPlBalance">0 / 0</h5>
-                            <small class="text-muted" style="font-size: 0.7rem;" id="sheetPlTaken">0 Used</small>
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #198754 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-success-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Paid Leave</span>
+                                    <i class="fa-solid fa-star text-success" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-success-emphasis mb-0 font-monospace" id="sheetPlBalance">0 / 0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;" id="sheetPlTaken"><i class="fa-solid fa-chart-pie text-success me-1" style="font-size: 0.65rem;"></i>0 Days Used</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="p-3 bg-primary bg-opacity-10 border border-primary-subtle rounded-4">
-                            <small class="text-primary-emphasis fw-semibold d-block mb-1">Outdoor Duty (OD)</small>
-                            <h5 class="fw-bold text-primary mb-0 font-monospace" id="sheetOdVisits">0</h5>
-                            <small class="text-muted" style="font-size: 0.7rem;">Site Visits</small>
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #0d6efd !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-primary-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Outdoor Duty</span>
+                                    <i class="fa-solid fa-route text-primary" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-primary mb-0 font-monospace" id="sheetOdVisits">0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;"><i class="fa-solid fa-car-side text-primary me-1" style="font-size: 0.65rem;"></i>Site Visits</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="p-3 bg-success text-white rounded-4 shadow-sm">
-                            <small class="text-white text-opacity-75 fw-semibold d-block mb-1">Remaining Balance</small>
-                            <h5 class="fw-bold text-white mb-0 font-monospace" id="sheetTotalRemaining">0</h5>
-                            <small class="text-white text-opacity-75" style="font-size: 0.7rem;">Available Days</small>
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #198754 !important; background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%) !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-success-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Remaining</span>
+                                    <i class="fa-solid fa-wallet text-success" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-success mb-0 font-monospace" id="sheetTotalRemaining">0 Days</div>
+                                <div class="text-success-emphasis mt-1 fw-semibold" style="font-size: 0.68rem;"><i class="fa-solid fa-check-double text-success me-1" style="font-size: 0.65rem;"></i>Available Days</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Detailed Leave Records Table -->
-                <div class="border rounded-4 overflow-hidden mb-4">
-                    <div class="bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
-                        <h6 class="fw-bold mb-0 text-dark small"><i class="fa-solid fa-list me-1 text-primary"></i>Recorded Leave & Outdoor Duty (OD) History</h6>
+                <!-- Detailed Leave Records Table with Small Icons -->
+                <div class="card border shadow-sm rounded-3 overflow-hidden mb-4">
+                    <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0 text-dark small"><i class="fa-solid fa-list-check me-1 text-primary"></i>Recorded Leave & Outdoor Duty (OD) History</h6>
                         <span class="badge bg-secondary text-white rounded-pill" id="sheetTotalRecordsCount">0 Entries</span>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light small text-muted text-uppercase" style="font-size: 0.72rem;">
                                 <tr>
-                                    <th class="ps-3">#</th>
-                                    <th>Leave Type</th>
-                                    <th>Date Period</th>
-                                    <th>Days</th>
-                                    <th>Origin / Target Site</th>
-                                    <th>Reason / Notes</th>
-                                    <th>Attached PDF / Sheet</th>
-                                    <th class="pe-3 text-end">Status</th>
+                                    <th class="ps-3" style="width: 45px;"><i class="fa-solid fa-hashtag me-1 text-secondary"></i>#</th>
+                                    <th><i class="fa-solid fa-tag me-1 text-primary"></i>Leave Type</th>
+                                    <th><i class="fa-regular fa-calendar me-1 text-primary"></i>Date Period</th>
+                                    <th><i class="fa-regular fa-clock me-1 text-primary"></i>Days</th>
+                                    <th><i class="fa-solid fa-location-dot me-1 text-danger"></i>Origin / Target Site</th>
+                                    <th><i class="fa-regular fa-comment-dots me-1 text-primary"></i>Reason / Notes</th>
+                                    <th><i class="fa-solid fa-paperclip me-1 text-primary"></i>Attached File</th>
+                                    <th class="pe-3 text-end"><i class="fa-solid fa-shield-halved me-1 text-primary"></i>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="sheetTableBody" class="small">
@@ -1221,16 +1253,16 @@ function openEmployeeLeaveSheet(empId) {
     document.getElementById('sheetEmpSite').textContent = emp.site || 'Main Site';
     document.getElementById('sheetEmpRole').textContent = emp.designation || emp.role || 'Staff Member';
 
-    // Populate balances
+    // Populate balances with classic style & small icons
     document.getElementById('sheetTotalAssigned').textContent = `${bal.assigned.total} Days`;
     document.getElementById('sheetClBalance').textContent = `${bal.balance.CL} / ${bal.assigned.CL} Left`;
-    document.getElementById('sheetClTaken').textContent = `${bal.taken.CL} Days Used`;
+    document.getElementById('sheetClTaken').innerHTML = `<i class="fa-solid fa-chart-pie text-info me-1" style="font-size: 0.65rem;"></i>${bal.taken.CL} Days Used`;
 
     document.getElementById('sheetSlBalance').textContent = `${bal.balance.SL} / ${bal.assigned.SL} Left`;
-    document.getElementById('sheetSlTaken').textContent = `${bal.taken.SL} Days Used`;
+    document.getElementById('sheetSlTaken').innerHTML = `<i class="fa-solid fa-chart-pie text-warning me-1" style="font-size: 0.65rem;"></i>${bal.taken.SL} Days Used`;
 
     document.getElementById('sheetPlBalance').textContent = `${bal.balance.PL} / ${bal.assigned.PL} Left`;
-    document.getElementById('sheetPlTaken').textContent = `${bal.taken.PL} Days Used`;
+    document.getElementById('sheetPlTaken').innerHTML = `<i class="fa-solid fa-chart-pie text-success me-1" style="font-size: 0.65rem;"></i>${bal.taken.PL} Days Used`;
 
     document.getElementById('sheetOdVisits').textContent = `${bal.taken.OD} Visits`;
     document.getElementById('sheetTotalRemaining').textContent = `${bal.balance.total} / ${bal.assigned.total} Days`;
@@ -1238,28 +1270,47 @@ function openEmployeeLeaveSheet(empId) {
     document.getElementById('sheetTotalRecordsCount').textContent = `${empLeaves.length} Recorded Entries`;
     document.getElementById('sheetViewDossierLink').href = `<?= base_url('reports') ?>?report_type=employee&employee_id=${empId}`;
 
-    // Populate table
+    // Populate table with small icons list
     const tbody = document.getElementById('sheetTableBody');
     tbody.innerHTML = '';
 
     if (empLeaves.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted"><i class="fa-regular fa-folder-open fa-2x mb-2 d-block opacity-50"></i>No leaves or outdoor duties recorded yet for this employee in <?= date('Y') ?>.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">
+            <div class="py-3">
+                <i class="fa-solid fa-folder-open fa-2x mb-2 text-secondary opacity-50 d-block"></i>
+                <div class="fw-semibold text-dark small">No Leave Records Found</div>
+                <div class="text-muted" style="font-size: 0.75rem;">No leaves or outdoor duties recorded yet for this employee in <?= date('Y') ?>.</div>
+            </div>
+        </td></tr>`;
     } else {
         empLeaves.forEach((lv, index) => {
             const isOd = lv.leave_type === 'On Duty' || lv.leave_type.includes('OD') || lv.leave_type.includes('Duty');
-            const badgeBg = isOd ? 'bg-primary-subtle text-primary border border-primary-subtle' : 
-                            (lv.leave_type.includes('Casual') ? 'bg-info-subtle text-info border border-info-subtle' : 
-                            (lv.leave_type.includes('Sick') ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle'));
+            
+            let badgeBg = 'bg-light text-dark border';
+            let typeIcon = 'fa-calendar-day';
+            if (isOd) {
+                badgeBg = 'bg-primary-subtle text-primary border border-primary-subtle';
+                typeIcon = 'fa-route';
+            } else if (lv.leave_type.includes('Casual')) {
+                badgeBg = 'bg-info-subtle text-info border border-info-subtle';
+                typeIcon = 'fa-umbrella-beach';
+            } else if (lv.leave_type.includes('Sick')) {
+                badgeBg = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+                typeIcon = 'fa-heart-pulse';
+            } else if (lv.leave_type.includes('Paid')) {
+                badgeBg = 'bg-success-subtle text-success border border-success-subtle';
+                typeIcon = 'fa-star';
+            }
 
             const datePeriod = (lv.start_date === lv.end_date) ? 
-                `<strong>${formatDateStr(lv.start_date)}</strong>` : 
-                `<strong>${formatDateStr(lv.start_date)}</strong> to <strong>${formatDateStr(lv.end_date)}</strong>`;
+                `<span>${formatDateStr(lv.start_date)}</span>` : 
+                `<span>${formatDateStr(lv.start_date)} <i class="fa-solid fa-arrow-right text-muted mx-1" style="font-size: 0.65rem;"></i> ${formatDateStr(lv.end_date)}</span>`;
 
-            let siteInfo = '—';
+            let siteInfo = '<span class="text-muted">—</span>';
             if (lv.target_site) {
-                siteInfo = `<span class="badge bg-light text-dark border"><i class="fa-solid fa-location-dot text-danger me-1"></i>${escapeHtml(lv.target_site)}</span>`;
+                siteInfo = `<span class="badge bg-light text-dark border"><i class="fa-solid fa-location-dot text-danger me-1" style="font-size: 0.65rem;"></i>${escapeHtml(lv.target_site)}</span>`;
                 if (lv.origin_site) {
-                    siteInfo += `<div class="text-muted small" style="font-size: 0.7rem;">From: ${escapeHtml(lv.origin_site)}</div>`;
+                    siteInfo += `<div class="text-muted small mt-1" style="font-size: 0.68rem;"><i class="fa-solid fa-arrow-turn-up text-secondary me-1" style="font-size: 0.6rem;"></i>From: ${escapeHtml(lv.origin_site)}</div>`;
                 }
             }
 
@@ -1274,23 +1325,41 @@ function openEmployeeLeaveSheet(empId) {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="ps-3 text-muted">${index + 1}</td>
-                <td><span class="badge ${badgeBg} rounded-pill px-2 py-1">${escapeHtml(lv.leave_type)}</span></td>
-                <td>${datePeriod}</td>
-                <td><span class="badge bg-light text-dark border">${lv.days_count} Day(s)</span></td>
+                <td class="ps-3 text-muted font-monospace">${index + 1}</td>
+                <td>
+                    <span class="badge ${badgeBg} rounded-pill px-2 py-1">
+                        <i class="fa-solid ${typeIcon} me-1" style="font-size: 0.68rem;"></i>${escapeHtml(lv.leave_type)}
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center gap-1 text-dark">
+                        <i class="fa-regular fa-calendar text-muted" style="font-size: 0.72rem;"></i>
+                        <strong>${datePeriod}</strong>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">
+                        <i class="fa-regular fa-clock text-secondary me-1" style="font-size: 0.68rem;"></i>${lv.days_count} Day(s)
+                    </span>
+                </td>
                 <td>${siteInfo}</td>
-                <td class="text-muted">${escapeHtml(lv.reason || 'Approved Leave')}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-1 text-dark">
+                        <i class="fa-regular fa-note-sticky text-muted" style="font-size: 0.72rem;"></i>
+                        <span class="text-truncate" style="max-width: 180px;" title="${escapeHtml(lv.reason || 'Approved Leave')}">${escapeHtml(lv.reason || 'Approved Leave')}</span>
+                    </div>
+                </td>
                 <td>${docLink}</td>
                 <td class="pe-3 text-end">
                     ${(() => {
                         const statusUpper = (lv.status || 'APPROVED').toUpperCase();
                         const approverDisplay = escapeHtml(lv.approver_name || lv.department_head || 'Admin/HR');
                         if (statusUpper === 'PENDING') {
-                            return `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-hourglass-half me-1"></i>Pending</span><div class="text-muted small mt-1" style="font-size:0.68rem;">Auth: ${escapeHtml(lv.department_head || 'HR / Dept Head')}</div>`;
+                            return `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-hourglass-half me-1" style="font-size: 0.65rem;"></i>Pending</span><div class="text-muted small mt-1" style="font-size:0.68rem;"><i class="fa-solid fa-user-check text-muted me-1" style="font-size: 0.6rem;"></i>Auth: ${escapeHtml(lv.department_head || 'HR / Dept Head')}</div>`;
                         } else if (statusUpper === 'REJECTED') {
-                            return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-xmark me-1"></i>Rejected</span><div class="text-danger small mt-1" style="font-size:0.68rem;">${escapeHtml(lv.reject_reason || 'Not approved')}</div>`;
+                            return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-xmark me-1" style="font-size: 0.65rem;"></i>Rejected</span><div class="text-danger small mt-1" style="font-size:0.68rem;">${escapeHtml(lv.reject_reason || 'Not approved')}</div>`;
                         } else {
-                            return `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-check me-1"></i>Approved</span><div class="text-dark small mt-1" style="font-size:0.68rem;">By: <strong>${approverDisplay}</strong></div>`;
+                            return `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-circle-check me-1" style="font-size: 0.65rem;"></i>Approved</span><div class="text-dark small mt-1" style="font-size:0.68rem;"><i class="fa-solid fa-circle-check text-success me-1" style="font-size: 0.6rem;"></i>By: <strong>${approverDisplay}</strong></div>`;
                         }
                     })()}
                 </td>

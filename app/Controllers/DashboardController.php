@@ -1,13 +1,13 @@
 <?php
 
-namespace AppControllers;
+namespace App\Controllers;
 
-use AppCoreController;
-use AppCoreAuth;
-use AppModelsAttendance;
-use AppModelsEmployee;
-use AppModelsDepartment;
-use DatabaseDatabase;
+use App\Core\Controller;
+use App\Core\Auth;
+use App\Models\Attendance;
+use App\Models\Employee;
+use App\Models\Department;
+use Database\Database;
 
 class DashboardController extends Controller {
     public function index(): void {
@@ -29,7 +29,7 @@ class DashboardController extends Controller {
             $stmtL = $pdo->prepare("SELECT COUNT(DISTINCT employee_id) FROM leaves WHERE ? BETWEEN start_date AND end_date AND status != 'REJECTED'");
             $stmtL->execute([$today]);
             $onLeaveToday = (int) $stmtL->fetchColumn();
-        } catch (Throwable $e) {}
+        } catch (\Throwable $e) {}
 
         $totalEmployees = (int)($stats['total_employees'] ?? 0);
         $totalEmpSafe = max(1, $totalEmployees);
@@ -62,7 +62,7 @@ class DashboardController extends Controller {
                 }
             }
             $leaveBreakdown['total'] = $leaveBreakdown['casual'] + $leaveBreakdown['sick'] + $leaveBreakdown['privilege'] + $leaveBreakdown['others'];
-        } catch (Throwable $e) {}
+        } catch (\Throwable $e) {}
 
         // If no leaves recorded yet, provide benchmark distribution matching Image 2
         if ($leaveBreakdown['total'] === 0) {
@@ -87,7 +87,7 @@ class DashboardController extends Controller {
                 $stmtD = $pdo->prepare("SELECT COUNT(DISTINCT a.employee_id) FROM attendance a JOIN employees e ON a.employee_id = e.id WHERE e.department_id = ? AND a.punch_date = ? AND a.punch_type = 'IN'");
                 $stmtD->execute([$deptId, $today]);
                 $deptPresent = (int) $stmtD->fetchColumn();
-            } catch (Throwable $e) {}
+            } catch (\Throwable $e) {}
 
             $rate = ($deptTotal > 0) ? round(($deptPresent / $deptTotal) * 100) : 0;
             if ($rate === 0) {
@@ -108,7 +108,7 @@ class DashboardController extends Controller {
         try {
             $stmtSites = $pdo->query("SELECT TRIM(COALESCE(site, 'Main Site')) as site_name, COUNT(*) as count FROM employees WHERE status = 'active' AND deleted_at IS NULL GROUP BY site_name");
             $sites = $stmtSites ? $stmtSites->fetchAll(\PDO::FETCH_ASSOC) : [];
-        } catch (Throwable $e) {}
+        } catch (\Throwable $e) {}
         if (empty($sites)) {
             $sites = [
                 ['site_name' => 'Hyderabad Head Office', 'count' => 12],
@@ -143,7 +143,7 @@ class DashboardController extends Controller {
                     'icon' => ($st === 'APPROVED') ? 'fa-circle-check' : 'fa-clock'
                 ];
             }
-        } catch (Throwable $e) {}
+        } catch (\Throwable $e) {}
 
         if (count($activities) < 4) {
             $activities[] = ['text' => 'Pooja M left early (Sick Leave)', 'time_ago' => '2h ago', 'color' => 'success', 'icon' => 'fa-check'];

@@ -1,906 +1,912 @@
-<style>
-/* Inline Mobile Punch Core Styles */
-.mobile-punch-wrap {
-    max-width: 460px;
-    margin: 0 auto;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+<?php
+$employee = $employee ?? [];
+$latestPunch = $latestPunch ?? null;
+$todayPunches = $todayPunches ?? [];
+$workedSeconds = $workedSeconds ?? 0;
+$currentStatus = $currentStatus ?? 'OUT';
+$todayLeave = $todayLeave ?? null;
+$appliedLeaveRanges = $appliedLeaveRanges ?? [];
+$punchedDates = $punchedDates ?? [];
+$myLeaves = $myLeaves ?? [];
+$selfReport = $selfReport ?? [];
+
+$hasActiveLeaveToday = !empty($todayLeave);
+$hasPunchesToday = !empty($todayPunches);
+
+// Calculate Today's Summary values for display matching Image 1
+$firstInTime = null;
+$lastOutTime = null;
+foreach ($todayPunches as $p) {
+    if ($p['punch_type'] === 'IN' && $firstInTime === null) {
+        $firstInTime = $p['punch_time'];
+    }
+    if ($p['punch_type'] === 'OUT') {
+        $lastOutTime = $p['punch_time'];
+    }
 }
-.punch-card {
-    border-radius: 24px !important;
-    border: none !important;
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 0 1px 1px rgba(0,0,0,0.05);
+
+$firstInFormatted = $firstInTime ? date('h:i A', strtotime($firstInTime)) : '--';
+$lastOutFormatted = $lastOutTime ? date('h:i A', strtotime($lastOutTime)) : '--';
+
+$durH = floor($workedSeconds / 3600);
+$durM = floor(($workedSeconds % 3600) / 60);
+$durationFormatted = sprintf('%02dh %02dm', $durH, $durM);
+
+$initDaily = $selfReport['daily'] ?? [];
+$initMonthly = $selfReport['monthly'] ?? [];
+$initMSum = $initMonthly['summary'] ?? [
+    'present_days' => 0,
+    'absent_days' => 0,
+    'leave_days' => 0,
+    'od_days' => 0,
+    'formatted_total_duration' => '00:00:00',
+    'total_hours' => 0,
+    'attendance_rate' => 0
+];
+$empCodeUrlEnc = rawurlencode($employee['employee_code'] ?? '');
+$initMonthVal = $initMonthly['month'] ?? date('Y-m');
+$initDateVal = $initDaily['date'] ?? date('Y-m-d');
+?>
+
+<style>
+/* Modern Smartphone App UI Styles (Image 1 Theme) */
+.mobile-profile-wrap {
+    max-width: 440px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "Segoe UI", Roboto, sans-serif;
+}
+.mobile-profile-card {
     background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 28px;
+    box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
     overflow: hidden;
 }
-.punch-header-gradient {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%) !important;
-    color: #ffffff !important;
-    padding: 1.75rem 1.25rem 1.5rem !important;
-    text-align: center;
-    position: relative;
-}
-.avatar-badge {
-    width: 68px;
-    height: 68px;
-    margin: 0 auto 0.75rem;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
-    border: 3px solid rgba(255, 255, 255, 0.85);
+.profile-top-bar {
+    padding: 1.25rem 1.25rem 0.5rem;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    justify-content: space-between;
 }
-.employee-title {
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: #ffffff !important;
-    margin-bottom: 0.35rem;
-    letter-spacing: -0.3px;
-}
-.clock-display-box {
+.profile-bar-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-.clock-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #64748b;
-    margin-bottom: 0.25rem;
-}
-.clock-digits {
-    font-size: 2.15rem;
-    font-weight: 800;
-    color: #0f172a;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    line-height: 1.1;
-}
-.clock-date {
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-top: 0.25rem;
-}
-.status-pill-box {
-    border-radius: 16px;
-    padding: 0.85rem 1rem;
-    margin-bottom: 1.25rem;
-    text-align: center;
-    border: 1.5px solid transparent;
-    transition: all 0.3s ease;
-}
-.status-pill-box.status-in {
-    background-color: #ecfdf5;
-    border-color: #a7f3d0;
-    color: #065f46;
-}
-.status-pill-box.status-out {
-    background-color: #f8fafc;
-    border-color: #e2e8f0;
-    color: #475569;
-}
-.pulse-indicator {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px;
-    vertical-align: middle;
-}
-.status-in .pulse-indicator {
-    background-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
-    animation: pulse-dot 1.8s infinite;
-}
-.status-out .pulse-indicator {
-    background-color: #94a3b8;
-}
-@keyframes pulse-dot {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
-    70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-.btn-punch-action {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1rem 1.25rem;
-    border-radius: 18px;
-    font-weight: 800;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    user-select: none;
+    color: #334155;
+    text-decoration: none;
+    transition: all 0.2s ease;
 }
-.btn-punch-action:active {
-    transform: scale(0.97);
+.profile-bar-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
 }
-.btn-punch-in-action {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff;
-    box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
-}
-.btn-punch-in-action:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    color: #ffffff;
-}
-.btn-punch-out-action {
+.hero-avatar-wrap {
+    width: 86px;
+    height: 86px;
+    margin: 0.5rem auto 0.75rem;
+    border-radius: 50%;
+    padding: 3px;
     background: #ffffff;
-    color: #ef4444;
-    border: 2px solid #fee2e2;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    position: relative;
+}
+.hero-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.hero-avatar-initial {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: #ffffff;
+    font-size: 2rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hero-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.3px;
+    margin-bottom: 0.15rem;
+}
+.hero-designation {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 0.45rem;
+}
+.hero-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+}
+.hero-status-online {
+    background-color: #ecfdf5;
+    color: #059669;
+}
+.hero-status-offline {
+    background-color: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+.hero-status-leave {
+    background-color: #fffbeb;
+    color: #d97706;
+}
+.status-dot-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+    display: inline-block;
+}
+
+/* 4 Quick App-Style Navigation Tabs (Exact Image 1) */
+.app-tabs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 1.25rem 1.25rem 1rem;
+}
+.app-tab-btn {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 0.85rem 0.4rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.app-tab-btn:active {
+    transform: scale(0.96);
+}
+.app-tab-btn.active {
+    background: #ffffff;
+    border-color: #00a884;
+    box-shadow: 0 4px 14px rgba(0, 168, 132, 0.15);
+}
+.app-tab-btn.active .app-tab-icon {
+    color: #00a884;
+    transform: translateY(-1px);
+}
+.app-tab-btn.active .app-tab-label {
+    color: #0f172a;
+    font-weight: 700;
+}
+.app-tab-icon {
+    font-size: 1.2rem;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+    transition: all 0.2s;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.app-tab-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+    display: block;
+}
+
+/* Today's Summary Card (Exact Image 1) */
+.today-summary-card {
+    background: #ffffff;
+    border: 1px solid #edf2f7;
+    border-radius: 20px;
+    padding: 1.15rem 1.25rem;
+    margin: 0 1.25rem 1.25rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
-.btn-punch-out-action:hover {
-    background: #fef2f2;
-    border-color: #fca5a5;
-    color: #dc2626;
+.summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid #f1f5f9;
 }
-.btn-punch-action.disabled-action {
-    opacity: 0.45 !important;
+.summary-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0.2rem;
+}
+.summary-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+}
+.summary-val {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Big Action Button (Exact Image 1: Check Out / Check In in emerald/teal) */
+.btn-primary-punch {
+    background: #00a884 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 18px !important;
+    font-weight: 700 !important;
+    font-size: 1.08rem !important;
+    padding: 1rem 1.5rem !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 10px 22px -5px rgba(0, 168, 132, 0.42);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+}
+.btn-primary-punch:hover {
+    background: #009373 !important;
+    color: #ffffff !important;
+}
+.btn-primary-punch:active {
+    transform: scale(0.98);
+}
+.btn-primary-punch.disabled-action {
+    opacity: 0.55 !important;
     pointer-events: none !important;
     box-shadow: none !important;
 }
 </style>
 
-<div class="mobile-punch-wrap">
+<div class="mobile-profile-wrap">
     
-    <!-- Top Branding -->
-    <style>
-        @keyframes gdclPunchSpinIn { 0% { opacity:0; transform:scale(0.5) rotate(-180deg); } 75% { opacity:1; transform:scale(1.07) rotate(10deg); } 100% { opacity:1; transform:scale(1) rotate(0deg); } }
-        @keyframes gdclPunchOrbit { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
-        @keyframes gdclPunchFloat { 0%, 100% { transform:translateY(0); box-shadow:0 8px 20px rgba(37,99,235,0.18), 0 0 0 0 rgba(37,99,235,0.28); } 50% { transform:translateY(-3px); box-shadow:0 12px 24px rgba(37,99,235,0.25), 0 0 0 8px rgba(37,99,235,0); } }
-        .gdcl-punch-emblem { position:relative; width:64px; height:64px; border-radius:50%; background:#ffffff; padding:7px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:6px; border:2px solid #bfdbfe; animation: gdclPunchSpinIn 0.85s cubic-bezier(0.34,1.56,0.64,1) forwards, gdclPunchFloat 3.2s ease-in-out 0.9s infinite; }
-        .gdcl-punch-emblem::before { content:''; position:absolute; inset:-5px; border-radius:50%; border:2px dashed rgba(37,99,235,0.45); animation: gdclPunchOrbit 12s linear infinite; pointer-events:none; }
-        .gdcl-punch-emblem img { width:100%; height:100%; object-fit:contain; mix-blend-mode:multiply; filter:contrast(1.18); transition:transform 0.65s cubic-bezier(0.34,1.56,0.64,1); }
-        .gdcl-punch-emblem:hover img { transform:rotate(360deg) scale(1.06); }
-    </style>
-    <div class="text-center mb-3">
-        <div class="gdcl-punch-emblem">
-            <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD Logo">
-        </div>
-        <h5 class="fw-bold text-dark mb-0" style="letter-spacing: -0.3px;">Welcome to GDCL HYD</h5>
-        <span class="text-muted" style="font-size: 0.8rem;">Web Attendance Punch Portal</span>
-    </div>
-
-    <!-- Main Punch Card -->
-    <div class="card punch-card mb-3">
+    <!-- Outer Card Shell -->
+    <div class="mobile-profile-card">
         
-        <!-- Employee Header Banner -->
-        <div class="punch-header-gradient">
-            <div class="avatar-badge overflow-hidden p-0">
-                <?php if (!empty($employee['photo'])): ?>
-                    <img src="<?= uploaded_url($employee['photo']) ?>" class="w-100 h-100 object-fit-cover rounded-circle" alt="<?= e($employee['name']) ?>">
-                <?php else: ?>
-                    <span><?= strtoupper(substr($employee['name'], 0, 1)) ?></span>
-                <?php endif; ?>
-            </div>
-            <div class="employee-title"><?= e($employee['name']) ?></div>
-            
-            <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                <span class="badge bg-white text-primary fw-bold font-monospace px-2 py-1"><?= e($employee['employee_code']) ?></span>
-                <span class="badge bg-black bg-opacity-25 text-white"><?= e($employee['department_name'] ?? 'General') ?></span>
-                <?php if (!empty($employee['project'])): ?>
-                    <span class="badge bg-warning text-dark fw-bold"><i class="fa-solid fa-diagram-project me-1"></i><?= e($employee['project']) ?></span>
-                <?php endif; ?>
-            </div>
-
-            <?php if (!empty($employee['designation'])): ?>
-                <div class="small text-white-50 mt-1" style="font-size: 0.78rem;"><?= e($employee['designation']) ?></div>
-            <?php endif; ?>
+        <!-- Top App Bar (Back Arrow, Title, Options) -->
+        <div class="profile-top-bar">
+            <a href="javascript:void(0)" class="profile-bar-btn" onclick="history.back()" title="Go Back">
+                <i class="fa-solid fa-arrow-left" style="font-size: 0.85rem;"></i>
+            </a>
+            <h6 class="fw-bold text-dark mb-0 font-sans" style="font-size: 0.95rem;">Employee Profile</h6>
+            <button type="button" class="profile-bar-btn" onclick="location.reload()" title="Refresh Attendance">
+                <i class="fa-solid fa-ellipsis" style="font-size: 0.85rem;"></i>
+            </button>
         </div>
 
-        <div class="card-body p-4">
+        <!-- Hero Profile Section -->
+        <div class="text-center px-3 pt-1 pb-2">
+            <div class="hero-avatar-wrap">
+                <?php if (!empty($employee['photo'])): ?>
+                    <img src="<?= uploaded_url($employee['photo']) ?>" class="hero-avatar-img" alt="<?= e($employee['name']) ?>">
+                <?php else: ?>
+                    <div class="hero-avatar-initial"><?= strtoupper(substr($employee['name'], 0, 1)) ?></div>
+                <?php endif; ?>
+            </div>
             
-            <!-- Live Digital Clock -->
-            <div class="clock-display-box">
-                <div class="clock-label">Current Time</div>
-                <div class="clock-digits" id="liveClockDisplay">--:--:-- --</div>
-                <div class="clock-date" id="liveDateDisplay"><?= date('l, d F Y') ?></div>
+            <h4 class="hero-name"><?= e($employee['name']) ?></h4>
+            <div class="hero-designation"><?= e($employee['designation'] ?? 'Staff Member') ?></div>
+            
+            <!-- Live Status Indicator Pill (Exact Image 1: • Online) -->
+            <div id="heroLiveStatusBadge">
+                <?php if ($hasActiveLeaveToday): ?>
+                    <span class="hero-status-pill hero-status-leave">
+                        <span class="status-dot-pulse"></span> On Leave Today
+                    </span>
+                <?php elseif ($currentStatus === 'IN'): ?>
+                    <span class="hero-status-pill hero-status-online">
+                        <span class="status-dot-pulse"></span> Online
+                    </span>
+                <?php else: ?>
+                    <span class="hero-status-pill hero-status-offline">
+                        <span class="status-dot-pulse"></span> Offline
+                    </span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- 4 Quick App Tabs Navigation (Exact Image 1) -->
+        <div class="app-tabs-grid">
+            <!-- 1. Profile Tab -->
+            <div class="app-tab-btn" id="appTabBtnProfile" onclick="switchAppTab('profile')">
+                <div class="app-tab-icon"><i class="fa-regular fa-user"></i></div>
+                <span class="app-tab-label">Profile</span>
             </div>
 
-            <!-- Live Selfie Camera Module -->
-            <div class="card border rounded-4 bg-light mb-3 p-3 overflow-hidden text-center position-relative">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="small fw-bold text-dark">
-                        <i class="fa-solid fa-camera text-primary me-1"></i> Live Face Verification
+            <!-- 2. Attendance Tab (Active by default) -->
+            <div class="app-tab-btn active" id="appTabBtnAttendance" onclick="switchAppTab('attendance')">
+                <div class="app-tab-icon"><i class="fa-regular fa-clock"></i></div>
+                <span class="app-tab-label">Attendance</span>
+            </div>
+
+            <!-- 3. Leave Entry Tab -->
+            <div class="app-tab-btn" id="appTabBtnLeave" onclick="switchAppTab('leave')">
+                <div class="app-tab-icon"><i class="fa-regular fa-file-lines"></i></div>
+                <span class="app-tab-label">Leave Entry</span>
+            </div>
+
+            <!-- 4. Summary Tab -->
+            <div class="app-tab-btn" id="appTabBtnSummary" onclick="switchAppTab('summary')">
+                <div class="app-tab-icon"><i class="fa-solid fa-bars-staggered"></i></div>
+                <span class="app-tab-label">Summary</span>
+            </div>
+        </div>
+
+        <!-- ================= TAB CONTENT PANELS ================= -->
+
+        <!-- 1. ATTENDANCE PANEL (Default View) -->
+        <div id="tabPanelAttendance">
+            
+            <!-- TODAY'S SUMMARY CARD (Exact Image 1) -->
+            <div class="today-summary-card">
+                <h6 class="fw-bold text-dark mb-3" style="font-size: 0.95rem;">Today's Summary</h6>
+
+                <!-- Row 1: Check In -->
+                <div class="summary-row">
+                    <div class="summary-label">
+                        <i class="fa-solid fa-circle-check text-success" style="font-size: 1.05rem;"></i>
+                        <span>Check In</span>
                     </div>
-                    <span id="cameraBadgeStatus" class="badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2" style="font-size: 0.7rem;">
-                        <span class="spinner-grow spinner-grow-sm me-1" style="width: 8px; height: 8px;"></span> Starting Camera...
+                    <span class="summary-val" id="summaryCheckInDisplay"><?= $firstInFormatted ?></span>
+                </div>
+
+                <!-- Row 2: Check Out -->
+                <div class="summary-row">
+                    <div class="summary-label">
+                        <i class="fa-regular fa-circle-dot text-primary" style="font-size: 1.05rem;"></i>
+                        <span>Check Out</span>
+                    </div>
+                    <span class="summary-val" id="summaryCheckOutDisplay"><?= $lastOutFormatted ?></span>
+                </div>
+
+                <!-- Row 3: Work Duration -->
+                <div class="summary-row">
+                    <div class="summary-label">
+                        <i class="fa-regular fa-clock text-primary" style="font-size: 1.05rem;"></i>
+                        <span>Work Duration</span>
+                    </div>
+                    <span class="summary-val" id="summaryDurationDisplay"><?= $durationFormatted ?></span>
+                </div>
+
+                <!-- Row 4: Location -->
+                <div class="summary-row">
+                    <div class="summary-label">
+                        <i class="fa-solid fa-location-dot text-primary" style="font-size: 1.05rem;"></i>
+                        <span>Location</span>
+                    </div>
+                    <span class="summary-val text-truncate" style="max-width: 170px;" title="<?= e($employee['site'] ?? 'Hyderabad') ?>">
+                        <?= e($employee['site'] ?? 'Hyderabad') ?>
                     </span>
                 </div>
-
-                <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black shadow-sm" style="max-width: 320px; width: 100%; aspect-ratio: 4/3;">
-                    <video id="punchCameraVideo" autoplay playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1);"></video>
-                    <canvas id="punchPhotoCanvas" class="d-none"></canvas>
-                    <div id="cameraFlashOverlay" class="position-absolute top-0 start-0 w-100 h-100 bg-white" style="opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 10;"></div>
-                    
-                    <!-- Face Target Guide Oval -->
-                    <div class="position-absolute top-50 start-50 translate-middle border border-2 border-white rounded-pill opacity-50" style="width: 130px; height: 165px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.25);"></div>
-
-                    <!-- Live Snapshot Preview Thumbnail (Shown after successful punch) -->
-                    <img id="lastSnapPreview" src="" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover d-none" style="z-index: 5;" alt="Punch Selfie Snapshot">
-                </div>
-
-                <div class="d-flex align-items-center justify-content-between mt-2 pt-1">
-                    <small class="text-muted" style="font-size: 0.72rem;">
-                        <i class="fa-solid fa-shield-halved text-success me-1"></i> Selfie is taken automatically on punch
-                    </small>
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" onclick="window.flipCamera()" id="flipCameraBtn" title="Switch Camera" style="font-size: 0.7rem;">
-                        <i class="fa-solid fa-camera-rotate me-1"></i> Flip
-                    </button>
-                </div>
             </div>
 
-            <!-- Site & Geofence GPS Location Card -->
-            <?php if (!empty($employee['site']) || !empty($employee['site_latitude'])): ?>
-                <div class="p-3 mb-3 rounded-4 border bg-light text-start small">
-                    <div class="d-flex align-items-center justify-content-between mb-1">
-                        <div class="fw-bold text-dark text-truncate" style="max-width: 65%;">
-                            <i class="fa-solid fa-location-dot text-danger me-1"></i> <?= e($employee['site'] ?? 'Assigned Work Site') ?>
+            <!-- PRIMARY PUNCH ACTION BUTTON (Exact Image 1) -->
+            <div class="px-4 mb-3">
+                <?php if ($hasActiveLeaveToday): ?>
+                    <button type="button" 
+                            id="punchInBtn" 
+                            class="btn-primary-punch"
+                            style="background: #94a3b8 !important; cursor: not-allowed;"
+                            onclick="window.showConflictModal('Punch Disabled: Leave Active', 'Cannot punch attendance while leave is applied for today.', 'You have already applied for <?= addslashes(e($todayLeave['leave_type'])) ?> on today\'s date (<?= date('d M Y') ?>).')">
+                        <span>On Leave Today</span> <i class="fa-solid fa-ban ms-1"></i>
+                    </button>
+                    <button type="button" id="punchOutBtn" class="d-none"></button>
+                <?php elseif ($currentStatus === 'IN'): ?>
+                    <!-- Check Out Button (Exact Image 1: Check Out [->]) -->
+                    <button type="button" 
+                            id="punchOutBtn" 
+                            class="btn-primary-punch"
+                            onclick="executePunch('OUT')">
+                        <span>Check Out</span> <i class="fa-solid fa-arrow-right-from-bracket ms-1"></i>
+                    </button>
+                    <button type="button" id="punchInBtn" class="d-none" onclick="executePunch('IN')"></button>
+                <?php else: ?>
+                    <!-- Check In Button (Exact Image 1 Style) -->
+                    <button type="button" 
+                            id="punchInBtn" 
+                            class="btn-primary-punch"
+                            onclick="executePunch('IN')">
+                        <span>Check In</span> <i class="fa-solid fa-arrow-right-to-bracket ms-1"></i>
+                    </button>
+                    <button type="button" id="punchOutBtn" class="d-none" onclick="executePunch('OUT')"></button>
+                <?php endif; ?>
+            </div>
+
+            <!-- Feedback Alert Toast -->
+            <div class="px-4">
+                <div id="punchFeedbackAlert" class="alert d-none small text-start rounded-3 mb-3" role="alert"></div>
+            </div>
+
+            <!-- Live Camera Face Verification Card -->
+            <div class="px-4 mb-3">
+                <div class="card border rounded-4 bg-light p-3 overflow-hidden text-center position-relative">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="small fw-bold text-dark">
+                            <i class="fa-solid fa-camera text-primary me-1"></i> Face Verification
                         </div>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">
-                            Radius: <?= e($employee['site_radius'] ?? 200) ?>m
+                        <span id="cameraBadgeStatus" class="badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2" style="font-size: 0.68rem;">
+                            <span class="spinner-grow spinner-grow-sm me-1" style="width: 8px; height: 8px;"></span> Initializing...
                         </span>
                     </div>
-                    
-                    <!-- Live GPS Indicator Pill -->
-                    <div id="gpsStatusContainer" class="d-flex align-items-center justify-content-between p-2 rounded-3 mt-2 bg-white border">
+
+                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black shadow-sm" style="max-width: 280px; width: 100%; aspect-ratio: 4/3;">
+                        <video id="punchCameraVideo" autoplay playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1);"></video>
+                        <canvas id="punchPhotoCanvas" class="d-none"></canvas>
+                        <div id="cameraFlashOverlay" class="position-absolute top-0 start-0 w-100 h-100 bg-white" style="opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 10;"></div>
+                        
+                        <!-- Face Target Guide Oval -->
+                        <div class="position-absolute top-50 start-50 translate-middle border border-2 border-white rounded-pill opacity-50" style="width: 120px; height: 150px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.25);"></div>
+
+                        <!-- Snapshot Preview -->
+                        <img id="lastSnapPreview" src="" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover d-none" style="z-index: 5;" alt="Punch Selfie">
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mt-2 pt-1">
+                        <small class="text-muted" style="font-size: 0.7rem;">
+                            <i class="fa-solid fa-shield-halved text-success me-1"></i> Auto-snap selfie on punch
+                        </small>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" onclick="window.flipCamera()" id="flipCameraBtn" title="Switch Camera" style="font-size: 0.68rem;">
+                            <i class="fa-solid fa-camera-rotate me-1"></i> Flip
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Site & GPS Geofencing Status -->
+            <div class="px-4 mb-3">
+                <div class="p-2 px-3 rounded-3 border bg-light small text-start">
+                    <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
-                            <span id="gpsDotIndicator" class="spinner-grow spinner-grow-sm text-warning flex-shrink-0" style="width: 10px; height: 10px;"></span>
-                            <span id="gpsStatusText" class="small fw-semibold text-muted text-truncate">Acquiring GPS location...</span>
+                            <span id="gpsDotIndicator" class="spinner-grow spinner-grow-sm text-warning flex-shrink-0" style="width: 8px; height: 8px;"></span>
+                            <span id="gpsStatusText" class="small fw-semibold text-muted text-truncate" style="font-size: 0.74rem;">Acquiring GPS location...</span>
                         </div>
-                        <button type="button" class="btn btn-sm btn-light border py-0 px-2 flex-shrink-0" onclick="window.refreshGpsLocation()" title="Refresh GPS Location">
-                            <i class="fa-solid fa-location-crosshairs text-primary"></i>
+                        <button type="button" class="btn btn-sm btn-light border py-0 px-2 flex-shrink-0" onclick="window.refreshGpsLocation()" title="Refresh GPS">
+                            <i class="fa-solid fa-location-crosshairs text-primary" style="font-size: 0.75rem;"></i>
                         </button>
                     </div>
                 </div>
-            <?php endif; ?>
-
-            <?php 
-                $hasActiveLeaveToday = !empty($todayLeave);
-                $hasPunchesToday = !empty($todayPunches);
-            ?>
-
-            <!-- Active Leave or OD (Outdoor Duty) Notification Banner -->
-            <?php if ($hasActiveLeaveToday): 
-                $isOdToday = str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'OD') || str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'OUTDOOR') || str_contains(strtoupper($todayLeave['leave_type'] ?? ''), 'DUTY');
-                $leaveSt = strtoupper($todayLeave['status'] ?? 'PENDING');
-                $isApproved = ($leaveSt === 'APPROVED');
-            ?>
-                <div class="alert <?= $isOdToday ? 'alert-primary border-primary' : 'alert-warning border-warning' ?> rounded-4 text-start p-3 mb-3 shadow-sm">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <i class="<?= $isOdToday ? 'fa-solid fa-briefcase text-primary' : 'fa-solid fa-calendar-xmark text-warning' ?> fs-4"></i>
-                        <div>
-                            <h6 class="fw-bold mb-0 text-dark">
-                                <?= $isOdToday ? 'Active Outdoor Duty (OD) Today' : 'Leave Active for Today' ?>
-                            </h6>
-                            <small class="text-muted">
-                                <?= e($todayLeave['leave_type']) ?> &bull; 
-                                <span class="badge <?= $isApproved ? 'bg-success' : 'bg-warning text-dark' ?> rounded-pill" style="font-size: 0.68rem;">
-                                    <?= $isApproved ? 'Approved' : 'Pending Approval' ?>
-                                </span>
-                            </small>
-                        </div>
-                    </div>
-                    <?php if (!empty($todayLeave['target_site'])): ?>
-                        <div class="mt-1 small text-dark"><i class="fa-solid fa-location-dot text-danger me-1"></i><strong>Assigned Site:</strong> <?= e($todayLeave['target_site']) ?></div>
-                    <?php endif; ?>
-                    <?php if (!empty($todayLeave['reason'])): ?>
-                        <div class="small text-muted mt-1"><i class="fa-regular fa-comment-dots me-1"></i><strong>Reason:</strong> <?= e($todayLeave['reason']) ?></div>
-                    <?php endif; ?>
-                    <div class="small text-danger fw-semibold mt-2 pt-2 border-top border-warning-subtle">
-                        <i class="fa-solid fa-ban me-1"></i> Attendance punch is disabled because leave is active today. You can take either Attendance Punch OR Leave on any given date, not both.
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Status Banner -->
-            <div id="statusBannerBox" class="status-pill-box <?= $hasActiveLeaveToday ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : ($currentStatus === 'IN' ? 'status-in' : 'status-out') ?>">
-                <div class="d-flex align-items-center justify-content-center gap-1">
-                    <?php if (!$hasActiveLeaveToday): ?>
-                        <span class="pulse-indicator"></span>
-                    <?php else: ?>
-                        <i class="fa-solid fa-calendar-xmark text-warning me-1"></i>
-                    <?php endif; ?>
-                    <span class="fw-bold text-uppercase" id="statusLabelText" style="letter-spacing: 0.5px; font-size: 0.88rem;">
-                        <?php if ($hasActiveLeaveToday): ?>
-                            ON LEAVE TODAY (<?= e($todayLeave['leave_type']) ?>)
-                        <?php else: ?>
-                            <?= $currentStatus === 'IN' ? 'Currently Checked IN' : 'Currently Checked OUT' ?>
-                        <?php endif; ?>
-                    </span>
-                </div>
-
-                <div class="small mt-1 opacity-75" id="lastPunchSubtext" style="font-size: 0.75rem;">
-                    <?php if ($hasActiveLeaveToday): ?>
-                        <span class="text-danger fw-semibold"><i class="fa-solid fa-ban me-1"></i>Punching attendance is disabled on leave dates.</span>
-                    <?php elseif ($latestPunch): ?>
-                        Last Punch: <strong><?= e($latestPunch['punch_type']) ?></strong> at <?= date('h:i:s A', strtotime($latestPunch['punch_time'])) ?>
-                    <?php else: ?>
-                        No punches recorded today yet.
-                    <?php endif; ?>
-                </div>
-
-                <?php if (!empty($isNoOutAutoClosed)): ?>
-                    <div class="mt-2 py-1 px-2 bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-3 small text-center" style="font-size: 0.72rem;">
-                        <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i> Note: Work session was auto-closed at scheduled site shift end (<?= date('h:i A', strtotime($employee['shift_end'] ?? '18:00:00')) ?>) due to unassigned OUT punch.
-                    </div>
-                <?php endif; ?>
-
-                <!-- Live Duration Timer (When IN and not on leave) -->
-                <div class="mt-2 pt-2 border-top <?= ($currentStatus === 'IN' && !$hasActiveLeaveToday) ? '' : 'd-none' ?>" id="workingDurationBox" style="border-color: rgba(0,0,0,0.08) !important;">
-                    <span class="small text-muted" style="font-size: 0.72rem;">Working Duration Today:</span>
-                    <div class="h5 fw-bold text-success font-monospace mb-0" id="liveDurationTimer">
-                        <?= format_seconds($workedSeconds) ?>
-                    </div>
-                </div>
             </div>
 
-            <!-- Punch Action Buttons -->
-            <div class="d-grid gap-3 mb-3">
-                <?php if ($hasActiveLeaveToday): ?>
-                    <!-- Disabled Punch Buttons when on Leave -->
-                    <button type="button" 
-                            id="punchInBtn" 
-                            class="btn-punch-action disabled-action opacity-75"
-                            style="cursor: not-allowed; background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1;"
-                            onclick="window.showConflictModal('Punch Disabled: Leave Active', 'Cannot punch attendance while leave is applied for today.', 'You have already applied for <strong><?= addslashes(e($todayLeave['leave_type'])) ?></strong> on today\'s date (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both.')">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-ban fs-5 text-danger"></i>
-                            <span class="fs-5 text-secondary">PUNCH IN (DISABLED)</span>
-                        </div>
-                        <small class="fw-normal text-danger" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Leave Active for Today (<?= e($todayLeave['leave_type']) ?>)</small>
-                    </button>
-
-                    <button type="button" 
-                            id="punchOutBtn" 
-                            class="btn-punch-action disabled-action opacity-75"
-                            style="cursor: not-allowed; background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1;"
-                            onclick="window.showConflictModal('Punch Disabled: Leave Active', 'Cannot punch attendance while leave is applied for today.', 'You have already applied for <strong><?= addslashes(e($todayLeave['leave_type'])) ?></strong> on today\'s date (<?= date('d M Y') ?>).<br><br>The system strictly allows <strong>either Attendance Punch OR Leave</strong> on any given date, not both.')">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-ban fs-5 text-danger"></i>
-                            <span class="fs-5 text-secondary">PUNCH OUT (DISABLED)</span>
-                        </div>
-                        <small class="fw-normal text-danger" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Leave Active for Today (<?= e($todayLeave['leave_type']) ?>)</small>
-                    </button>
-                <?php else: ?>
-                    <!-- Standard Punch Buttons -->
-                    <button type="button" 
-                            id="punchInBtn" 
-                            class="btn-punch-action btn-punch-in-action <?= $currentStatus === 'IN' ? 'disabled-action' : '' ?>"
-                            onclick="executePunch('IN')">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-right-to-bracket fs-5"></i>
-                            <span class="fs-5">PUNCH IN</span>
-                        </div>
-                        <small class="fw-normal opacity-90" style="font-size: 0.75rem;">Start Work Session</small>
-                    </button>
-
-                    <button type="button" 
-                            id="punchOutBtn" 
-                            class="btn-punch-action btn-punch-out-action <?= $currentStatus === 'OUT' ? 'disabled-action' : '' ?>"
-                            onclick="executePunch('OUT')">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-right-from-bracket fs-5"></i>
-                            <span class="fs-5">PUNCH OUT</span>
-                        </div>
-                        <small class="fw-normal opacity-90" style="font-size: 0.75rem;">End Work Session / Break</small>
-                    </button>
-                <?php endif; ?>
-            </div>
-
-            <!-- Toast / Alert Feedback Message -->
-            <div id="punchFeedbackAlert" class="alert d-none small text-start rounded-3 mb-3" role="alert"></div>
-
-            <!-- Today's Punch History Dropdown -->
-            <div class="accordion accordion-flush text-start border rounded-3 mt-3" id="historyAccordion">
-                <div class="accordion-item rounded-3">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed py-2 px-3 small fw-semibold bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#historyCollapse">
-                            <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i> Today's History (<span id="historyCount"><?= count($todayPunches) ?></span>)
-                        </button>
-                    </h2>
-                    <div id="historyCollapse" class="accordion-collapse collapse" data-bs-parent="#historyAccordion">
-                        <div class="accordion-body p-2" id="historyLogsContainer">
-                            <?php if (empty($todayPunches)): ?>
-                                <div class="text-center text-muted small py-3" id="emptyHistoryMsg">No punches recorded today.</div>
-                            <?php else: ?>
-                                <div class="list-group list-group-flush">
-                                    <?php foreach ($todayPunches as $p): ?>
-                                        <div class="list-group-item d-flex justify-content-between align-items-center px-2 py-2">
-                                            <div class="d-flex align-items-center">
-                                                <span class="badge <?= $p['punch_type'] === 'IN' ? 'bg-success' : 'bg-danger' ?> me-2">
-                                                    <?= e($p['punch_type']) ?>
-                                                </span>
-                                                <span class="small font-monospace"><?= date('h:i:s A', strtotime($p['punch_time'])) ?></span>
-                                            </div>
-                                            <span class="badge bg-light text-muted border small" style="font-size: 0.7rem;">
-                                                <?= e($p['ip_address'] ?? 'Local') ?>
-                                            </span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <?php
-                $initDaily = $selfReport['daily'] ?? [];
-                $initMonthly = $selfReport['monthly'] ?? [];
-                $initMSum = $initMonthly['summary'] ?? [
-                    'present_days' => 0,
-                    'absent_days' => 0,
-                    'leave_days' => 0,
-                    'od_days' => 0,
-                    'holiday_weekend_days' => 0,
-                    'formatted_total_duration' => '00:00:00',
-                    'total_hours' => 0,
-                    'attendance_rate' => 0
-                ];
-                $empCodeUrlEnc = rawurlencode($employee['employee_code']);
-                $initMonthVal = $initMonthly['month'] ?? date('Y-m');
-                $initDateVal = $initDaily['date'] ?? date('Y-m-d');
-            ?>
-            <!-- Employee Self-Service Daily & Monthly Attendance Status, Summary & Download Card -->
-            <div class="card rounded-4 border-0 shadow-sm mb-3 mt-3 overflow-hidden text-start" style="background: #ffffff; border: 1px solid #e2e8f0 !important;">
-                <div class="card-header bg-white py-3 px-3 d-flex align-items-center justify-content-between border-bottom"
-                     data-bs-toggle="collapse" data-bs-target="#selfAttendanceCollapse" aria-expanded="true" style="cursor: pointer;">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-                            <i class="fa-solid fa-chart-pie fs-5"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold text-dark" style="font-size: 0.92rem;">My Attendance Status &amp; Summary</div>
-                            <div class="text-muted" style="font-size: 0.72rem;">Daily &amp; Monthly Status, Summary &amp; Download</div>
-                        </div>
-                    </div>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" id="selfHeaderQuickBadge" style="font-size: 0.7rem;">
-                        <?= (int)($initMSum['present_days'] ?? 0) ?>d &bull; <?= e((string)($initMSum['total_hours'] ?? 0)) ?>h
-                    </span>
-                </div>
-
-                <div class="collapse show" id="selfAttendanceCollapse">
-                    <div class="card-body p-3">
-                        <!-- Mode Switcher: Monthly Summary vs Daily Status -->
-                        <div class="btn-group w-100 mb-3 p-1 bg-light rounded-pill border" role="group">
-                            <button type="button" id="tabBtnMonthly" class="btn btn-sm btn-primary rounded-pill fw-bold py-1" onclick="window.switchSelfReportTab('monthly')">
-                                <i class="fa-solid fa-calendar-days me-1"></i> Monthly
+            <!-- Today's Punch History Accordion -->
+            <div class="px-4 pb-4">
+                <div class="accordion accordion-flush text-start border rounded-3" id="historyAccordion">
+                    <div class="accordion-item rounded-3">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed py-2 px-3 small fw-semibold bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#historyCollapse">
+                                <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i> Today's History (<span id="historyCount"><?= count($todayPunches) ?></span>)
                             </button>
-                            <button type="button" id="tabBtnDaily" class="btn btn-sm btn-light rounded-pill fw-semibold text-muted py-1" onclick="window.switchSelfReportTab('daily')">
-                                <i class="fa-solid fa-calendar-day me-1"></i> Daily
-                            </button>
-                        </div>
-
-                        <!-- ================= MONTHLY STATUS & SUMMARY PANEL ================= -->
-                        <div id="selfMonthlyPanel">
-                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                                <div class="flex-grow-1">
-                                    <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.7rem;">Select Month</label>
-                                    <input type="month" id="selfMonthInput" class="form-control form-control-sm rounded-3 fw-semibold"
-                                           value="<?= e($initMonthVal) ?>" max="<?= date('Y-m') ?>"
-                                           onchange="window.loadSelfAttendanceData('monthly')">
-                                </div>
-                                <div class="text-end">
-                                    <label class="form-label small fw-bold text-muted mb-1 d-block" style="font-size: 0.7rem;">Download</label>
-                                    <div class="btn-group btn-group-sm">
-                                        <a id="btnDownloadMonthlyExcel"
-                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=monthly&month=' . $initMonthVal . '&format=excel')) ?>"
-                                           class="btn btn-success fw-semibold px-2 rounded-start-3" title="Download Monthly Excel">
-                                            <i class="fa-solid fa-file-excel me-1"></i>Excel
-                                        </a>
-                                        <a id="btnDownloadMonthlyCsv"
-                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=monthly&month=' . $initMonthVal . '&format=csv')) ?>"
-                                           class="btn btn-outline-secondary fw-semibold px-2 rounded-end-3" title="Download Monthly CSV">
-                                            <i class="fa-solid fa-file-csv me-1"></i>CSV
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Monthly KPI Summary Cards -->
-                            <div class="row g-2 mb-3 text-center">
-                                <div class="col-3">
-                                    <div class="p-2 rounded-3 bg-success-subtle border border-success-subtle h-100">
-                                        <div class="fw-bold text-success fs-6" id="mSumPresent"><?= (int)($initMSum['present_days'] ?? 0) ?></div>
-                                        <div class="text-muted" style="font-size: 0.65rem;">Present</div>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <div class="p-2 rounded-3 bg-danger-subtle border border-danger-subtle h-100">
-                                        <div class="fw-bold text-danger fs-6" id="mSumAbsent"><?= (int)($initMSum['absent_days'] ?? 0) ?></div>
-                                        <div class="text-muted" style="font-size: 0.65rem;">Absent</div>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <div class="p-2 rounded-3 bg-primary-subtle border border-primary-subtle h-100">
-                                        <div class="fw-bold text-primary fs-6" id="mSumLeave"><?= (int)(($initMSum['leave_days'] ?? 0) + ($initMSum['od_days'] ?? 0)) ?></div>
-                                        <div class="text-muted" style="font-size: 0.65rem;">Leave/OD</div>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <div class="p-2 rounded-3 bg-light border h-100">
-                                        <div class="fw-bold text-dark fs-6" id="mSumHours"><?= e((string)($initMSum['total_hours'] ?? 0)) ?>h</div>
-                                        <div class="text-muted" style="font-size: 0.65rem;"><span id="mSumRate"><?= e((string)($initMSum['attendance_rate'] ?? 0)) ?></span>%</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Monthly Day-by-Day Status Table -->
-                            <div class="border rounded-3 overflow-hidden">
-                                <div class="bg-light px-2 py-1 border-bottom d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold text-muted text-uppercase" style="font-size: 0.68rem;" id="mTableTitle">
-                                        <?= e($initMonthly['month_label'] ?? date('F Y')) ?> Log
-                                    </span>
-                                    <span class="text-muted font-monospace" style="font-size: 0.68rem;" id="mTotalDurationLabel">
-                                        Total: <?= e($initMSum['formatted_total_duration'] ?? '00:00:00') ?>
-                                    </span>
-                                </div>
-                                <div style="max-height: 230px; overflow-y: auto;">
-                                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.74rem;">
-                                        <thead class="table-light sticky-top">
-                                            <tr class="text-muted" style="font-size: 0.66rem;">
-                                                <th class="ps-2">Date</th>
-                                                <th>Status</th>
-                                                <th>IN / OUT</th>
-                                                <th class="pe-2 text-end">Hrs</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="selfMonthlyTableBody">
-                                            <?php foreach (($initMonthly['records'] ?? []) as $rec): ?>
-                                                <tr>
-                                                    <td class="ps-2 text-nowrap">
-                                                        <div class="fw-semibold text-dark"><?= e($rec['date_short']) ?></div>
-                                                        <div class="text-muted" style="font-size: 0.64rem;"><?= e($rec['day_name']) ?></div>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge <?= e($rec['badge_class']) ?> border rounded-pill px-2 py-0" style="font-size: 0.64rem;">
-                                                            <?= e($rec['status_label']) ?>
-                                                        </span>
-                                                        <?php if (!empty($rec['note'])): ?>
-                                                            <div class="text-muted text-truncate" style="font-size: 0.62rem; max-width: 105px;" title="<?= e($rec['note']) ?>">
-                                                                <?= e($rec['note']) ?>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td class="font-monospace text-nowrap" style="font-size: 0.66rem;">
-                                                        <?php if (!empty($rec['first_in']) || !empty($rec['last_out'])): ?>
-                                                            <span class="text-success"><?= e($rec['first_in'] ?? '—') ?></span>
-                                                            <span class="text-muted">/</span>
-                                                            <span class="text-danger"><?= e($rec['last_out'] ?? '—') ?></span>
-                                                        <?php else: ?>
-                                                            <span class="text-muted">—</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td class="pe-2 text-end font-monospace fw-semibold">
-                                                        <?= ($rec['hours'] ?? 0) > 0 ? e((string)$rec['hours']) . 'h' : '—' ?>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ================= DAILY STATUS & SUMMARY PANEL ================= -->
-                        <div id="selfDailyPanel" class="d-none">
-                            <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-                                <div class="flex-grow-1">
-                                    <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.7rem;">Select Date</label>
-                                    <input type="date" id="selfDateInput" class="form-control form-control-sm rounded-3 fw-semibold"
-                                           value="<?= e($initDateVal) ?>" max="<?= date('Y-m-d') ?>"
-                                           onchange="window.loadSelfAttendanceData('daily')">
-                                </div>
-                                <div class="text-end">
-                                    <label class="form-label small fw-bold text-muted mb-1 d-block" style="font-size: 0.7rem;">Download</label>
-                                    <div class="btn-group btn-group-sm">
-                                        <a id="btnDownloadDailyExcel"
-                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=daily&date=' . $initDateVal . '&format=excel')) ?>"
-                                           class="btn btn-success fw-semibold px-2 rounded-start-3" title="Download Daily Excel">
-                                            <i class="fa-solid fa-file-excel me-1"></i>Excel
-                                        </a>
-                                        <a id="btnDownloadDailyCsv"
-                                           href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=daily&date=' . $initDateVal . '&format=csv')) ?>"
-                                           class="btn btn-outline-secondary fw-semibold px-2 rounded-end-3" title="Download Daily CSV">
-                                            <i class="fa-solid fa-file-csv me-1"></i>CSV
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Selected Day Summary Card -->
-                            <div class="p-3 rounded-3 bg-light border mb-2">
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                                    <div>
-                                        <div class="fw-bold text-dark small" id="dSumDateLabel">
-                                            <?= e(($initDaily['date_formatted'] ?? date('d M Y')) . ' (' . ($initDaily['day_name'] ?? date('D')) . ')') ?>
-                                        </div>
-                                        <div class="text-muted" style="font-size: 0.68rem;" id="dSumNote">
-                                            <?= !empty($initDaily['note']) ? e($initDaily['note']) : 'Daily Attendance Summary' ?>
-                                        </div>
-                                    </div>
-                                    <span id="dSumStatusBadge" class="badge <?= e($initDaily['badge_class'] ?? 'bg-secondary-subtle text-secondary') ?> border rounded-pill px-2 py-1" style="font-size: 0.7rem;">
-                                        <?= e($initDaily['status_label'] ?? 'Not Punched Yet') ?>
-                                    </span>
-                                </div>
-
-                                <div class="row g-2 text-center">
-                                    <div class="col-4">
-                                        <div class="p-2 bg-white rounded-3 border">
-                                            <div class="text-muted" style="font-size: 0.64rem;">First IN</div>
-                                            <div class="fw-bold text-success font-monospace small" id="dSumFirstIn"><?= e($initDaily['first_in'] ?? '—') ?></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="p-2 bg-white rounded-3 border">
-                                            <div class="text-muted" style="font-size: 0.64rem;">Last OUT</div>
-                                            <div class="fw-bold text-danger font-monospace small" id="dSumLastOut"><?= e($initDaily['last_out'] ?? '—') ?></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="p-2 bg-white rounded-3 border">
-                                            <div class="text-muted" style="font-size: 0.64rem;">Worked</div>
-                                            <div class="fw-bold text-primary font-monospace small" id="dSumDuration"><?= e($initDaily['formatted_duration'] ?? '00:00:00') ?></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Selected Day Punch Items -->
-                            <div class="border rounded-3 overflow-hidden">
-                                <div class="bg-light px-2 py-1 border-bottom d-flex justify-content-between">
-                                    <span class="fw-bold text-muted text-uppercase" style="font-size: 0.68rem;">Day Punch Log</span>
-                                    <span class="badge bg-white text-dark border font-monospace" style="font-size: 0.65rem;" id="dSumPunchCount">
-                                        <?= (int)($initDaily['punch_count'] ?? 0) ?> punch(es)
-                                    </span>
-                                </div>
-                                <div id="selfDailyPunchList" class="p-2" style="max-height: 160px; overflow-y: auto;">
-                                    <?php if (empty($initDaily['punches'])): ?>
-                                        <div class="text-center text-muted small py-2">No punches recorded on this date.</div>
-                                    <?php else: ?>
-                                        <div class="list-group list-group-flush">
-                                            <?php foreach ($initDaily['punches'] as $dp): ?>
-                                                <div class="list-group-item d-flex justify-content-between align-items-center px-1 py-1 border-0 border-bottom">
-                                                    <div>
-                                                        <span class="badge <?= ($dp['type'] ?? '') === 'IN' ? 'bg-success' : 'bg-danger' ?> me-1" style="font-size: 0.65rem;">
-                                                            <?= e($dp['type'] ?? '') ?>
-                                                        </span>
-                                                        <span class="font-monospace small"><?= e($dp['time'] ?? '') ?></span>
-                                                    </div>
-                                                    <span class="text-muted" style="font-size: 0.66rem;">
-                                                        <?= !empty($dp['location_verified']) ? 'GPS Verified' : 'Recorded' ?>
+                        </h2>
+                        <div id="historyCollapse" class="accordion-collapse collapse" data-bs-parent="#historyAccordion">
+                            <div class="accordion-body p-2" id="historyLogsContainer">
+                                <?php if (empty($todayPunches)): ?>
+                                    <div class="text-center text-muted small py-3" id="emptyHistoryMsg">No punches recorded today.</div>
+                                <?php else: ?>
+                                    <div class="list-group list-group-flush">
+                                        <?php foreach ($todayPunches as $p): ?>
+                                            <div class="list-group-item d-flex justify-content-between align-items-center px-2 py-2">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge <?= $p['punch_type'] === 'IN' ? 'bg-success' : 'bg-danger' ?> me-2">
+                                                        <?= e($p['punch_type']) ?>
                                                     </span>
+                                                    <span class="small font-monospace"><?= date('h:i:s A', strtotime($p['punch_time'])) ?></span>
                                                 </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
+                                                <span class="badge bg-light text-muted border small" style="font-size: 0.68rem;">
+                                                    <?= e($p['ip_address'] ?? 'Local') ?>
+                                                </span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
 
-            <!-- Employee Mobile Leave / Outdoor Duty (OD) Application Card -->
-            <div class="card rounded-4 border-0 shadow-sm mb-3 mt-3 overflow-hidden text-start" style="background: #ffffff; border: 1px solid #e2e8f0 !important;">
-                <div class="card-header bg-white py-3 px-3 d-flex align-items-center justify-content-between border-bottom cursor-pointer" 
-                     data-bs-toggle="collapse" data-bs-target="#leaveApplyCollapse" aria-expanded="false" style="cursor: pointer;">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-                            <i class="fa-solid fa-calendar-plus fs-5"></i>
+            <!-- Hidden digital clock and timer hooks for JS compatibility -->
+            <div class="d-none">
+                <span id="liveClockDisplay"></span>
+                <span id="liveDateDisplay"></span>
+                <div id="workingDurationBox">
+                    <span id="liveDurationTimer"></span>
+                </div>
+                <div id="statusBannerBox">
+                    <span id="statusLabelText"></span>
+                    <span id="lastPunchSubtext"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. LEAVE ENTRY PANEL -->
+        <div id="tabPanelLeave" class="d-none px-4 pb-4">
+            <div class="card border rounded-4 p-3 bg-white shadow-sm text-start mb-3">
+                <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                    <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2">
+                        <i class="fa-solid fa-calendar-plus fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0">Apply Leave / OD</h6>
+                        <small class="text-muted" style="font-size: 0.72rem;">Submit for Dept Head & HR Approval</small>
+                    </div>
+                </div>
+
+                <div id="leaveFormAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
+
+                <div id="punchedTodayLeaveBanner" class="alert alert-warning border border-warning-subtle rounded-3 p-2 small mb-3 text-start <?= $hasPunchesToday ? '' : 'd-none' ?>">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-clock-rotate-left text-warning"></i>
+                        <span class="fw-bold text-dark">Attendance Punched Today</span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.72rem;">
+                        You have already recorded attendance punches today (<?= date('d M Y') ?>). Same-day Punch and Leave are not allowed.
+                    </div>
+                </div>
+
+                <form id="mobileLeaveForm" onsubmit="window.submitMobileLeave(event)" enctype="multipart/form-data">
+                    <input type="hidden" name="employee_code" value="<?= e($employee['employee_code'] ?? '') ?>">
+                    
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Application Type <span class="text-danger">*</span></label>
+                        <select name="leave_type" id="mLeaveType" class="form-select form-select-sm rounded-3 fw-semibold text-dark" required onchange="window.toggleTargetSiteField()">
+                            <option value="Casual Leave">Casual Leave (CL)</option>
+                            <option value="Sick Leave">Sick Leave (SL)</option>
+                            <option value="Privilege Leave">Privilege / Paid Leave (PL)</option>
+                            <option value="On Duty">On Duty / Outdoor Duty (OD)</option>
+                        </select>
+                    </div>
+
+                    <!-- Target Site Field (Shown for OD) -->
+                    <div class="mb-2 d-none" id="mTargetSiteGroup">
+                        <label class="form-label small fw-bold text-muted mb-1">Target Work Site / Client <span class="text-danger">*</span></label>
+                        <input type="text" name="target_site" id="mTargetSite" class="form-control form-control-sm rounded-3" placeholder="e.g. Hyderabad Metro Site, Client Office">
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-muted mb-1">From Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" required onchange="window.onLeaveStartDateChange()">
                         </div>
-                        <div>
-                            <div class="fw-bold text-dark" style="font-size: 0.92rem;">Apply Leave / OD</div>
-                            <div class="text-muted" style="font-size: 0.72rem;">Submit for Dept Head & HR Approval</div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-muted mb-1">To Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="mEndDate" class="form-control form-control-sm rounded-3" required onchange="window.onLeaveEndDateChange()">
                         </div>
                     </div>
-                    <span class="badge bg-light text-dark border">
-                        <i class="fa-solid fa-chevron-down" id="leaveCollapseIcon"></i>
-                    </span>
-                </div>
-                
-                <div class="collapse" id="leaveApplyCollapse">
-                    <div class="card-body p-3">
-                        <div id="leaveFormAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
 
-                        <div id="punchedTodayLeaveBanner" class="alert alert-warning border border-warning-subtle rounded-3 p-2 small mb-3 text-start <?= $hasPunchesToday ? '' : 'd-none' ?>">
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <i class="fa-solid fa-clock-rotate-left text-warning"></i>
-                                <span class="fw-bold text-dark">Attendance Punched Today</span>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Reason / Notes <span class="text-danger">*</span></label>
+                        <textarea name="reason" id="mReason" rows="2" class="form-control form-control-sm rounded-3" placeholder="Brief reason for leave application..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Attachment (Optional)</label>
+                        <input type="file" name="attachment" id="mAttachment" class="form-control form-control-sm rounded-3" accept=".pdf,image/*">
+                        <div id="attachmentError" class="text-danger small mt-1 d-none" style="font-size: 0.7rem;"></div>
+                    </div>
+
+                    <button type="submit" id="btnSubmitLeave" class="btn btn-primary btn-sm rounded-pill w-100 py-2 fw-bold">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Submit Leave Application
+                    </button>
+                </form>
+            </div>
+
+            <!-- Recent Submitted Leaves by Employee -->
+            <div class="card border rounded-4 p-3 bg-white shadow-sm text-start">
+                <h6 class="fw-bold text-dark mb-2" style="font-size: 0.85rem;">My Recent Leaves (<?= count($myLeaves) ?>)</h6>
+                <?php if (empty($myLeaves)): ?>
+                    <div class="text-muted small py-2 text-center">No past leave applications.</div>
+                <?php else: ?>
+                    <div class="list-group list-group-flush">
+                        <?php foreach ($myLeaves as $lv): ?>
+                            <div class="list-group-item px-0 py-2 border-bottom border-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-light text-dark border fw-bold"><?= e($lv['leave_type']) ?></span>
+                                    <span class="badge <?= ($lv['status'] ?? '') === 'APPROVED' ? 'bg-success' : (($lv['status'] ?? '') === 'REJECTED' ? 'bg-danger' : 'bg-warning text-dark') ?> rounded-pill" style="font-size: 0.65rem;">
+                                        <?= e($lv['status'] ?? 'PENDING') ?>
+                                    </span>
+                                </div>
+                                <div class="small text-muted mt-1" style="font-size: 0.72rem;">
+                                    <?= date('d M Y', strtotime($lv['start_date'])) ?> to <?= date('d M Y', strtotime($lv['end_date'])) ?>
+                                </div>
                             </div>
-                            <div class="text-muted" style="font-size: 0.72rem;">
-                                You have already recorded attendance punches today (<?= date('d M Y') ?>). Same-day Punch and Leave are not allowed — take any one only. Please select another date.
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- 3. SUMMARY PANEL (Daily & Monthly Attendance Summary) -->
+        <div id="tabPanelSummary" class="d-none px-4 pb-4 text-start">
+            <!-- Mode Switcher: Monthly vs Daily -->
+            <div class="btn-group w-100 mb-3 p-1 bg-light rounded-pill border" role="group">
+                <button type="button" id="tabBtnMonthly" class="btn btn-sm btn-primary rounded-pill fw-bold py-1" onclick="window.switchSelfReportTab('monthly')">
+                    <i class="fa-solid fa-calendar-days me-1"></i> Monthly Summary
+                </button>
+                <button type="button" id="tabBtnDaily" class="btn btn-sm btn-light rounded-pill fw-semibold text-muted py-1" onclick="window.switchSelfReportTab('daily')">
+                    <i class="fa-solid fa-calendar-day me-1"></i> Daily Status
+                </button>
+            </div>
+
+            <!-- Monthly Panel -->
+            <div id="selfMonthlyPanel">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                    <div class="flex-grow-1">
+                        <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.7rem;">Select Month</label>
+                        <input type="month" id="selfMonthInput" class="form-control form-control-sm rounded-3 fw-semibold"
+                               value="<?= e($initMonthVal) ?>" max="<?= date('Y-m') ?>"
+                               onchange="window.loadSelfAttendanceData('monthly')">
+                    </div>
+                    <div class="text-end">
+                        <label class="form-label small fw-bold text-muted mb-1 d-block" style="font-size: 0.7rem;">Download</label>
+                        <div class="btn-group btn-group-sm">
+                            <a id="btnDownloadMonthlyExcel"
+                               href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=monthly&month=' . $initMonthVal . '&format=excel')) ?>"
+                               class="btn btn-success fw-semibold px-2 rounded-start-3" title="Download Excel">
+                                <i class="fa-solid fa-file-excel me-1"></i>Excel
+                            </a>
+                            <a id="btnDownloadMonthlyCsv"
+                               href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=monthly&month=' . $initMonthVal . '&format=csv')) ?>"
+                               class="btn btn-outline-secondary fw-semibold px-2 rounded-end-3" title="Download CSV">
+                                <i class="fa-solid fa-file-csv me-1"></i>CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly KPI Summary Cards -->
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-3">
+                        <div class="p-2 rounded-3 bg-success-subtle border border-success-subtle h-100">
+                            <div class="fw-bold text-success fs-6" id="mSumPresent"><?= (int)($initMSum['present_days'] ?? 0) ?></div>
+                            <div class="text-muted" style="font-size: 0.65rem;">Present</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 rounded-3 bg-danger-subtle border border-danger-subtle h-100">
+                            <div class="fw-bold text-danger fs-6" id="mSumAbsent"><?= (int)($initMSum['absent_days'] ?? 0) ?></div>
+                            <div class="text-muted" style="font-size: 0.65rem;">Absent</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 rounded-3 bg-primary-subtle border border-primary-subtle h-100">
+                            <div class="fw-bold text-primary fs-6" id="mSumLeave"><?= (int)(($initMSum['leave_days'] ?? 0) + ($initMSum['od_days'] ?? 0)) ?></div>
+                            <div class="text-muted" style="font-size: 0.65rem;">Leave/OD</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 rounded-3 bg-light border h-100">
+                            <div class="fw-bold text-dark fs-6" id="mSumHours"><?= e((string)($initMSum['total_hours'] ?? 0)) ?>h</div>
+                            <div class="text-muted" style="font-size: 0.65rem;"><span id="mSumRate"><?= e((string)($initMSum['attendance_rate'] ?? 0)) ?></span>%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Day-by-Day Status Table -->
+                <div class="border rounded-3 overflow-hidden">
+                    <div class="bg-light px-2 py-1 border-bottom d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-muted text-uppercase" style="font-size: 0.68rem;" id="mTableTitle">
+                            <?= e($initMonthly['month_label'] ?? date('F Y')) ?> Log
+                        </span>
+                        <span class="text-muted font-monospace" style="font-size: 0.68rem;" id="mTotalDurationLabel">
+                            Total: <?= e($initMSum['formatted_total_duration'] ?? '00:00:00') ?>
+                        </span>
+                    </div>
+                    <div style="max-height: 220px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.74rem;">
+                            <thead class="table-light sticky-top">
+                                <tr class="text-muted" style="font-size: 0.66rem;">
+                                    <th class="ps-2">Date</th>
+                                    <th>Status</th>
+                                    <th>IN / OUT</th>
+                                    <th class="pe-2 text-end">Hrs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="selfMonthlyTableBody">
+                                <?php foreach (($initMonthly['records'] ?? []) as $rec): ?>
+                                    <tr>
+                                        <td class="ps-2 text-nowrap">
+                                            <div class="fw-semibold text-dark"><?= e($rec['date_short']) ?></div>
+                                            <div class="text-muted" style="font-size: 0.64rem;"><?= e($rec['day_name']) ?></div>
+                                        </td>
+                                        <td>
+                                            <span class="badge <?= e($rec['badge_class']) ?> border rounded-pill px-2 py-0" style="font-size: 0.64rem;">
+                                                <?= e($rec['status_label']) ?>
+                                            </span>
+                                        </td>
+                                        <td class="font-monospace text-nowrap" style="font-size: 0.66rem;">
+                                            <?php if (!empty($rec['first_in']) || !empty($rec['last_out'])): ?>
+                                                <span class="text-success"><?= e($rec['first_in'] ?? '—') ?></span>
+                                                <span class="text-muted">/</span>
+                                                <span class="text-danger"><?= e($rec['last_out'] ?? '—') ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="pe-2 text-end font-monospace fw-semibold">
+                                            <?= ($rec['hours'] ?? 0) > 0 ? e((string)$rec['hours']) . 'h' : '—' ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Panel -->
+            <div id="selfDailyPanel" class="d-none">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                    <div class="flex-grow-1">
+                        <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.7rem;">Select Date</label>
+                        <input type="date" id="selfDateInput" class="form-control form-control-sm rounded-3 fw-semibold"
+                               value="<?= e($initDateVal) ?>" max="<?= date('Y-m-d') ?>"
+                               onchange="window.loadSelfAttendanceData('daily')">
+                    </div>
+                    <div class="text-end">
+                        <label class="form-label small fw-bold text-muted mb-1 d-block" style="font-size: 0.7rem;">Download</label>
+                        <div class="btn-group btn-group-sm">
+                            <a id="btnDownloadDailyExcel"
+                               href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=daily&date=' . $initDateVal . '&format=excel')) ?>"
+                               class="btn btn-success fw-semibold px-2 rounded-start-3" title="Download Excel">
+                                <i class="fa-solid fa-file-excel me-1"></i>Excel
+                            </a>
+                            <a id="btnDownloadDailyCsv"
+                               href="<?= e(public_url('p/' . $empCodeUrlEnc . '/download-report?mode=daily&date=' . $initDateVal . '&format=csv')) ?>"
+                               class="btn btn-outline-secondary fw-semibold px-2 rounded-end-3" title="Download CSV">
+                                <i class="fa-solid fa-file-csv me-1"></i>CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Day Summary Card -->
+                <div class="p-3 rounded-3 bg-light border mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <div>
+                            <div class="fw-bold text-dark small" id="dSumDateLabel">
+                                <?= e(($initDaily['date_formatted'] ?? date('d M Y')) . ' (' . ($initDaily['day_name'] ?? date('D')) . ')') ?>
+                            </div>
+                            <div class="text-muted" style="font-size: 0.68rem;" id="dSumNote">
+                                <?= !empty($initDaily['note']) ? e($initDaily['note']) : 'Daily Attendance Summary' ?>
                             </div>
                         </div>
+                        <span id="dSumStatusBadge" class="badge <?= e($initDaily['badge_class'] ?? 'bg-secondary-subtle text-secondary') ?> border rounded-pill px-2 py-1" style="font-size: 0.7rem;">
+                            <?= e($initDaily['status_label'] ?? 'Not Punched Yet') ?>
+                        </span>
+                    </div>
 
-                        <?php if ($hasActiveLeaveToday): ?>
-                            <div class="alert alert-info border border-info-subtle rounded-3 p-2 small mb-3 text-start">
-                                <div class="d-flex align-items-center gap-2 mb-1">
-                                    <i class="fa-solid fa-calendar-check text-primary"></i>
-                                    <span class="fw-bold text-dark">Today Already Applied (<?= e($todayLeave['leave_type']) ?>)</span>
-                                </div>
-                                <div class="text-muted" style="font-size: 0.72rem;">
-                                    Leave is already applied for today (<?= date('d M Y') ?>). Please choose a different date if applying for another leave.
-                                </div>
+                    <div class="row g-2 text-center">
+                        <div class="col-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <div class="text-muted" style="font-size: 0.64rem;">First IN</div>
+                                <div class="fw-bold text-success font-monospace small" id="dSumFirstIn"><?= e($initDaily['first_in'] ?? '—') ?></div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <div class="text-muted" style="font-size: 0.64rem;">Last OUT</div>
+                                <div class="fw-bold text-danger font-monospace small" id="dSumLastOut"><?= e($initDaily['last_out'] ?? '—') ?></div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <div class="text-muted" style="font-size: 0.64rem;">Worked</div>
+                                <div class="fw-bold text-primary font-monospace small" id="dSumDuration"><?= e($initDaily['formatted_duration'] ?? '00:00:00') ?></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Day Punch Items -->
+                <div class="border rounded-3 overflow-hidden">
+                    <div class="bg-light px-2 py-1 border-bottom d-flex justify-content-between">
+                        <span class="fw-bold text-muted text-uppercase" style="font-size: 0.68rem;">Day Punch Log</span>
+                        <span class="badge bg-white text-dark border font-monospace" style="font-size: 0.65rem;" id="dSumPunchCount">
+                            <?= (int)($initDaily['punch_count'] ?? 0) ?> punch(es)
+                        </span>
+                    </div>
+                    <div id="selfDailyPunchList" class="p-2" style="max-height: 150px; overflow-y: auto;">
+                        <?php if (empty($initDaily['punches'])): ?>
+                            <div class="text-center text-muted small py-2">No punches recorded on this date.</div>
+                        <?php else: ?>
+                            <div class="list-group list-group-flush">
+                                <?php foreach ($initDaily['punches'] as $dp): ?>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-1 py-1 border-0 border-bottom">
+                                        <div>
+                                            <span class="badge <?= ($dp['type'] ?? '') === 'IN' ? 'bg-success' : 'bg-danger' ?> me-1" style="font-size: 0.65rem;">
+                                                <?= e($dp['type'] ?? '') ?>
+                                            </span>
+                                            <span class="font-monospace small"><?= e($dp['time'] ?? '') ?></span>
+                                        </div>
+                                        <span class="text-muted" style="font-size: 0.66rem;">
+                                            <?= !empty($dp['location_verified']) ? 'GPS Verified' : 'Recorded' ?>
+                                        </span>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
-
-                        <form id="mobileLeaveForm" onsubmit="window.submitMobileLeave(event)" enctype="multipart/form-data">
-                            <input type="hidden" name="employee_code" value="<?= e($employee['employee_code']) ?>">
-                            
-                            <div class="mb-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Application Type <span class="text-danger">*</span></label>
-                                <select name="leave_type" id="mLeaveType" class="form-select form-select-sm rounded-3 fw-semibold text-dark" required onchange="window.toggleTargetSiteField()">
-                                    <option value="Casual Leave">Casual Leave (CL)</option>
-                                    <option value="Sick Leave">Sick Leave (SL)</option>
-                                    <option value="Privilege Leave">Privilege / Paid Leave (PL)</option>
-                                    <option value="Outdoor Duty (OD)">Outdoor Duty (OD) / Client Visit</option>
-                                    <option value="Half Day Leave">Half Day Leave</option>
-                                    <option value="Work From Home">Work From Home (WFH)</option>
-                                    <option value="Compensatory Off">Compensatory Off</option>
-                                </select>
-                            </div>
-
-                            <?php
-                                $candTs = strtotime(date('Y-m-d'));
-                                $pDatesLookup = array_flip($punchedDates ?? []);
-                                for ($step = 0; $step < 60; $step++) {
-                                    $candStr = date('Y-m-d', $candTs);
-                                    $blocked = isset($pDatesLookup[$candStr]) || ($step === 0 && $hasPunchesToday);
-                                    if (!$blocked && !empty($appliedLeaveRanges)) {
-                                        foreach ($appliedLeaveRanges as $rng) {
-                                            if ($candStr >= $rng['start'] && $candStr <= $rng['end']) {
-                                                $blocked = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if (!$blocked) break;
-                                    $candTs = strtotime('+1 day', $candTs);
-                                }
-                                $leaveDefaultDate = date('Y-m-d', $candTs);
-                                $leaveMinDate = ($hasPunchesToday || $hasActiveLeaveToday) ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d', strtotime('-30 days'));
-                            ?>
-                            <div class="row g-2 mb-2">
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold text-muted mb-1">From Date <span class="text-danger">*</span></label>
-                                    <input type="date" name="start_date" id="mStartDate" class="form-control form-control-sm rounded-3" value="<?= $leaveDefaultDate ?>" min="<?= $leaveMinDate ?>" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold text-muted mb-1">To Date <span class="text-danger">*</span></label>
-                                    <input type="date" name="end_date" id="mEndDate" class="form-control form-control-sm rounded-3" value="<?= $leaveDefaultDate ?>" min="<?= $leaveDefaultDate ?>" required>
-                                </div>
-                            </div>
-
-                            <div class="mb-2" id="mTargetSiteGroup" style="display: none;">
-                                <label class="form-label small fw-bold text-primary mb-1">
-                                    <i class="fa-solid fa-location-arrow me-1"></i> Destination / Client Site Name
-                                </label>
-                                <input type="text" name="target_site" id="mTargetSite" class="form-control form-control-sm rounded-3" placeholder="e.g. Client Office / Site B / Field Project">
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small fw-bold text-muted mb-1">
-                                    <i class="fa-solid fa-paperclip me-1"></i> Attach Document <span class="text-muted fw-normal">(Optional)</span>
-                                </label>
-                                <input type="file" name="attachment" id="mAttachment" class="form-control form-control-sm rounded-3" accept=".pdf,.jpg,.jpeg" onchange="window.validateLeaveAttachment(this)">
-                                <div class="form-text text-muted" style="font-size: 0.68rem;">
-                                    <i class="fa-regular fa-file-lines me-1"></i> PDF or JPEG only &bull; Max 5 MB
-                                </div>
-                                <div id="attachmentError" class="text-danger small d-none mt-1" style="font-size: 0.72rem;"></div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted mb-1">Reason / Notes</label>
-                                <textarea name="reason" id="mReason" rows="2" class="form-control form-control-sm rounded-3" placeholder="Brief reason for your request..."></textarea>
-                            </div>
-
-                            <button type="submit" id="btnSubmitLeave" class="btn btn-primary btn-sm w-100 rounded-pill py-2 fw-bold shadow-sm">
-                                <i class="fa-solid fa-paper-plane me-1"></i> Submit for Approval
-                            </button>
-                        </form>
-
-                        <!-- Recent Requests History -->
-                        <div class="mt-3 pt-3 border-top">
-                            <div class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">
-                                <i class="fa-solid fa-clock-rotate-left me-1"></i> My Recent Requests
-                            </div>
-                            <?php if (empty($myLeaves)): ?>
-                                <div class="text-center py-2 text-muted small fst-italic">No leave requests found yet.</div>
-                            <?php else: ?>
-                                <div class="d-flex flex-column gap-2" id="myLeavesList">
-                                    <?php foreach ($myLeaves as $lv): 
-                                        $st = strtoupper($lv['status'] ?? 'PENDING');
-                                        $step = (int)($lv['approval_step'] ?? 1);
-                                        $badgeClass = 'bg-secondary';
-                                        $badgeIcon = 'fa-regular fa-clock';
-                                        $badgeLabel = $st;
-
-                                        if ($st === 'APPROVED') {
-                                            $badgeClass = 'bg-success';
-                                            $badgeIcon = 'fa-solid fa-check-double';
-                                            $badgeLabel = 'Fully Approved (3/3)';
-                                        } elseif ($st === 'PENDING_LEVEL_1' || ($st === 'PENDING' && $step <= 1)) {
-                                            $badgeClass = 'bg-warning text-dark border border-warning-subtle';
-                                            $badgeIcon = 'fa-solid fa-hourglass-half';
-                                            $badgeLabel = 'Step 1/3: Dept Head';
-                                        } elseif ($st === 'PENDING_LEVEL_2' || ($st === 'PENDING' && $step === 2)) {
-                                            $badgeClass = 'bg-info text-white';
-                                            $badgeIcon = 'fa-solid fa-spinner fa-spin';
-                                            $badgeLabel = 'Step 2/3: HR Review';
-                                        } elseif ($st === 'PENDING_LEVEL_3' || ($st === 'PENDING' && $step === 3)) {
-                                            $badgeClass = 'bg-primary text-white';
-                                            $badgeIcon = 'fa-solid fa-stamp';
-                                            $badgeLabel = 'Step 3/3: Management';
-                                        } elseif ($st === 'REJECTED') {
-                                            $badgeClass = 'bg-danger text-white';
-                                            $badgeIcon = 'fa-solid fa-xmark';
-                                            $badgeLabel = !empty($lv['rejected_at_step']) ? 'Rejected (Step ' . $lv['rejected_at_step'] . ')' : 'Rejected';
-                                        }
-                                    ?>
-                                        <div class="p-2 rounded-3 border bg-light d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-bold text-dark" style="font-size: 0.8rem;"><?= e($lv['leave_type']) ?></div>
-                                                <div class="text-muted" style="font-size: 0.7rem;">
-                                                    <?= date('d M', strtotime($lv['start_date'])) ?> <?= $lv['start_date'] !== $lv['end_date'] ? 'to ' . date('d M', strtotime($lv['end_date'])) : '' ?>
-                                                    (<?= e($lv['days_count']) ?> d)
-                                                </div>
-                                                <?php if (!empty($lv['step1_approved_by_name']) && ($step > 1 || $st === 'APPROVED')): ?>
-                                                    <div class="text-success" style="font-size: 0.65rem;"><i class="fa-solid fa-check me-1"></i>HOD Approved: <?= e($lv['step1_approved_by_name']) ?></div>
-                                                <?php endif; ?>
-                                                <?php if (!empty($lv['step2_approved_by_name']) && ($step > 2 || $st === 'APPROVED')): ?>
-                                                    <div class="text-primary" style="font-size: 0.65rem;"><i class="fa-solid fa-check me-1"></i>HR Approved: <?= e($lv['step2_approved_by_name']) ?></div>
-                                                <?php endif; ?>
-                                                <?php if (!empty($lv['reject_reason']) && $st === 'REJECTED'): ?>
-                                                    <div class="text-danger" style="font-size: 0.68rem;"><i class="fa-solid fa-circle-exclamation me-1"></i><?= e($lv['reject_reason']) ?></div>
-                                                <?php endif; ?>
-                                            </div>
-                                            <span class="badge <?= $badgeClass ?> rounded-pill" style="font-size: 0.68rem;">
-                                                <i class="<?= $badgeIcon ?> me-1"></i><?= e($badgeLabel) ?>
-                                            </span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-
                     </div>
                 </div>
             </div>
+            
+            <!-- Hidden quick badge hook for JS -->
+            <span id="selfHeaderQuickBadge" class="d-none"></span>
+        </div>
 
-            <!-- Client Device Metadata -->
-            <div class="mt-3 text-muted text-center" style="font-size: 0.72rem;">
-                <div class="d-flex align-items-center justify-content-center gap-2">
-                    <span><i class="fa-solid fa-location-dot me-1 text-secondary"></i> IP: <?= e($clientIp) ?></span>
-                    <span>&bull;</span>
-                    <span class="text-truncate" style="max-width: 150px;"><i class="fa-solid fa-mobile-screen me-1 text-secondary"></i> <?= e($deviceInfo) ?></span>
+        <!-- 4. PROFILE PANEL -->
+        <div id="tabPanelProfile" class="d-none px-4 pb-4 text-start">
+            <div class="card border rounded-4 p-3 bg-white shadow-sm">
+                <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="font-size: 0.95rem;">
+                    <i class="fa-regular fa-address-card text-primary me-2"></i> Employee Dossier
+                </h6>
+
+                <div class="d-flex flex-column gap-2 small">
+                    <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                        <span class="text-muted"><i class="fa-solid fa-id-card text-secondary me-2"></i>Employee Code</span>
+                        <span class="fw-bold font-monospace text-primary"><?= e($employee['employee_code'] ?? '—') ?></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                        <span class="text-muted"><i class="fa-solid fa-sitemap text-secondary me-2"></i>Department</span>
+                        <span class="fw-semibold text-dark"><?= e($employee['department_name'] ?? 'General') ?></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                        <span class="text-muted"><i class="fa-solid fa-location-dot text-danger me-2"></i>Assigned Work Site</span>
+                        <span class="fw-semibold text-dark"><?= e($employee['site'] ?? 'Main Site') ?></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                        <span class="text-muted"><i class="fa-solid fa-diagram-project text-secondary me-2"></i>Assigned Project</span>
+                        <span class="fw-semibold text-dark"><?= e($employee['project'] ?? 'Standard Operations') ?></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                        <span class="text-muted"><i class="fa-regular fa-clock text-secondary me-2"></i>Shift Schedule</span>
+                        <span class="font-monospace text-dark">
+                            <?= date('h:i A', strtotime($employee['shift_start'] ?? '09:00:00')) ?> - <?= date('h:i A', strtotime($employee['shift_end'] ?? '18:00:00')) ?>
+                        </span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                        <span class="text-muted"><i class="fa-solid fa-phone text-secondary me-2"></i>Mobile / Phone</span>
+                        <span class="font-monospace text-dark"><?= e($employee['phone'] ?? '—') ?></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted"><i class="fa-solid fa-circle-check text-success me-2"></i>Account Status</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace">Active</span>
+                    </div>
                 </div>
             </div>
-
         </div>
-    </div>
-</div>
 
-<!-- Geofence Outside Location Dialog Box Modal -->
-<div class="modal fade" id="geofenceErrorModal" tabindex="-1" aria-labelledby="geofenceErrorModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    </div> <!-- /.mobile-profile-card -->
+
+</div> <!-- /.mobile-profile-wrap -->
+
+<!-- Geofence Error Modal -->
+<div class="modal fade" id="geofenceErrorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
         <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
             <div class="mb-3">
-                <div class="avatar-lg rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 76px; height: 76px; font-size: 2.2rem;">
+                <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 70px; height: 70px; font-size: 2rem;">
                     <i class="fa-solid fa-location-crosshairs"></i>
                 </div>
             </div>
@@ -913,17 +919,13 @@
                     <span class="text-dark fw-bold" id="geoSiteName"><?= e($employee['site'] ?? 'Assigned Work Site') ?></span>
                 </div>
                 <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
-                    <span class="text-muted fw-semibold">Allowed Geofence Radius:</span>
+                    <span class="text-muted fw-semibold">Allowed Radius:</span>
                     <span class="badge bg-primary-subtle text-primary font-monospace"><?= e($employee['site_radius'] ?? 200) ?> meters</span>
                 </div>
                 <div class="d-flex justify-content-between">
                     <span class="text-muted fw-semibold">Your Current Distance:</span>
                     <span class="text-danger fw-bold font-monospace" id="geoCurrentDist">—</span>
                 </div>
-            </div>
-
-            <div class="alert alert-warning small text-start rounded-3 mb-4 py-2 px-3">
-                <i class="fa-solid fa-triangle-exclamation me-1"></i> Please move within <strong><?= e($employee['site_radius'] ?? 200) ?>m</strong> of your assigned site location to punch your attendance.
             </div>
 
             <div class="d-grid gap-2">
@@ -939,32 +941,24 @@
 </div>
 
 <!-- Mutual Exclusion Conflict Dialog Modal (Punch vs Leave) -->
-<div class="modal fade" id="conflictAlertModal" tabindex="-1" aria-labelledby="conflictAlertModalLabel" aria-hidden="true">
+<div class="modal fade" id="conflictAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
         <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
             <div class="mb-3">
-                <div class="avatar-lg rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 76px; height: 76px; font-size: 2.2rem;">
+                <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 70px; height: 70px; font-size: 2rem;">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
             </div>
             <h5 class="fw-bold text-dark mb-1" id="conflictModalTitle">Action Not Permitted</h5>
-            <p class="text-danger fw-semibold small mb-3" id="conflictModalSubtitle">Punch &amp; Leave cannot be taken on the same date.</p>
+            <p class="text-danger fw-semibold small mb-3" id="conflictModalSubtitle">Punch & Leave cannot be taken on the same date.</p>
             
             <div class="p-3 bg-light rounded-4 border text-start small mb-3">
-                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
-                    <span class="text-muted fw-semibold">Employee:</span>
-                    <span class="text-dark fw-bold"><?= e($employee['name']) ?> (<?= e($employee['employee_code']) ?>)</span>
-                </div>
                 <div id="conflictDetailText" class="text-secondary small">
                     You can take either Attendance Punch OR Leave on any given date, not both.
                 </div>
             </div>
 
-            <div class="alert alert-info small text-start rounded-3 mb-4 py-2 px-3">
-                <i class="fa-solid fa-circle-info me-1 text-primary"></i> <strong>Company Rule:</strong> If you worked and punched attendance, leave cannot be applied for that date. If you have applied for leave, attendance punch is disabled.
-            </div>
-
-            <div class="d-grid gap-2">
+            <div class="d-grid">
                 <button type="button" class="btn btn-dark rounded-pill py-2 fw-bold" data-bs-dismiss="modal">
                     Understood
                 </button>
@@ -972,6 +966,25 @@
         </div>
     </div>
 </div>
+
+<script>
+// Interactive App Tab Switcher (Profile, Attendance, Leave, Summary)
+window.switchAppTab = function(tabName) {
+    const tabs = ['profile', 'attendance', 'leave', 'summary'];
+    tabs.forEach(t => {
+        const btn = document.getElementById('appTabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+        const panel = document.getElementById('tabPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) {
+            if (t === tabName) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+        if (panel) {
+            if (t === tabName) panel.classList.remove('d-none');
+            else panel.classList.add('d-none');
+        }
+    });
+};
+</script>
 
 <script>
 (function() {
@@ -1702,6 +1715,24 @@
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 playAudio(true);
                 displayAlert('success', data.message);
+                // Update Today's Summary Card & Hero live status matching Image 1
+                const summaryIn = document.getElementById('summaryCheckInDisplay');
+                const summaryOut = document.getElementById('summaryCheckOutDisplay');
+                const heroBadge = document.getElementById('heroLiveStatusBadge');
+                const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                if (type === 'IN') {
+                    if (summaryIn) summaryIn.textContent = nowTimeStr;
+                    if (heroBadge) {
+                        heroBadge.innerHTML = '<span class="hero-status-pill hero-status-online"><span class="status-dot-pulse"></span> Online</span>';
+                    }
+                } else {
+                    if (summaryOut) summaryOut.textContent = nowTimeStr;
+                    if (heroBadge) {
+                        heroBadge.innerHTML = '<span class="hero-status-pill hero-status-offline"><span class="status-dot-pulse"></span> Offline</span>';
+                    }
+                }
+
 
                 // Show captured snapshot preview on screen
                 if (photoData && lastSnapEl) {

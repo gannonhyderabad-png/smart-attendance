@@ -279,45 +279,23 @@ $userName = $user['name'] ?? 'Admin';
                     <div style="position: relative; width: 140px; height: 140px; margin: 0 auto;">
                         <canvas id="leaveOverviewDonutChart"></canvas>
                         <div class="position-absolute top-50 start-50 translate-middle text-center" style="pointer-events: none;">
-                            <div class="fw-bold text-dark fs-5 font-monospace mb-0" id="donutCenterTotal"><?= $leaveBreakdown['total'] ?></div>
+                            <div class="fw-bold text-dark fs-5 font-monospace mb-0" id="donutCenterTotal"><?= (int)($leaveBreakdown['total'] ?? 0) ?></div>
                             <small class="text-muted d-block" style="font-size: 0.65rem;">Total</small>
                         </div>
                     </div>
                 </div>
 
-                <!-- Donut Legend List -->
-                <div class="col-6 ps-2">
-                    <div class="donut-legend-item">
-                        <div class="d-flex align-items-center">
-                            <span class="legend-dot" style="background-color: #00b894;"></span>
-                            <span>Casual</span>
+                <!-- Donut Legend List (Dynamic based strictly on given leave types) -->
+                <div class="col-6 ps-2" style="max-height: 160px; overflow-y: auto;">
+                    <?php foreach (($leaveBreakdown['items'] ?? []) as $item): ?>
+                        <div class="donut-legend-item mb-2">
+                            <div class="d-flex align-items-center text-truncate pe-1" title="<?= e($item['label']) ?>">
+                                <span class="legend-dot" style="background-color: <?= e($item['color'] ?? '#00b894') ?>; flex-shrink: 0;"></span>
+                                <span class="text-truncate" style="font-size: 0.78rem;"><?= e($item['label']) ?></span>
+                            </div>
+                            <span class="fw-bold text-dark font-monospace ms-1"><?= (int)($item['count'] ?? 0) ?></span>
                         </div>
-                        <span class="fw-bold text-dark font-monospace"><?= $leaveBreakdown['casual'] ?></span>
-                    </div>
-
-                    <div class="donut-legend-item">
-                        <div class="d-flex align-items-center">
-                            <span class="legend-dot" style="background-color: #f39c12;"></span>
-                            <span>Sick</span>
-                        </div>
-                        <span class="fw-bold text-dark font-monospace"><?= $leaveBreakdown['sick'] ?></span>
-                    </div>
-
-                    <div class="donut-legend-item">
-                        <div class="d-flex align-items-center">
-                            <span class="legend-dot" style="background-color: #e74c3c;"></span>
-                            <span>Privilege</span>
-                        </div>
-                        <span class="fw-bold text-dark font-monospace"><?= $leaveBreakdown['privilege'] ?></span>
-                    </div>
-
-                    <div class="donut-legend-item">
-                        <div class="d-flex align-items-center">
-                            <span class="legend-dot" style="background-color: #3498db;"></span>
-                            <span>Others</span>
-                        </div>
-                        <span class="fw-bold text-dark font-monospace"><?= $leaveBreakdown['others'] ?></span>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
@@ -330,23 +308,29 @@ $userName = $user['name'] ?? 'Admin';
     <div class="col-lg-4">
         <div class="dash-card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold text-dark mb-0">Top Departments</h6>
-                <small class="text-muted" style="font-size: 0.72rem;">Allocation &amp; Attendance</small>
+                <div>
+                    <h6 class="fw-bold text-dark mb-0">Top Departments</h6>
+                    <small class="text-muted" style="font-size: 0.72rem;">Allocation &amp; Attendance</small>
+                </div>
+                <a href="<?= base_url('employees') ?>" class="text-primary text-decoration-none small fw-semibold">View Staff &rarr;</a>
             </div>
 
-            <div class="mt-2">
+            <div class="mt-2" style="max-height: 250px; overflow-y: auto; padding-right: 4px;">
                 <?php if (empty($departments)): ?>
-                    <div class="text-center py-4 text-muted small">No departments configured yet.</div>
+                    <div class="text-center py-4 text-muted small">No departments configured with active staff.</div>
                 <?php else: ?>
-                    <?php foreach (array_slice($departments, 0, 4) as $dept): ?>
+                    <?php foreach ($departments as $dept): ?>
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center small fw-semibold text-dark mb-1">
-                                <span><?= e($dept['name']) ?></span>
-                                <span class="text-muted font-monospace"><?= (int)$dept['attendance_rate'] ?>%</span>
+                                <span class="text-truncate me-2" title="<?= e($dept['name']) ?>">
+                                    <?= e($dept['name']) ?>
+                                    <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.68rem;"><?= (int)$dept['employee_count'] ?> Staff</span>
+                                </span>
+                                <span class="text-muted font-monospace text-nowrap"><?= (int)$dept['attendance_rate'] ?>%</span>
                             </div>
                             <div class="progress" style="height: 6px; border-radius: 10px; background-color: #f1f5f9;">
                                 <div class="progress-bar" role="progressbar" 
-                                     style="width: <?= (int)$dept['attendance_rate'] ?>%; background-color: <?= e($dept['bar_color'] ?? '#0984e3') ?>; border-radius: 10px;"
+                                     style="width: <?= max(0, (int)$dept['attendance_rate']) ?>%; background-color: <?= e($dept['bar_color'] ?? '#0984e3') ?>; border-radius: 10px;"
                                      aria-valuenow="<?= (int)$dept['attendance_rate'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </div>
@@ -522,30 +506,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 2. Leave Overview Donut Chart (Casual, Sick, Privilege, Others matching Image 2)
+    // 2. Leave Overview Donut Chart (Dynamic data strictly matching given leave types)
     const donutCtx = document.getElementById('leaveOverviewDonutChart');
     if (donutCtx) {
-        const leaveData = <?= json_encode([
-            $leaveBreakdown['casual'] ?? 45,
-            $leaveBreakdown['sick'] ?? 32,
-            $leaveBreakdown['privilege'] ?? 38,
-            $leaveBreakdown['others'] ?? 27
-        ]) ?>;
+        const leaveTotal = <?= (int)($leaveBreakdown['total'] ?? 0) ?>;
+        const leaveLabels = <?= json_encode($leaveBreakdown['chart_labels'] ?? []) ?>;
+        const leaveData = <?= json_encode($leaveBreakdown['chart_data'] ?? []) ?>;
+        const leaveColors = <?= json_encode($leaveBreakdown['chart_colors'] ?? []) ?>;
+
+        const isZero = (leaveTotal === 0);
 
         new Chart(donutCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Casual', 'Sick', 'Privilege', 'Others'],
+                labels: isZero ? ['No Leave Records'] : leaveLabels,
                 datasets: [{
-                    data: leaveData,
-                    backgroundColor: [
-                        '#00b894', // Casual (Green)
-                        '#f39c12', // Sick (Orange)
-                        '#e74c3c', // Privilege (Coral/Red)
-                        '#3498db'  // Others (Blue)
-                    ],
+                    data: isZero ? [1] : leaveData,
+                    backgroundColor: isZero ? ['#e2e8f0'] : leaveColors,
                     borderWidth: 0,
-                    hoverOffset: 4
+                    hoverOffset: isZero ? 0 : 4
                 }]
             },
             options: {
@@ -555,12 +534,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        enabled: !isZero,
                         backgroundColor: '#0f172a',
                         padding: 8,
                         cornerRadius: 6,
                         callbacks: {
                             label: function(context) {
-                                return context.label + ': ' + context.raw + ' leaves';
+                                return context.label + ': ' + context.raw + ' leave(s)';
                             }
                         }
                     }

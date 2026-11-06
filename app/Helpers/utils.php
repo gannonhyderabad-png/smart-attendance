@@ -69,57 +69,51 @@ if (!function_exists('base_url')) {
 
 if (!function_exists('mobile_base_url')) {
     /**
-     * Return base URL optimized for mobile phone QR scanning
+     * Return base URL optimized for mobile phone QR scanning & punch links
      */
     function mobile_base_url(string $path = ''): string {
-        // If accessed via a live public host, use base_url directly
-        if (!empty($_SERVER['HTTP_HOST']) && !str_contains($_SERVER['HTTP_HOST'], 'localhost') && !str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')) {
-            return base_url($path);
-        }
-
-        global $appConfig;
-        $configured = $appConfig['url'] ?? '';
-        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1') && !str_contains($configured, 'trycloudflare.com')) {
-            $path = ltrim($path, '/');
-            return empty($path) ? rtrim($configured, '/') : rtrim($configured, '/') . '/' . $path;
-        }
-
-        // Local development fallback
-        $lanIp = get_server_lan_ip();
-        $port = $_SERVER['SERVER_PORT'] ?? '8000';
-        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-        
-        $url = $proto . $lanIp;
-        if ($port && $port != '80' && $port != '443') {
-            $url .= ':' . $port;
-        }
-        $url .= get_app_subfolder();
-
-        $path = ltrim($path, '/');
-        return empty($path) ? $url : $url . '/' . $path;
+        return public_url($path);
     }
 }
 
 if (!function_exists('public_url')) {
     /**
-     * Return always-reachable public URL for employees (always uses active Render domain or configured URL)
+     * Return always-reachable public URL for employees
      */
     function public_url(string $path = ''): string {
-        // 1. If accessed via browser, always use the active domain (e.g. smart-attendance-hw9c.onrender.com)
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        // 1. If accessed via live public host or active Cloudflare tunnel domain
         if (!empty($_SERVER['HTTP_HOST']) && !str_contains($_SERVER['HTTP_HOST'], 'localhost') && !str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')) {
             return base_url($path);
         }
 
-        // 2. If configured with Render domain in appConfig
-        global $appConfig;
-        $configured = $appConfig['url'] ?? '';
-        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1') && !str_contains($configured, 'trycloudflare.com')) {
-            $path = ltrim($path, '/');
-            return empty($path) ? rtrim($configured, '/') : rtrim($configured, '/') . '/' . $path;
+        // 2. Check if active Cloudflare tunnel URL was written by launcher
+        $cfLogPath = dirname(__DIR__, 2) . '/scratch/cloudflare_url.txt';
+        if (file_exists($cfLogPath)) {
+            $savedUrl = trim((string)@file_get_contents($cfLogPath));
+            if (!empty($savedUrl) && str_starts_with($savedUrl, 'http')) {
+                return rtrim($savedUrl, '/') . '/' . $path;
+            }
         }
 
-        // 3. Render default domain fallback
-        return 'https://smart-attendance-hw9c.onrender.com/' . ltrim($path, '/');
+        // 3. Configured TUNNEL_URL or APP_URL in .env
+        $configured = env('TUNNEL_URL') ?: env('APP_URL');
+        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1')) {
+            return rtrim($configured, '/') . '/' . $path;
+        }
+
+        // 4. Fallback to server LAN IP so any phone on the same Wi-Fi/LAN can reach it
+        $lanIp = get_server_lan_ip();
+        $port = $_SERVER['SERVER_PORT'] ?? '8000';
+        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $portSuffix = ($port && $port != '80' && $port != '443') ? ':' . $port : '';
+
+        if (!empty($lanIp) && $lanIp !== '127.0.0.1') {
+            return $proto . $lanIp . $portSuffix . '/' . $path;
+        }
+
+        return base_url($path);
     }
 }
 

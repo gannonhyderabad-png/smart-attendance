@@ -19,13 +19,14 @@ services:
         value: 120
       - key: EMPLOYEE_CODE_PREFIX
         value: "EMP-"
-    # ─────────────────────────────────────────────────────────────────────────
-    # NOTE: Render Persistent Disks only mount on Paid plans (Starter $7/mo+).
-    # On Render FREE plan, set DATABASE_URL in Render -> Environment to a free
-    # Neon.tech or Supabase PostgreSQL URL for 100% permanent data + photos!
-    # Mount path /var/data preserves /var/www/html/database/Database.php safely.
-    # ─────────────────────────────────────────────────────────────────────────
-    disk:
-      name: attendance-data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smart-attendance-db
+          property: connectionString
+
+databases:
+  - name: smart-attendance-db
+    databaseName: attendance_db
+    user: attendance_user
+    plan: free
+    region: singapore

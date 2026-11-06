@@ -182,7 +182,7 @@ $userName = $user['name'] ?? 'Admin';
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="kpi-title">Total Employees</div>
-                        <div class="kpi-number"><?= number_format($stats['total_employees']) ?></div>
+                        <div class="kpi-number" id="kpiTotalEmployees"><?= number_format($stats['total_employees']) ?></div>
                     </div>
                     <div class="kpi-icon-wrap" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">
                         <i class="fa-solid fa-users"></i>
@@ -199,9 +199,9 @@ $userName = $user['name'] ?? 'Admin';
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="kpi-title">Present Today</div>
-                        <div class="kpi-number"><?= number_format($stats['present_today']) ?></div>
+                        <div class="kpi-number" id="kpiPresentToday"><?= number_format($stats['present_today']) ?></div>
                     </div>
-                    <span class="badge-rate" style="background: rgba(16, 185, 129, 0.12); color: #059669;">
+                    <span class="badge-rate" id="kpiPresentRate" style="background: rgba(16, 185, 129, 0.12); color: #059669;">
                         <?= $stats['attendance_rate'] ?>%
                     </span>
                 </div>
@@ -216,9 +216,9 @@ $userName = $user['name'] ?? 'Admin';
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="kpi-title">On Leave</div>
-                        <div class="kpi-number"><?= number_format($stats['on_leave_today']) ?></div>
+                        <div class="kpi-number" id="kpiOnLeave"><?= number_format($stats['on_leave_today']) ?></div>
                     </div>
-                    <span class="badge-rate" style="background: rgba(245, 158, 11, 0.12); color: #d97706;">
+                    <span class="badge-rate" id="kpiLeaveRate" style="background: rgba(245, 158, 11, 0.12); color: #d97706;">
                         <?= $stats['leave_rate'] ?>%
                     </span>
                 </div>
@@ -233,9 +233,9 @@ $userName = $user['name'] ?? 'Admin';
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="kpi-title">On Duty (Shift)</div>
-                        <div class="kpi-number"><?= number_format($stats['currently_in']) ?></div>
+                        <div class="kpi-number" id="kpiOnDuty"><?= number_format($stats['currently_in']) ?></div>
                     </div>
-                    <span class="badge-rate" style="background: rgba(147, 51, 234, 0.12); color: #9333ea;">
+                    <span class="badge-rate" id="kpiDutyRate" style="background: rgba(147, 51, 234, 0.12); color: #9333ea;">
                         <?= $stats['duty_rate'] ?>%
                     </span>
                 </div>
@@ -548,6 +548,59 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Live Auto-Refresh: Instantly reflect mobile attendance punches on the dashboard
+    let isLiveDashboardUpdating = false;
+    async function syncLiveDashboardStats() {
+        if (isLiveDashboardUpdating) return;
+        isLiveDashboardUpdating = true;
+        try {
+            const res = await fetch('<?= base_url('api/attendance/summary') ?>', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) return;
+            const json = await res.json();
+            if (json && json.success && json.data) {
+                const s = json.data;
+                const elPresent = document.getElementById('kpiPresentToday');
+                const elPresentRate = document.getElementById('kpiPresentRate');
+                const elDuty = document.getElementById('kpiOnDuty');
+                const elDutyRate = document.getElementById('kpiDutyRate');
+                const elTotal = document.getElementById('kpiTotalEmployees');
+
+                if (elPresent && s.present_today !== undefined) {
+                    if (elPresent.textContent !== String(s.present_today)) {
+                        elPresent.textContent = s.present_today;
+                        elPresent.classList.add('text-success');
+                        setTimeout(() => elPresent.classList.remove('text-success'), 1200);
+                    }
+                }
+                if (elPresentRate && s.attendance_rate !== undefined) {
+                    elPresentRate.textContent = s.attendance_rate + '%';
+                }
+                if (elDuty && s.currently_in !== undefined) {
+                    if (elDuty.textContent !== String(s.currently_in)) {
+                        elDuty.textContent = s.currently_in;
+                        elDuty.classList.add('text-primary');
+                        setTimeout(() => elDuty.classList.remove('text-primary'), 1200);
+                    }
+                }
+                if (elDutyRate && s.duty_rate !== undefined) {
+                    elDutyRate.textContent = s.duty_rate + '%';
+                }
+                if (elTotal && s.total_employees !== undefined) {
+                    elTotal.textContent = s.total_employees;
+                }
+            }
+        } catch (err) {
+            // silent retry
+        } finally {
+            isLiveDashboardUpdating = false;
+        }
+    }
+
+    // Auto-poll every 4 seconds so punches on mobile reflect live on the web page
+    setInterval(syncLiveDashboardStats, 4000);
 });
 </script>
 

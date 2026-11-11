@@ -36,15 +36,18 @@
                         <label class="form-label text-muted small fw-semibold">Login Email Address</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-regular fa-envelope"></i></span>
-                            <input type="email" name="email" class="form-control bg-light border-start-0 ps-0" placeholder="name@company.com" required autofocus>
+                            <input type="email" name="email" class="form-control bg-light border-start-0 ps-0" placeholder="admin@attendance.local" required autofocus>
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                                        <div class="mb-4">
                         <label class="form-label text-muted small fw-semibold">Password</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-lock"></i></span>
-                            <input type="password" name="password" class="form-control bg-light border-start-0 ps-0" placeholder="Enter your password" required>
+                            <input type="password" name="password" class="form-control bg-light border-start-0 ps-0" placeholder="Enter password (e.g. admin123)" required>
+                        </div>
+                        <div class="form-text small text-muted mt-1 text-center" style="font-size: 0.75rem;">
+                            Default: <strong class="text-primary font-monospace">admin@attendance.local</strong> &bull; Pass: <strong class="text-primary font-monospace">admin123</strong>
                         </div>
                     </div>
 

@@ -689,4 +689,34 @@ class PunchController extends Controller {
         echo '</tbody></table></body></html>';
         exit;
     }
+    /**
+     * Update employee site coordinates preference to current phone location
+     */
+    public function updateSiteLocation(string $code): void {
+        $employee = Employee::findByCode($code);
+        if (!$employee) {
+            $this->json(['success' => false, 'message' => 'Employee not found'], 404);
+            return;
+        }
+
+        $lat = Request::input('latitude');
+        $lon = Request::input('longitude');
+
+        if ($lat === null || $lon === null || !is_numeric($lat) || !is_numeric($lon)) {
+            $this->json(['success' => false, 'message' => 'Invalid GPS coordinates'], 422);
+            return;
+        }
+
+        $pdo = \Database\Database::getConnection();
+        $stmt = $pdo->prepare("UPDATE employees SET site_latitude = ?, site_longitude = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([(float)$lat, (float)$lon, $employee['id']]);
+
+        $this->json([
+            'success' => true,
+            'message' => 'Site preference location updated to current mobile spot successfully!',
+            'latitude' => (float)$lat,
+            'longitude' => (float)$lon
+        ]);
+    }
+
 }

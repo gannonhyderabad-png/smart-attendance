@@ -362,6 +362,7 @@ $router->get('/logout', [\App\Controllers\AuthController::class, 'logout']);
 // Public Mobile Employee Punch URL (/p/{code})
 $router->get('/p/{code}', [\App\Controllers\PunchController::class, 'show']);
 $router->post('/p/{code}', [\App\Controllers\PunchController::class, 'record']);
+$router->post('/p/{code}/set-location', [\App\Controllers\PunchController::class, 'updateSiteLocation']);
 $router->get('/p/{code}/status', [\App\Controllers\PunchController::class, 'status']);
 $router->get('/p/{code}/attendance-report', [\App\Controllers\PunchController::class, 'attendanceReport']);
 $router->get('/p/{code}/download-report', [\App\Controllers\PunchController::class, 'downloadReport']);
@@ -480,6 +481,8 @@ $router->post('/users/update', [\App\Controllers\AuthController::class, 'updateU
 $router->post('/users/delete', [\App\Controllers\AuthController::class, 'deleteUser']);
 $router->post('/settings/smtp', [\App\Controllers\AuthController::class, 'updateSmtp']);
 $router->post('/settings/smtp-test', [\App\Controllers\AuthController::class, 'testSmtp']);
+$router->get('/backup', function() { redirect('profile#backup-section'); });
+$router->get('/backup/restore', function() { redirect('profile#backup-section'); });
 $router->get('/backup/download', [\App\Controllers\BackupController::class, 'download']);
 $router->get('/backup/export-punches', [\App\Controllers\BackupController::class, 'exportPunchesCsv']);
 $router->get('/backup/export-leaves', [\App\Controllers\BackupController::class, 'exportLeavesCsv']);

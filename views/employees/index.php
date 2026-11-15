@@ -172,7 +172,9 @@
                         <?php 
                         $serialNum = 1;
                         foreach ($employees as $emp): 
-                            $empPunchUrl = punch_url($emp['employee_code']);
+                            $empCodeClean = trim((string)($emp['employee_code'] ?? ''));
+                            $empPunchLocalUrl = base_url('p/' . rawurlencode($empCodeClean));
+                            $empPunchMobileUrl = punch_url($empCodeClean);
                         ?>
                             <tr class="<?= $currentView === 'trash' ? 'table-light opacity-75' : '' ?>">
                                 <td class="ps-3 text-center fw-bold text-muted" style="width: 50px;">
@@ -272,13 +274,13 @@
                                 <?php else: ?>
                                     <td style="min-width: 170px;">
                                         <div class="d-flex align-items-center gap-1">
-                                            <a href="<?= e($empPunchUrl) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-sm text-nowrap" title="Open Mobile Attendance Punch Page">
+                                            <a href="<?= e($empPunchLocalUrl) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-sm text-nowrap" title="Open Mobile Attendance Punch Page">
                                                 <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Punch
                                             </a>
-                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="showEmployeeQr('<?= e($empPunchUrl) ?>', '<?= e(addslashes($emp['name'])) ?>', '<?= e($emp['employee_code']) ?>')" title="Show QR Code">
+                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="showEmployeeQr('<?= e($empPunchMobileUrl) ?>', '<?= e(addslashes($emp['name'])) ?>', '<?= e($emp['employee_code']) ?>')" title="Show QR Code">
                                                 <i class="fa-solid fa-qrcode text-dark"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="copyToClipboard('<?= e($empPunchUrl) ?>', this)" title="Copy Direct Attendance Link">
+                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="copyToClipboard('<?= e($empPunchMobileUrl) ?>', this)" title="Copy Direct Attendance Link">
                                                 <i class="fa-regular fa-copy text-secondary"></i>
                                             </button>
                                         </div>

@@ -14,7 +14,7 @@ $stats['trend_dates'] = $stats['trend_dates'] ?? [];
 $stats['trend_counts'] = $stats['trend_counts'] ?? [];
 
 $departments = $departments ?? [];
-$leaveBreakdown = $leaveBreakdown ?? ['casual' => 45, 'sick' => 32, 'privilege' => 38, 'others' => 27, 'total' => 142];
+$leaveBreakdown = $leaveBreakdown ?? ['total' => 0, 'items' => [], 'chart_labels' => ['No Leaves Recorded'], 'chart_data' => [0], 'chart_colors' => ['#e2e8f0']];
 $sites = $sites ?? [];
 $activities = $activities ?? [];
 $user = \App\Core\Auth::user();
@@ -287,15 +287,19 @@ $userName = $user['name'] ?? 'Admin';
 
                 <!-- Donut Legend List (Dynamic based strictly on given leave types) -->
                 <div class="col-6 ps-2" style="max-height: 160px; overflow-y: auto;">
-                    <?php foreach (($leaveBreakdown['items'] ?? []) as $item): ?>
-                        <div class="donut-legend-item mb-2">
-                            <div class="d-flex align-items-center text-truncate pe-1" title="<?= e($item['label']) ?>">
-                                <span class="legend-dot" style="background-color: <?= e($item['color'] ?? '#00b894') ?>; flex-shrink: 0;"></span>
-                                <span class="text-truncate" style="font-size: 0.78rem;"><?= e($item['label']) ?></span>
+                    <?php if (empty($leaveBreakdown['items']) || (int)($leaveBreakdown['total'] ?? 0) === 0): ?>
+                        <div class="text-muted small py-4 text-center">No leaves recorded</div>
+                    <?php else: ?>
+                        <?php foreach (($leaveBreakdown['items'] ?? []) as $item): ?>
+                            <div class="donut-legend-item mb-2">
+                                <div class="d-flex align-items-center text-truncate pe-1" title="<?= e($item['label']) ?>">
+                                    <span class="legend-dot" style="background-color: <?= e($item['color'] ?? '#00b894') ?>; flex-shrink: 0;"></span>
+                                    <span class="text-truncate" style="font-size: 0.78rem;"><?= e($item['label']) ?></span>
+                                </div>
+                                <span class="fw-bold text-dark font-monospace ms-1"><?= (int)($item['count'] ?? 0) ?></span>
                             </div>
-                            <span class="fw-bold text-dark font-monospace ms-1"><?= (int)($item['count'] ?? 0) ?></span>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

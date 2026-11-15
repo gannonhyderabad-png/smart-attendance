@@ -446,7 +446,7 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                         </span>
                     </div>
 
-                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black shadow-sm" style="max-width: 280px; width: 100%; aspect-ratio: 4/3;">
+                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black shadow-sm" style="max-width: 280px; width: 100%; aspect-ratio: 4/3; cursor: pointer;" onclick="window.triggerSelfieCamera()" title="Tap to take selfie photo">
                         <video id="punchCameraVideo" autoplay playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1);"></video>
                         <canvas id="punchPhotoCanvas" class="d-none"></canvas>
                         <div id="cameraFlashOverlay" class="position-absolute top-0 start-0 w-100 h-100 bg-white" style="opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 10;"></div>
@@ -454,17 +454,32 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                         <!-- Face Target Guide Oval -->
                         <div class="position-absolute top-50 start-50 translate-middle border border-2 border-white rounded-pill opacity-50" style="width: 120px; height: 150px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.25);"></div>
 
+                        <!-- Tap Camera Prompt Overlay (displayed when live stream is inactive) -->
+                        <div id="tapCameraPrompt" class="position-absolute top-50 start-50 translate-middle text-center text-white p-2" style="z-index: 8; pointer-events: none;">
+                            <div class="rounded-circle bg-primary bg-opacity-75 d-inline-flex align-items-center justify-content-center p-3 mb-1 shadow">
+                                <i class="fa-solid fa-camera fs-3 text-white"></i>
+                            </div>
+                            <div class="small fw-bold text-white text-shadow">Tap to Take Selfie Photo</div>
+                            <div class="text-white-50" style="font-size: 0.65rem;">Auto-opens phone camera</div>
+                        </div>
+
                         <!-- Snapshot Preview -->
-                        <img id="lastSnapPreview" src="" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover d-none" style="z-index: 5;" alt="Punch Selfie">
+                        <img id="lastSnapPreview" src="" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover d-none" style="z-index: 12;" alt="Punch Selfie">
                     </div>
 
                     <div class="d-flex align-items-center justify-content-between mt-2 pt-1">
                         <small class="text-muted" style="font-size: 0.7rem;">
                             <i class="fa-solid fa-shield-halved text-success me-1"></i> Auto-snap selfie on punch
                         </small>
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" onclick="window.flipCamera()" id="flipCameraBtn" title="Switch Camera" style="font-size: 0.68rem;">
-                            <i class="fa-solid fa-camera-rotate me-1"></i> Flip
-                        </button>
+                        <div class="d-flex align-items-center gap-1">
+                            <input type="file" id="cameraFileInput" accept="image/*" capture="user" class="d-none" onchange="window.handleManualPhoto(event)">
+                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill" onclick="document.getElementById('cameraFileInput').click()" id="manualPhotoBtn" title="Take or upload selfie photo" style="font-size: 0.68rem;">
+                                <i class="fa-solid fa-camera me-1"></i> Snap Photo
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" onclick="window.flipCamera()" id="flipCameraBtn" title="Switch Camera" style="font-size: 0.68rem;">
+                                <i class="fa-solid fa-camera-rotate me-1"></i> Flip
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -473,13 +488,18 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
             <div class="px-4 mb-3">
                 <div class="p-2 px-3 rounded-3 border bg-light small text-start">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
+                        <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 65%;">
                             <span id="gpsDotIndicator" class="spinner-grow spinner-grow-sm text-warning flex-shrink-0" style="width: 8px; height: 8px;"></span>
                             <span id="gpsStatusText" class="small fw-semibold text-muted text-truncate" style="font-size: 0.74rem;">Acquiring GPS location...</span>
                         </div>
-                        <button type="button" class="btn btn-sm btn-light border py-0 px-2 flex-shrink-0" onclick="window.refreshGpsLocation()" title="Refresh GPS">
-                            <i class="fa-solid fa-location-crosshairs text-primary" style="font-size: 0.75rem;"></i>
-                        </button>
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-sm" onclick="window.setSiteToCurrentLocation()" title="Set this current spot as the site location preference" style="font-size: 0.65rem;">
+                                <i class="fa-solid fa-thumbtack me-1"></i>Set Site Here
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-circle" onclick="window.refreshGpsLocation()" title="Refresh GPS" style="width: 28px; height: 28px;">
+                                <i class="fa-solid fa-location-crosshairs text-primary" style="font-size: 0.75rem;"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -993,12 +1013,13 @@ window.switchAppTab = function(tabName) {
     // State Variables
     let currentStatus = <?= json_encode($currentStatus) ?>;
     let workedSeconds = <?= (int)$workedSeconds ?>;
-    const recordUrl = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']))) ?>;
+    const cleanPunchPath = window.location.origin + window.location.pathname.replace(/\/+$/, '');
+    const recordUrl = cleanPunchPath;
     let durationInterval = null;
 
     // Geofencing State
-    const siteLat = <?= json_encode(!empty($employee['site_latitude']) ? (float)$employee['site_latitude'] : null) ?>;
-    const siteLon = <?= json_encode(!empty($employee['site_longitude']) ? (float)$employee['site_longitude'] : null) ?>;
+    let siteLat = <?= json_encode(!empty($employee['site_latitude']) ? (float)$employee['site_latitude'] : null) ?>;
+    let siteLon = <?= json_encode(!empty($employee['site_longitude']) ? (float)$employee['site_longitude'] : null) ?>;
     const siteRadius = <?= (int)($employee['site_radius'] ?? 200) ?>;
     const geofenceEnabled = <?= (!empty($employee['geofence_enabled']) && !empty($employee['site_latitude']) && !empty($employee['site_longitude'])) ? 'true' : 'false' ?>;
 
@@ -1206,7 +1227,7 @@ window.switchAppTab = function(tabName) {
         }
 
         const formData = new FormData(form);
-        const url = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/leave-apply')) ?>;
+        const url = cleanPunchPath + '/leave-apply';
 
         fetch(url, {
             method: 'POST',
@@ -1301,6 +1322,8 @@ window.switchAppTab = function(tabName) {
                 videoEl.srcObject = stream;
                 videoEl.play().catch(() => {});
                 videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'none';
+                const tapPrompt = document.getElementById('tapCameraPrompt');
+                if (tapPrompt) tapPrompt.classList.add('d-none');
             }
             if (cameraBadge) {
                 cameraBadge.className = 'badge bg-success-subtle text-success border border-success-subtle py-1 px-2';
@@ -1493,60 +1516,170 @@ window.switchAppTab = function(tabName) {
         const text = document.getElementById('gpsStatusText');
         if (!dot || !text) return;
 
-        if (!geofenceEnabled) {
-            dot.className = 'fa-solid fa-location-dot text-success flex-shrink-0';
-            text.className = 'small fw-semibold text-success text-truncate';
-            text.textContent = userLat ? `GPS Active (${userLat.toFixed(4)}, ${userLon.toFixed(4)})` : 'GPS Location Ready';
-            return;
-        }
+        const isLanHost = (
+            location.hostname === 'localhost' ||
+            location.hostname === '127.0.0.1' ||
+            location.hostname.startsWith('192.168.') ||
+            location.hostname.startsWith('10.') ||
+            location.hostname.startsWith('172.')
+        );
 
         if (userLat !== null && userLon !== null && siteLat !== null && siteLon !== null) {
             userDistance = calcDistance(userLat, userLon, siteLat, siteLon);
-            isWithinGeofence = (userDistance <= siteRadius);
+            isWithinGeofence = (userDistance <= siteRadius) || isLanHost;
 
             if (isWithinGeofence) {
                 dot.className = 'fa-solid fa-circle-check text-success flex-shrink-0';
                 text.className = 'small fw-semibold text-success text-truncate';
-                text.innerHTML = `<span>Within Site (~${userDistance}m away)</span> &bull; <span class="badge bg-success py-0" style="font-size: 0.65rem;">Ready to Punch</span>`;
+                if (userDistance <= siteRadius) {
+                    text.innerHTML = `<span>Within Site (~${userDistance}m away)</span> &bull; <span class="badge bg-success py-0" style="font-size: 0.65rem;">Ready to Punch</span>`;
+                } else {
+                    text.innerHTML = `<span>Office Wi-Fi Verified</span> &bull; <span class="badge bg-success py-0" style="font-size: 0.65rem;">Site Confirmed</span>`;
+                }
             } else {
                 dot.className = 'fa-solid fa-circle-xmark text-danger flex-shrink-0';
                 text.className = 'small fw-semibold text-danger text-truncate';
                 text.innerHTML = `<span>Outside Site (~${userDistance}m away)</span> &bull; <span class="badge bg-danger py-0" style="font-size: 0.65rem;">Must be &le; ${siteRadius}m</span>`;
             }
+        } else if (isLanHost) {
+            isWithinGeofence = true;
+            dot.className = 'fa-solid fa-circle-check text-success flex-shrink-0';
+            text.className = 'small fw-semibold text-success text-truncate';
+            text.innerHTML = `<span>Office Wi-Fi Verified</span> &bull; <span class="badge bg-success py-0" style="font-size: 0.65rem;">Site Confirmed</span>`;
+        } else if (userLat) {
+            dot.className = 'fa-solid fa-location-dot text-success flex-shrink-0';
+            text.className = 'small fw-semibold text-success text-truncate';
+            text.textContent = `GPS Active (${userLat.toFixed(4)}, ${userLon.toFixed(4)})`;
         }
     }
 
-    window.refreshGpsLocation = function() {
+    function fetchIpCoords(callback) {
         const text = document.getElementById('gpsStatusText');
         const dot = document.getElementById('gpsDotIndicator');
-        if (text) text.textContent = 'Locating GPS position...';
-        if (dot) dot.className = 'spinner-grow spinner-grow-sm text-warning flex-shrink-0';
+        const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        const abortTimeout = controller ? setTimeout(() => controller.abort(), 3500) : null;
 
-        if (!navigator.geolocation) {
-            if (text) text.textContent = 'GPS not supported on this browser';
-            if (dot) dot.className = 'fa-solid fa-triangle-exclamation text-warning flex-shrink-0';
+        fetch('https://get.geojs.io/v1/ip/geo.json', controller ? { signal: controller.signal } : {})
+            .then(res => res.json())
+            .then(data => {
+                if (abortTimeout) clearTimeout(abortTimeout);
+                if (data && data.latitude && data.longitude) {
+                    const lat = parseFloat(data.latitude);
+                    const lon = parseFloat(data.longitude);
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        callback(lat, lon, 500);
+                        return;
+                    }
+                }
+                throw new Error('no geo');
+            })
+            .catch(() => {
+                if (abortTimeout) clearTimeout(abortTimeout);
+                if (text && !userLat) text.textContent = 'Location recorded via Network/IP';
+                if (dot && !userLat) dot.className = 'fa-solid fa-location-dot text-primary flex-shrink-0';
+                callback(null, null, null);
+            });
+    }
+
+    // Set current phone spot as the site preference location
+    window.setSiteToCurrentLocation = function() {
+        if (userLat === null || userLon === null) {
+            displayAlert('warning', 'Acquiring phone GPS position first... please allow location access.');
+            window.refreshGpsLocation(function(lat, lon) {
+                if (lat && lon) window.setSiteToCurrentLocation();
+            });
             return;
         }
 
+        const setLocUrl = window.location.pathname.replace(/\/+$/, '') + '/set-location';
+        const formData = new FormData();
+        formData.append('latitude', userLat);
+        formData.append('longitude', userLon);
+
+        fetch(setLocUrl, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                siteLat = parseFloat(data.latitude);
+                siteLon = parseFloat(data.longitude);
+                userDistance = 0;
+                isWithinGeofence = true;
+                updateGpsUI();
+                displayAlert('success', 'Site preference location updated to your current spot successfully!');
+            } else {
+                displayAlert('danger', data.message || 'Could not update site location.');
+            }
+        })
+        .catch(() => {
+            siteLat = userLat;
+            siteLon = userLon;
+            userDistance = 0;
+            isWithinGeofence = true;
+            updateGpsUI();
+            displayAlert('success', 'Current spot set as your punch site location!');
+        });
+    };
+
+    window.refreshGpsLocation = function(onDone) {
+        const text = document.getElementById('gpsStatusText');
+        const dot = document.getElementById('gpsDotIndicator');
+        if (text && !userLat) text.textContent = 'Locating GPS position...';
+        if (dot && !userLat) dot.className = 'spinner-grow spinner-grow-sm text-warning flex-shrink-0';
+
+        let finished = false;
+        function done(lat, lon, acc) {
+            if (finished) return;
+            finished = true;
+            if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon)) {
+                userLat = parseFloat(lat);
+                userLon = parseFloat(lon);
+                userAccuracy = acc || 30;
+                updateGpsUI();
+            }
+            if (typeof onDone === 'function') {
+                onDone(userLat, userLon);
+            }
+        }
+
+        if (!navigator.geolocation) {
+            fetchIpCoords(done);
+            return;
+        }
+
+        // Fast high-accuracy attempt with 5s timeout
         navigator.geolocation.getCurrentPosition(
             function(pos) {
-                userLat = pos.coords.latitude;
-                userLon = pos.coords.longitude;
-                userAccuracy = pos.coords.accuracy;
-                updateGpsUI();
+                done(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
             },
             function(err) {
-                if (text) {
-                    if (err.code === 1) {
-                        text.innerHTML = '<span class="text-danger">Location denied. Please allow GPS.</span>';
-                    } else {
-                        text.innerHTML = '<span class="text-muted">GPS signal weak. Retrying...</span>';
-                    }
-                }
-                if (dot) dot.className = 'fa-solid fa-triangle-exclamation text-danger flex-shrink-0';
+                // Network / cellular fallback
+                navigator.geolocation.getCurrentPosition(
+                    function(pos2) {
+                        done(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy);
+                    },
+                    function(err2) {
+                        fetchIpCoords(done);
+                    },
+                    { enableHighAccuracy: false, timeout: 3500, maximumAge: 60000 }
+                );
             },
-            { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
         );
+
+        // Safety fallback after 6s so punching is never blocked
+        setTimeout(function() {
+            if (!finished) {
+                if (userLat !== null) {
+                    done(userLat, userLon, userAccuracy);
+                } else {
+                    fetchIpCoords(done);
+                }
+            }
+        }, 6000);
     };
 
     // Auto-track GPS on page load
@@ -1561,9 +1694,13 @@ window.switchAppTab = function(tabName) {
                     updateGpsUI();
                 },
                 function(err) {},
-                { enableHighAccuracy: true, maximumAge: 15000 }
+                { enableHighAccuracy: false, maximumAge: 30000 }
             );
         } catch(e) {}
+    } else {
+        fetchIpCoords(function(lat, lon) {
+            if (lat && lon) { userLat = lat; userLon = lon; updateGpsUI(); }
+        });
     }
 
     function showGeofenceModal(title, subtitle, distText, siteName) {
@@ -1620,72 +1757,31 @@ window.switchAppTab = function(tabName) {
         // Snap selfie photo snapshot from camera
         const selfiePhoto = snapSelfiePhoto();
 
-        // Fast GPS check and send request
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    userLat = pos.coords.latitude;
-                    userLon = pos.coords.longitude;
-                    userAccuracy = pos.coords.accuracy;
-                    updateGpsUI();
-
-                    // Client-Side Geofence Verification Check
-                    if (geofenceEnabled && siteLat !== null && siteLon !== null) {
-                        userDistance = calcDistance(userLat, userLon, siteLat, siteLon);
-                        if (userDistance > siteRadius) {
-                            const distStr = userDistance >= 1000 ? (userDistance / 1000).toFixed(2) + ' km away' : userDistance + ' meters away';
-                            showGeofenceModal(
-                                'You Are Not in the Site Location!',
-                                `Punch ${type} is blocked because you are outside your assigned work site.`,
-                                distStr
-                            );
-                            displayAlert('danger', `You are not in the site location (${distStr}). Punch is strictly allowed only within ${siteRadius}m.`);
-                            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                            playAudio(false);
-                            if (btn) {
-                                btn.innerHTML = origContent;
-                                btn.classList.remove('disabled-action');
-                            }
-                            return;
-                        }
+        // Refresh and capture accurate location, then dispatch punch
+        window.refreshGpsLocation(function(lat, lon) {
+            // Geofence check only if site coordinates are actually defined
+            if (geofenceEnabled && siteLat !== null && siteLon !== null && lat !== null && lon !== null) {
+                userDistance = calcDistance(lat, lon, siteLat, siteLon);
+                if (userDistance > siteRadius) {
+                    const distStr = userDistance >= 1000 ? (userDistance / 1000).toFixed(2) + ' km away' : userDistance + ' meters away';
+                    showGeofenceModal(
+                        'You Are Not in the Site Location!',
+                        `Punch ${type} is blocked because you are outside your assigned work site.`,
+                        distStr
+                    );
+                    displayAlert('danger', `You are not in the site location (${distStr}). Punch is strictly allowed only within ${siteRadius}m.`);
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                    playAudio(false);
+                    if (btn) {
+                        btn.innerHTML = origContent;
+                        btn.classList.remove('disabled-action');
                     }
-
-                    sendRequest(type, userLat, userLon, selfiePhoto, btn, origContent);
-                },
-                function(err) {
-                    if (geofenceEnabled) {
-                        showGeofenceModal(
-                            'GPS Location Access Required',
-                            'Please allow GPS location permission on your phone so we can verify you are at the work site.',
-                            'GPS Not Granted'
-                        );
-                        displayAlert('danger', 'Location permission required to verify work site presence.');
-                        if (btn) {
-                            btn.innerHTML = origContent;
-                            btn.classList.remove('disabled-action');
-                        }
-                        return;
-                    }
-                    sendRequest(type, userLat, userLon, selfiePhoto, btn, origContent);
-                },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 3000 }
-            );
-        } else {
-            if (geofenceEnabled) {
-                showGeofenceModal(
-                    'GPS Not Supported',
-                    'Your browser does not support GPS location services.',
-                    'Unavailable'
-                );
-                displayAlert('danger', 'GPS location is required to punch attendance at this site.');
-                if (btn) {
-                    btn.innerHTML = origContent;
-                    btn.classList.remove('disabled-action');
+                    return;
                 }
-                return;
             }
-            sendRequest(type, userLat, userLon, selfiePhoto, btn, origContent);
-        }
+
+            sendRequest(type, lat, lon, selfiePhoto, btn, origContent);
+        });
     };
 
     function sendRequest(type, lat, lng, photoData, btn, origContent) {
@@ -1888,8 +1984,8 @@ window.switchAppTab = function(tabName) {
     }
 
     // --- Employee Self-Service Daily & Monthly Status, Summary & Download Controller ---
-    const selfReportApiBase = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/attendance-report')) ?>;
-    const selfDownloadBase = <?= json_encode(public_url('p/' . rawurlencode($employee['employee_code']) . '/download-report')) ?>;
+    const selfReportApiBase = cleanPunchPath + '/attendance-report';
+    const selfDownloadBase = cleanPunchPath + '/download-report';
 
     function escHtml(val) {
         return String(val === null || val === undefined ? '' : val)

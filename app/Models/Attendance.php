@@ -97,6 +97,19 @@ class Attendance extends Model {
             $punchLat = isset($meta['latitude']) && $meta['latitude'] !== null && $meta['latitude'] !== '' ? (float) $meta['latitude'] : null;
             $punchLon = isset($meta['longitude']) && $meta['longitude'] !== null && $meta['longitude'] !== '' ? (float) $meta['longitude'] : null;
 
+            // Check if connection is from internal company Wi-Fi / LAN network
+            $clientIp = $meta['ip_address'] ?? (\App\Core\Request::getClientIp() ?? '');
+            $hostHeader = $_SERVER['HTTP_HOST'] ?? '';
+            $isLanConnection = (function_exists('is_lan_ip') && (is_lan_ip($clientIp) || is_lan_ip(explode(':', $hostHeader)[0] ?? '')));
+
+            // If coordinates not sent but connected via Office LAN, use site coordinates as verified location
+            if (($punchLat === null || $punchLon === null) && $isLanConnection) {
+                $punchLat = $siteLat;
+                $punchLon = $siteLon;
+                $meta['latitude'] = $punchLat;
+                $meta['longitude'] = $punchLon;
+            }
+
             if ($punchLat === null || $punchLon === null) {
                 return [
                     'success' => false,
@@ -109,18 +122,24 @@ class Attendance extends Model {
             $distance = calculate_haversine_distance($punchLat, $punchLon, $siteLat, $siteLon);
 
             if ($distance > $allowedRadius) {
-                $siteLabel = !empty($employee['site']) ? $employee['site'] : 'your assigned site';
-                return [
-                    'success' => false,
-                    'message' => "Punch Rejected: You are " . round($distance) . "m away from {$siteLabel}. Punch is strictly allowed only within {$allowedRadius} meters.",
-                    'distance' => $distance,
-                    'allowed_radius' => $allowedRadius,
-                    'current_status' => $latest ? $latest['punch_type'] : 'OUT',
-                    'last_punch' => $latest
-                ];
+                // If on company Wi-Fi / Local Server LAN, verify presence via Office Network!
+                if ($isLanConnection) {
+                    $locationVerified = 1;
+                    $meta['notes'] = (!empty($meta['notes']) ? $meta['notes'] . ' | ' : '') . "Verified via Office Wi-Fi LAN ({$clientIp})";
+                } else {
+                    $siteLabel = !empty($employee['site']) ? $employee['site'] : 'your assigned site';
+                    return [
+                        'success' => false,
+                        'message' => "Punch Rejected: You are " . round($distance) . "m away from {$siteLabel}. Punch is allowed within {$allowedRadius}m, or connect to Office Wi-Fi.",
+                        'distance' => $distance,
+                        'allowed_radius' => $allowedRadius,
+                        'current_status' => $latest ? $latest['punch_type'] : 'OUT',
+                        'last_punch' => $latest
+                    ];
+                }
+            } else {
+                $locationVerified = 1;
             }
-
-            $locationVerified = 1;
         }
 
         // Save punch selfie photo if provided

@@ -194,8 +194,8 @@ $portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis borde
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="<?= base_url('backup/download') ?>" class="nav-link text-white-50">
-                            <i class="fa-solid fa-cloud-arrow-down me-2 fa-fw text-success"></i> Backup Data & Photos
+                        <a href="<?= base_url('profile#backup-section') ?>" class="nav-link text-white-50">
+                            <i class="fa-solid fa-cloud-arrow-down me-2 fa-fw text-success"></i> Backup & Restore
                         </a>
                     </li>
                 <?php endif; ?>

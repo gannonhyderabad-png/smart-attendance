@@ -67,13 +67,9 @@ class DashboardController extends Controller {
             }
         } catch (\Throwable $e) {}
 
-        // If no leaves recorded yet, show company assigned types with count 0 (never fake numbers)
+        // If no leaves recorded yet, show empty breakdown (never fake numbers)
         if (empty($leaveItems)) {
-            $leaveItems = [
-                ['label' => 'Casual Leave (CL)', 'count' => 0, 'color' => '#00b894'],
-                ['label' => 'Sick Leave (SL)', 'count' => 0, 'color' => '#f39c12'],
-                ['label' => 'Paid Leave (PL)', 'count' => 0, 'color' => '#e74c3c']
-            ];
+            $leaveItems = [];
             $leaveTotal = 0;
             $chartLabels = ['No Leaves Recorded'];
             $chartData = [0];
@@ -93,6 +89,7 @@ class DashboardController extends Controller {
         $deptColors = ['#00b894', '#0984e3', '#6c5ce7', '#e17055', '#fdcb6e', '#00cec9', '#e84393', '#2d3436'];
 
         try {
+            // Strictly query departments where active workforce is actually assigned
             $stmtDepts = $pdo->prepare("
                 SELECT 
                     COALESCE(NULLIF(TRIM(d.name), ''), NULLIF(TRIM(e.department), ''), 'General') as dept_name,
@@ -102,7 +99,8 @@ class DashboardController extends Controller {
                 LEFT JOIN departments d ON e.department_id = d.id
                 LEFT JOIN attendance a ON a.employee_id = e.id AND a.punch_date = ? AND a.punch_type = 'IN'
                 WHERE e.status = 'active' AND e.deleted_at IS NULL
-                GROUP BY COALESCE(NULLIF(TRIM(d.name), ''), NULLIF(TRIM(e.department), ''), 'General')
+                GROUP BY dept_name
+                HAVING employee_count > 0
                 ORDER BY employee_count DESC, dept_name ASC
             ");
             $stmtDepts->execute([$today, $today]);

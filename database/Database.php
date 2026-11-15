@@ -41,7 +41,7 @@ class Database {
 
     public static function getConnection(): PDO {
         if (self::$instance === null) {
-            $default = self::$config['default'] ?? 'mysql';
+            $default = self::$config['default'] ?? 'sqlite';
             $connConfig = self::$config['connections'][$default] ?? [];
 
             try {

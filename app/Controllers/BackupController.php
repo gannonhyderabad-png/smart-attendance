@@ -19,6 +19,12 @@ class BackupController extends Controller {
             redirect('leaves');
         }
 
+        if (!class_exists('ZipArchive')) {
+            $_SESSION['flash_error'] = 'PHP ZIP module is not active. Please launch the system using Start-SmartAttendance.bat.';
+            redirect('profile#backup-section');
+            return;
+        }
+
         $zipFileName = 'smart_attendance_backup_' . date('Y-m-d_H-i-s') . '.zip';
         $tempZipPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $zipFileName;
 
@@ -498,7 +504,7 @@ class BackupController extends Controller {
         }
     }
 
-    private function addFolderToZip(ZipArchive $zip, string $folderPath, string $zipPath, array &$added = []): void {
+    private function addFolderToZip(object $zip, string $folderPath, string $zipPath, array &$added = []): void {
         if (!is_dir($folderPath)) return;
         $files = scandir($folderPath);
         foreach ($files as $file) {
@@ -544,6 +550,11 @@ class BackupController extends Controller {
         $liveDriver = Database::getDriverName();
 
         if ($ext === 'zip') {
+            if (!class_exists('ZipArchive')) {
+                $this->setFlash('error', 'PHP ZIP module is not active. Please launch the system using Start-SmartAttendance.bat.');
+                redirect('profile#backup-section');
+                return;
+            }
             $zip = new ZipArchive();
             if ($zip->open($tmpFile) === true) {
                 $baseDir = dirname(__DIR__, 2);

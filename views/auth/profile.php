@@ -53,7 +53,7 @@
 
     <?php if (\App\Core\Auth::isAdmin()): ?>
     <!-- Right Column: Full System Backup (Database + Selfie Photos) -->
-    <div class="col-lg-6">
+    <div class="col-lg-6" id="backup-section">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
                 <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-box-archive text-success me-2"></i>System Backup & Photos</h5>

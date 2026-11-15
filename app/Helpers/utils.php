@@ -97,10 +97,10 @@ if (!function_exists('public_url')) {
             }
         }
 
-        // 3. Configured TUNNEL_URL or APP_URL in .env
-        $configured = env('TUNNEL_URL') ?: env('APP_URL');
-        if (!empty($configured) && !str_contains($configured, 'localhost') && !str_contains($configured, '127.0.0.1')) {
-            return rtrim($configured, '/') . '/' . $path;
+        // 3. Configured explicit TUNNEL_URL in .env (only if valid external tunnel, not render)
+        $configuredTunnel = env('TUNNEL_URL');
+        if (!empty($configuredTunnel) && !str_contains($configuredTunnel, 'localhost') && !str_contains($configuredTunnel, 'onrender.com')) {
+            return rtrim($configuredTunnel, '/') . '/' . $path;
         }
 
         // 4. Fallback to server LAN IP so any phone on the same Wi-Fi/LAN can reach it

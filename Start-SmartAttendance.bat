@@ -12,6 +12,11 @@ echo.
 :: 1. Locate PHP Executable
 set "PHP_BIN="
 
+if exist "%~dp0php\php.exe" (
+    set "PHP_BIN=%~dp0php\php.exe"
+    goto :PHP_FOUND
+)
+
 if exist "%LOCALAPPDATA%\Microsoft\WinGet\Packages\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe" (
     set "PHP_BIN=%LOCALAPPDATA%\Microsoft\WinGet\Packages\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe"
     goto :PHP_FOUND
@@ -39,8 +44,12 @@ if exist "C:\Program Files\PHP\php.exe" (
 )
 
 :PHP_NOT_FOUND
-echo [NOTICE] PHP was not found. Installing via winget...
-winget install PHP.PHP.8.3 --accept-source-agreements --accept-package-agreements
+echo [NOTICE] PHP was not found. Automatically setting up PHP engine...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install_portable_php.ps1"
+if exist "%~dp0php\php.exe" (
+    set "PHP_BIN=%~dp0php\php.exe"
+    goto :PHP_FOUND
+)
 if exist "%LOCALAPPDATA%\Microsoft\WinGet\Packages\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe" (
     set "PHP_BIN=%LOCALAPPDATA%\Microsoft\WinGet\Packages\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe"
     goto :PHP_FOUND

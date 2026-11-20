@@ -31,6 +31,7 @@ function Write-Log($msg) {
 # 1. Locate PHP Engine
 $phpBin = ""
 $phpCandidates = @(
+    (Join-Path $root "php\php.exe"),
     "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe",
     "C:\Program Files\PHP\php.exe",
     "C:\php\php.exe",
@@ -44,15 +45,41 @@ if (-not $phpBin) {
     if ($cmd) { $phpBin = $cmd.Source }
 }
 if (-not $phpBin) {
-    Write-Log "FATAL: PHP 8+ executable not found. Please run Start-SmartAttendance.bat once to install it."
+    Write-Log "[Setup] Attempting auto-install of portable PHP..."
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "install_portable_php.ps1")
+    $localPhp = Join-Path $root "php\php.exe"
+    if (Test-Path $localPhp) { $phpBin = $localPhp }
+}
+if (-not $phpBin) {
+    Write-Log "FATAL: PHP 8+ executable not found. Please install PHP or run Start-SmartAttendance.bat once."
     exit 1
 }
 
 # 2. Locate Cloudflare Tunnel
-$cfBin = "C:\Program Files (x86)\cloudflared\cloudflared.exe"
-if (-not (Test-Path $cfBin)) {
+$cfBin = ""
+$cfCandidates = @(
+    (Join-Path $PSScriptRoot "cloudflared.exe"),
+    (Join-Path $root "scripts\cloudflared.exe"),
+    "C:\Program Files (x86)\cloudflared\cloudflared.exe",
+    "C:\Program Files\cloudflared\cloudflared.exe"
+)
+foreach ($cand in $cfCandidates) {
+    if (Test-Path $cand) { $cfBin = $cand; break }
+}
+if (-not $cfBin) {
     $cfCmd = Get-Command cloudflared.exe -ErrorAction SilentlyContinue
     if ($cfCmd) { $cfBin = $cfCmd.Source }
+}
+if (-not $cfBin) {
+    Write-Log "[Setup] Auto-downloading portable Cloudflare Tunnel binary..."
+    $targetCf = Join-Path $PSScriptRoot "cloudflared.exe"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile $targetCf -TimeoutSec 35
+        if (Test-Path $targetCf) { $cfBin = $targetCf }
+    } catch {
+        Write-Log "[Notice] Could not auto-download cloudflared. Server will run on LAN."
+    }
 }
 
 Write-Log "Starting Smart Attendance 24/7 Watchdog Server..."

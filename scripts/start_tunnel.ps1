@@ -9,13 +9,31 @@ $urlFile = Join-Path $scratch "cloudflare_url.txt"
 if (Test-Path $urlFile) { Remove-Item $urlFile -Force }
 if (Test-Path $logFile) { Remove-Item $logFile -Force }
 
-$cfExe = "C:\Program Files (x86)\cloudflared\cloudflared.exe"
-if (-not (Test-Path $cfExe)) {
+$cfExe = ""
+$cfCandidates = @(
+    (Join-Path $PSScriptRoot "cloudflared.exe"),
+    "C:\Program Files (x86)\cloudflared\cloudflared.exe",
+    "C:\Program Files\cloudflared\cloudflared.exe"
+)
+foreach ($cand in $cfCandidates) {
+    if (Test-Path $cand) { $cfExe = $cand; break }
+}
+if (-not $cfExe) {
     $found = Get-Command cloudflared.exe -ErrorAction SilentlyContinue
     if ($found) { $cfExe = $found.Source }
 }
 
-if (-not (Test-Path $cfExe)) {
+if (-not $cfExe) {
+    Write-Host "[SETUP] Auto-downloading portable Cloudflare Tunnel binary..." -ForegroundColor Cyan
+    $targetCf = Join-Path $PSScriptRoot "cloudflared.exe"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile $targetCf -TimeoutSec 35
+        if (Test-Path $targetCf) { $cfExe = $targetCf }
+    } catch {}
+}
+
+if (-not $cfExe -or -not (Test-Path $cfExe)) {
     Write-Host "[NOTICE] Cloudflared not found. Server running on LAN only." -ForegroundColor Yellow
     exit 0
 }

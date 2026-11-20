@@ -7,16 +7,28 @@ Write-Host "Configuring PowerShell for Smart Attendance..." -ForegroundColor Cya
 # 1. Ensure ExecutionPolicy allows running local scripts
 try {
     Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force -ErrorAction SilentlyContinue
-    Write-Host "[OK] Execution Policy set to RemoteSigned (CurrentUser)" -ForegroundColor Green
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+    Write-Host "[OK] Execution Policy configured for current user and process." -ForegroundColor Green
 } catch {
-    Write-Host "[INFO] Execution policy check complete" -ForegroundColor Gray
+    Write-Host "[INFO] Execution policy handled via batch wrapper." -ForegroundColor Gray
 }
 
 # 2. Locate or create PowerShell Profile
-$profilePath = $PROFILE.CurrentUserCurrentHost
-if (-not $profilePath) {
-    $profilePath = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+$profilePath = ""
+if ($PROFILE -and $PROFILE.CurrentUserCurrentHost) {
+    $profilePath = $PROFILE.CurrentUserCurrentHost
+} elseif ($PROFILE -and [string]::IsNullOrWhiteSpace($PROFILE) -eq $false) {
+    $profilePath = $PROFILE.ToString()
 }
+
+if (-not $profilePath) {
+    $docs = [Environment]::GetFolderPath("MyDocuments")
+    if (-not $docs -or -not (Test-Path $docs)) {
+        $docs = Join-Path $env:USERPROFILE "Documents"
+    }
+    $profilePath = Join-Path $docs "WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+}
+
 $profileDir = Split-Path -Parent $profilePath
 if (-not (Test-Path $profileDir)) {
     New-Item -ItemType Directory -Path $profileDir -Force | Out-Null

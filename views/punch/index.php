@@ -446,21 +446,18 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                         </span>
                     </div>
 
-                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black shadow-sm" style="max-width: 280px; width: 100%; aspect-ratio: 4/3; cursor: pointer;" onclick="window.triggerSelfieCamera()" title="Tap to take selfie photo">
-                        <video id="punchCameraVideo" autoplay playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1);"></video>
+                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-dark shadow-sm border" style="max-width: 280px; width: 100%; aspect-ratio: 4/3; cursor: pointer;" onclick="window.triggerSelfieCamera()" title="Front Camera Live">
+                        <video id="punchCameraVideo" autoplay playsinline webkit-playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1); background: #0f172a;"></video>
                         <canvas id="punchPhotoCanvas" class="d-none"></canvas>
                         <div id="cameraFlashOverlay" class="position-absolute top-0 start-0 w-100 h-100 bg-white" style="opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 10;"></div>
                         
-                        <!-- Face Target Guide Oval -->
-                        <div class="position-absolute top-50 start-50 translate-middle border border-2 border-white rounded-pill opacity-50" style="width: 120px; height: 150px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.25);"></div>
+                        <!-- Face Target Guide Circle/Oval -->
+                        <div class="position-absolute top-50 start-50 translate-middle border border-2 border-primary rounded-circle opacity-75" style="width: 155px; height: 155px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);"></div>
 
-                        <!-- Tap Camera Prompt Overlay (displayed when live stream is inactive) -->
-                        <div id="tapCameraPrompt" class="position-absolute top-50 start-50 translate-middle text-center text-white p-2" style="z-index: 8; pointer-events: none;">
-                            <div class="rounded-circle bg-primary bg-opacity-75 d-inline-flex align-items-center justify-content-center p-3 mb-1 shadow">
-                                <i class="fa-solid fa-camera fs-3 text-white"></i>
-                            </div>
-                            <div class="small fw-bold text-white text-shadow">Tap to Take Selfie Photo</div>
-                            <div class="text-white-50" style="font-size: 0.65rem;">Auto-opens phone camera</div>
+                        <!-- Subtle Loading Spinner (only while camera is opening) -->
+                        <div id="cameraLoadingSpinner" class="position-absolute top-50 start-50 translate-middle text-center text-white p-2" style="z-index: 8; pointer-events: none;">
+                            <div class="spinner-border spinner-border-sm text-primary mb-1" role="status"></div>
+                            <div class="small fw-semibold" style="font-size: 0.75rem;">Opening Front Camera...</div>
                         </div>
 
                         <!-- Snapshot Preview -->
@@ -1295,10 +1292,20 @@ window.switchAppTab = function(tabName) {
     const lastSnapEl = document.getElementById('lastSnapPreview');
 
     function initCamera() {
+        const loader = document.getElementById('cameraLoadingSpinner');
+
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            const isPlainHttp = location.protocol === 'http:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1';
             if (cameraBadge) {
                 cameraBadge.className = 'badge bg-secondary-subtle text-secondary border py-1 px-2';
-                cameraBadge.innerHTML = '<i class="fa-solid fa-video-slash me-1"></i> Camera Unavailable';
+                cameraBadge.innerHTML = isPlainHttp
+                    ? '<i class="fa-solid fa-lock text-warning me-1"></i> HTTPS Required for Camera'
+                    : '<i class="fa-solid fa-video-slash me-1"></i> Camera Unavailable';
+            }
+            if (loader) {
+                loader.innerHTML = isPlainHttp
+                    ? '<i class="fa-solid fa-shield-halved text-warning fs-3 mb-1"></i><div class="small text-white-50" style="font-size: 0.7rem;">Open via HTTPS for auto front camera</div>'
+                    : '<i class="fa-solid fa-camera-slash text-secondary fs-3 mb-1"></i><div class="small text-white-50" style="font-size: 0.7rem;">Camera not found on this device</div>';
             }
             return;
         }
@@ -1308,35 +1315,70 @@ window.switchAppTab = function(tabName) {
             mediaStream = null;
         }
 
-        navigator.mediaDevices.getUserMedia({
+        if (loader) loader.classList.remove('d-none');
+        if (cameraBadge) {
+            cameraBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2';
+            cameraBadge.innerHTML = '<span class="spinner-grow spinner-grow-sm me-1" style="width: 8px; height: 8px;"></span> Opening Front Camera...';
+        }
+
+        const primaryConstraints = {
             video: {
-                facingMode: currentFacingMode,
+                facingMode: (currentFacingMode === 'user') ? { ideal: 'user' } : { ideal: 'environment' },
                 width: { ideal: 640 },
                 height: { ideal: 480 }
             },
             audio: false
-        })
-        .then(function(stream) {
-            mediaStream = stream;
-            if (videoEl) {
-                videoEl.srcObject = stream;
-                videoEl.play().catch(() => {});
-                videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'none';
-                const tapPrompt = document.getElementById('tapCameraPrompt');
-                if (tapPrompt) tapPrompt.classList.add('d-none');
-            }
-            if (cameraBadge) {
-                cameraBadge.className = 'badge bg-success-subtle text-success border border-success-subtle py-1 px-2';
-                cameraBadge.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Camera Ready';
-            }
-        })
-        .catch(function(err) {
-            if (cameraBadge) {
-                cameraBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2';
-                cameraBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Camera Access Optional';
-            }
-        });
+        };
+
+        const startStream = function(constraints) {
+            return navigator.mediaDevices.getUserMedia(constraints)
+                .catch(function() {
+                    // Fallback to generic video if exact constraints fail
+                    return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                });
+        };
+
+        startStream(primaryConstraints)
+            .then(function(stream) {
+                mediaStream = stream;
+                if (videoEl) {
+                    videoEl.srcObject = stream;
+                    videoEl.setAttribute('playsinline', '');
+                    videoEl.setAttribute('webkit-playsinline', '');
+                    videoEl.muted = true;
+                    videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'none';
+                    videoEl.play().catch(() => {});
+                }
+                if (loader) loader.classList.add('d-none');
+                if (cameraBadge) {
+                    cameraBadge.className = 'badge bg-success-subtle text-success border border-success-subtle py-1 px-2';
+                    cameraBadge.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i> Front Camera Live';
+                }
+            })
+            .catch(function(err) {
+                if (loader) {
+                    loader.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-warning fs-3 mb-1"></i><div class="small text-white" style="font-size: 0.7rem;">Please allow camera permission</div>';
+                }
+                if (cameraBadge) {
+                    cameraBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2';
+                    cameraBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Camera Permission Required';
+                }
+            });
     }
+
+    window.triggerSelfieCamera = function() {
+        if (!mediaStream) {
+            initCamera();
+        }
+    };
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            if (!mediaStream || mediaStream.getVideoTracks().some(t => t.readyState === 'ended')) {
+                initCamera();
+            }
+        }
+    });
 
     window.flipCamera = function() {
         currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';

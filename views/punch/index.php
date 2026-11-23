@@ -50,6 +50,22 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
 
 <style>
 /* Modern Smartphone App UI Styles (Image 1 Theme) */
+@keyframes scanBeamSweep {
+    0% { top: 12%; opacity: 0.3; }
+    50% { top: 88%; opacity: 0.95; }
+    100% { top: 12%; opacity: 0.3; }
+}
+.camera-scan-beam {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #06b6d4, #10b981, #06b6d4, transparent);
+    box-shadow: 0 0 10px #10b981, 0 0 4px #06b6d4;
+    animation: scanBeamSweep 2.2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 7;
+}
 .mobile-profile-wrap {
     max-width: 440px;
     margin: 0 auto;
@@ -446,13 +462,15 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                         </span>
                     </div>
 
-                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-dark shadow-sm border" style="max-width: 280px; width: 100%; aspect-ratio: 4/3; cursor: pointer;" onclick="window.triggerSelfieCamera()" title="Front Camera Live">
+                    <div class="position-relative mx-auto rounded-3 overflow-hidden bg-dark shadow-sm border" style="max-width: 280px; width: 100%; aspect-ratio: 4/3; cursor: pointer;" onclick="window.triggerSelfieCamera()" title="Front Camera Live Scan">
                         <video id="punchCameraVideo" autoplay playsinline webkit-playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1); background: #0f172a;"></video>
                         <canvas id="punchPhotoCanvas" class="d-none"></canvas>
                         <div id="cameraFlashOverlay" class="position-absolute top-0 start-0 w-100 h-100 bg-white" style="opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 10;"></div>
                         
-                        <!-- Face Target Guide Circle/Oval -->
-                        <div class="position-absolute top-50 start-50 translate-middle border border-2 border-primary rounded-circle opacity-75" style="width: 155px; height: 155px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);"></div>
+                        <!-- Face Target Guide Circle/Oval with Animated Scan Laser -->
+                        <div class="position-absolute top-50 start-50 translate-middle border border-2 border-primary rounded-circle opacity-75" style="width: 155px; height: 155px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);">
+                            <div class="camera-scan-beam"></div>
+                        </div>
 
                         <!-- Subtle Loading Spinner (only while camera is opening) -->
                         <div id="cameraLoadingSpinner" class="position-absolute top-50 start-50 translate-middle text-center text-white p-2" style="z-index: 8; pointer-events: none;">
@@ -465,18 +483,11 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                     </div>
 
                     <div class="d-flex align-items-center justify-content-between mt-2 pt-1">
-                        <small class="text-muted" style="font-size: 0.7rem;">
-                            <i class="fa-solid fa-shield-halved text-success me-1"></i> Auto-snap selfie on punch
+                        <small class="text-muted" style="font-size: 0.72rem;">
+                            <i class="fa-solid fa-shield-halved text-success me-1"></i> Auto-scans face on Check In / Check Out
                         </small>
-                        <div class="d-flex align-items-center gap-1">
-                            <input type="file" id="cameraFileInput" accept="image/*" capture="user" class="d-none" onchange="window.handleManualPhoto(event)">
-                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill" onclick="document.getElementById('cameraFileInput').click()" id="manualPhotoBtn" title="Take or upload selfie photo" style="font-size: 0.68rem;">
-                                <i class="fa-solid fa-camera me-1"></i> Snap Photo
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" onclick="window.flipCamera()" id="flipCameraBtn" title="Switch Camera" style="font-size: 0.68rem;">
-                                <i class="fa-solid fa-camera-rotate me-1"></i> Flip
-                            </button>
-                        </div>
+                        <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.65rem;">Front Camera</span>
+                        <input type="file" id="cameraFileInput" accept="image/*" capture="user" class="d-none" onchange="window.handleManualPhoto(event)">
                     </div>
                 </div>
             </div>
@@ -1297,16 +1308,12 @@ window.switchAppTab = function(tabName) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             const isPlainHttp = location.protocol === 'http:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1';
             if (cameraBadge) {
-                cameraBadge.className = 'badge bg-secondary-subtle text-secondary border py-1 px-2';
+                cameraBadge.className = 'badge bg-light text-secondary border py-1 px-2';
                 cameraBadge.innerHTML = isPlainHttp
-                    ? '<i class="fa-solid fa-lock text-warning me-1"></i> HTTPS Required for Camera'
-                    : '<i class="fa-solid fa-video-slash me-1"></i> Camera Unavailable';
+                    ? '<i class="fa-solid fa-lock text-primary me-1"></i> Open via HTTPS for Camera'
+                    : '<i class="fa-solid fa-camera text-secondary me-1"></i> Camera Ready';
             }
-            if (loader) {
-                loader.innerHTML = isPlainHttp
-                    ? '<i class="fa-solid fa-shield-halved text-warning fs-3 mb-1"></i><div class="small text-white-50" style="font-size: 0.7rem;">Open via HTTPS for auto front camera</div>'
-                    : '<i class="fa-solid fa-camera-slash text-secondary fs-3 mb-1"></i><div class="small text-white-50" style="font-size: 0.7rem;">Camera not found on this device</div>';
-            }
+            if (loader) loader.classList.add('d-none');
             return;
         }
 
@@ -1315,9 +1322,8 @@ window.switchAppTab = function(tabName) {
             mediaStream = null;
         }
 
-        if (loader) loader.classList.remove('d-none');
         if (cameraBadge) {
-            cameraBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2';
+            cameraBadge.className = 'badge bg-light text-primary border py-1 px-2';
             cameraBadge.innerHTML = '<span class="spinner-grow spinner-grow-sm me-1" style="width: 8px; height: 8px;"></span> Opening Front Camera...';
         }
 
@@ -1333,7 +1339,6 @@ window.switchAppTab = function(tabName) {
         const startStream = function(constraints) {
             return navigator.mediaDevices.getUserMedia(constraints)
                 .catch(function() {
-                    // Fallback to generic video if exact constraints fail
                     return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 });
         };
@@ -1356,12 +1361,10 @@ window.switchAppTab = function(tabName) {
                 }
             })
             .catch(function(err) {
-                if (loader) {
-                    loader.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-warning fs-3 mb-1"></i><div class="small text-white" style="font-size: 0.7rem;">Please allow camera permission</div>';
-                }
+                if (loader) loader.classList.add('d-none');
                 if (cameraBadge) {
-                    cameraBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2';
-                    cameraBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Camera Permission Required';
+                    cameraBadge.className = 'badge bg-light text-secondary border py-1 px-2';
+                    cameraBadge.innerHTML = '<i class="fa-solid fa-camera text-primary me-1"></i> Front Camera Ready';
                 }
             });
     }

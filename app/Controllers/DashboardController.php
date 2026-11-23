@@ -122,11 +122,56 @@ class DashboardController extends Controller {
             }
         } catch (\Throwable $e) {}
 
-        // 3. Live Locations
+        // 3. Live Locations (Interactive GPS Punch Pins & Active Sites)
         $sites = [];
         try {
             $stmtSites = $pdo->query("SELECT TRIM(COALESCE(site, 'Main Site')) as site_name, COUNT(*) as count FROM employees WHERE status = 'active' AND deleted_at IS NULL GROUP BY site_name ORDER BY count DESC");
             $sites = $stmtSites ? $stmtSites->fetchAll(\PDO::FETCH_ASSOC) : [];
+        } catch (\Throwable $e) {}
+
+        $liveLocations = [];
+        try {
+            $stmtLive = $pdo->query("
+                SELECT 
+                    a.id,
+                    a.punch_type,
+                    a.punch_date,
+                    a.punch_time,
+                    a.latitude,
+                    a.longitude,
+                    a.distance_meters,
+                    a.location_verified,
+                    a.site as punch_site,
+                    a.punch_photo,
+                    e.id as employee_id,
+                    e.name as employee_name,
+                    e.employee_code,
+                    e.photo as employee_photo,
+                    COALESCE(NULLIF(TRIM(e.site), ''), 'Main Site') as employee_site,
+                    COALESCE(NULLIF(TRIM(e.department), ''), 'General') as department
+                FROM attendance a
+                JOIN employees e ON a.employee_id = e.id
+                WHERE a.latitude IS NOT NULL AND a.latitude != 0 
+                  AND a.longitude IS NOT NULL AND a.longitude != 0
+                ORDER BY a.punch_time DESC
+                LIMIT 40
+            ");
+            $liveLocations = $stmtLive ? $stmtLive->fetchAll(\PDO::FETCH_ASSOC) : [];
+        } catch (\Throwable $e) {}
+
+        $siteMarkers = [];
+        try {
+            $stmtSM = $pdo->query("
+                SELECT 
+                    COALESCE(NULLIF(TRIM(site), ''), 'Main Site') as site_name,
+                    AVG(site_latitude) as site_lat,
+                    AVG(site_longitude) as site_lng,
+                    COUNT(*) as staff_count
+                FROM employees
+                WHERE status = 'active' AND deleted_at IS NULL AND site_latitude IS NOT NULL AND site_latitude != 0
+                GROUP BY site_name
+            ");
+            $siteMarkers = $stmtSM ? $stmtSM->fetchAll(\PDO::FETCH_ASSOC) : [];
         } catch (\Throwable $e) {}
 
         // 4. Recent Activities feed
@@ -172,6 +217,8 @@ class DashboardController extends Controller {
             'departments' => $enrichedDepts,
             'leaveBreakdown' => $leaveBreakdown,
             'sites' => $sites,
+            'liveLocations' => $liveLocations,
+            'siteMarkers' => $siteMarkers,
             'activities' => $activities
         ], 'admin');
     }

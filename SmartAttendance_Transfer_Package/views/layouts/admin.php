@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= e($title ?? 'Dashboard') ?> | GDCL HYD Web Attendance</title>
+    <link rel="icon" type="image/png" href="<?= asset_url('images/gdcl-logo.png') ?>">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js for Dashboard visual analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet Interactive Maps for Live GPS Tracking -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Custom Admin Styles -->
+    <link rel="stylesheet" href="<?= asset_url('css/admin.css') ?>?v=2.2">
+</head>
+<body class="bg-body-tertiary">
+<?php
+$userRole = \App\Core\Auth::role();
+$isSiteUser = \App\Core\Auth::isSiteUser();
+$assignedSite = \App\Core\Auth::assignedSite();
+$isRestricted = \App\Core\Auth::isRestricted();
+$homeUrl = $isSiteUser ? base_url('employees') : ($isRestricted ? base_url('leaves') : base_url('dashboard'));
+
+$showWelcomeSplash = !empty($_SESSION['gdcl_welcome_splash']);
+unset($_SESSION['gdcl_welcome_splash']);
+
+$roleLabel = ucwords(str_replace(['_', '-'], ' ', $userRole));
+$portalBadge = ($userRole === 'admin' || $userRole === 'superadmin') ? 'ADMIN PORTAL' :
+               ($isSiteUser ? ('SITE: ' . strtoupper($assignedSite ?: 'VIEW ONLY')) :
+               (($userRole === 'hr') ? 'HR PORTAL' :
+               (($userRole === 'account') ? 'ACCOUNTS PORTAL' :
+               (($userRole === 'incharge') ? 'INCHARGE PORTAL' :
+               (($userRole === 'coordinator') ? 'COORDINATOR PORTAL' :
+               (($userRole === 'tender') ? 'TENDER PORTAL' : strtoupper($roleLabel) . ' PORTAL'))))));
+
+$portalBadgeClass = $isSiteUser ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' :
+                    (($userRole === 'hr') ? 'bg-info-subtle text-info border-info-subtle' :
+                    (($userRole === 'account') ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' :
+                    (($userRole === 'incharge') ? 'bg-success-subtle text-success border-success-subtle' :
+                    (($userRole === 'coordinator') ? 'bg-primary-subtle text-primary border-primary-subtle' :
+                    (($userRole === 'tender') ? 'bg-danger-subtle text-danger border-danger-subtle' : 'bg-primary-subtle text-primary border-primary-subtle')))));
+?>
+
+    <?php if ($showWelcomeSplash): ?>
+    <!-- Animated Welcome Splash Screen on Login (Any User) -->
+    <div id="gdclWelcomeSplash" class="gdcl-splash-overlay" onclick="dismissGdclSplash()">
+        <div class="gdcl-splash-emblem">
+            <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD Logo">
+        </div>
+        <h1 class="gdcl-splash-title">Welcome to GDCL HYD</h1>
+        <div class="gdcl-splash-subtitle">
+            Hello, <strong class="text-white"><?= e($user['name'] ?? 'User') ?></strong>
+            <?php if ($isSiteUser && !empty($assignedSite)): ?>
+                &bull; <span class="badge bg-warning text-dark rounded-pill px-2 py-1 ms-1"><i class="fa-solid fa-location-dot me-1"></i><?= e($assignedSite) ?></span>
+            <?php else: ?>
+                &bull; <span class="badge bg-primary bg-opacity-75 text-white rounded-pill px-2 py-1 ms-1"><?= e($portalBadge) ?></span>
+            <?php endif; ?>
+        </div>
+        <div class="gdcl-splash-progress">
+            <div class="gdcl-splash-progress-bar"></div>
+        </div>
+        <small class="text-white-50 mt-3" style="font-size: 0.72rem; opacity: 0.7;">Opening Web Attendance Portal...</small>
+    </div>
+    <script>
+        function dismissGdclSplash() {
+            var el = document.getElementById('gdclWelcomeSplash');
+            if (!el) return;
+            el.classList.add('gdcl-splash-hide');
+            setTimeout(function() { if (el && el.parentNode) el.parentNode.removeChild(el); }, 600);
+        }
+        setTimeout(dismissGdclSplash, 2250);
+    </script>
+    <?php endif; ?>
+
+    <div class="wrapper d-flex">
+        <!-- Sidebar Navigation -->
+        <nav id="sidebar" class="sidebar bg-dark text-white d-flex flex-column flex-shrink-0 p-3">
+            <a href="<?= $homeUrl ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none px-1 py-2 gap-2">
+                <div class="gdcl-sidebar-logo-wrap" title="Welcome to GDCL HYD">
+                    <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD" class="gdcl-sidebar-logo-img">
+                </div>
+                <div class="sidebar-brand-text">
+                    <span class="fs-5 fw-bold tracking-tight d-block lh-sm">GDCL <span class="text-info">HYD</span></span>
+                    <span class="badge <?= $portalBadgeClass ?> border d-inline-block font-monospace text-truncate mt-1" style="font-size: 0.63rem; max-width: 165px;" title="<?= e($portalBadge) ?>"><?= e($portalBadge) ?></span>
+                </div>
+            </a>
+            <hr class="text-secondary my-3">
+
+            <ul class="nav nav-pills flex-column mb-auto gap-1">
+                <?php if ($isSiteUser): ?>
+                    <!-- Site Login Sidebar: Read-Only Access for Assigned Site -->
+                    <li class="nav-header text-uppercase text-muted fw-bold small px-3 mb-1" style="font-size: 0.7rem;">
+                        <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($assignedSite ?: 'Assigned Site') ?> (View Only)
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-users me-2 fa-fw text-info"></i> Employees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                            <div>
+                                <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                            </div>
+                            <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('reports') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-chart-column me-2 fa-fw text-info"></i> Attendance Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('holidays') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'holidays') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-calendar-star me-2 fa-fw text-warning"></i> Public Holidays
+                        </a>
+                    </li>
+                <?php elseif ($isRestricted): ?>
+                    <!-- Restricted Sidebar: Only Leave Management & Employees -->
+                    <li class="nav-item">
+                        <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                            <div>
+                                <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Approvals
+                            </div>
+                            <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-users me-2 fa-fw text-info"></i> Employee Directory
+                        </a>
+                    </li>
+                <?php else: ?>
+                    <!-- Full Administrator Sidebar -->
+                    <li class="nav-item">
+                        <a href="<?= base_url('dashboard') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'dashboard') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-gauge-high me-2 fa-fw"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('employees') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'employees') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-users me-2 fa-fw"></i> Employees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('attendance') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'attendance') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-calendar-check me-2 fa-fw"></i> Attendance Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('leaves') ?>" class="nav-link d-flex align-items-center justify-content-between <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'leaves') ? 'active' : 'text-white-50' ?>">
+                            <div>
+                                <i class="fa-solid fa-plane-departure me-2 fa-fw text-warning"></i> Leave Management
+                            </div>
+                            <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                <span class="badge bg-warning text-dark rounded-pill font-monospace" style="font-size: 0.7rem;"><?= $pendingLeavesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">Reports & Analytics</li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('reports') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'reports') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-chart-column me-2 fa-fw text-info"></i> Attendance Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('holidays') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'holidays') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-calendar-star me-2 fa-fw text-warning"></i> Public Holidays
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('devices') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'devices') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-fingerprint me-2 fa-fw text-info"></i> FRM Devices (eSSL/ZKT)
+                        </a>
+                    </li>
+
+                    <li class="nav-header text-uppercase text-muted fw-bold small px-3 mt-3 mb-1" style="font-size: 0.75rem;">System</li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('logs') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'logs') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-shield-halved me-2 fa-fw"></i> Activity Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('profile') ?>" class="nav-link <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'profile') ? 'active' : 'text-white-50' ?>">
+                            <i class="fa-solid fa-user-gear me-2 fa-fw"></i> Admin Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="<?= base_url('profile#backup-section') ?>" class="nav-link text-white-50">
+                            <i class="fa-solid fa-cloud-arrow-down me-2 fa-fw text-success"></i> Backup & Restore
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+
+            <hr class="text-secondary">
+            <div class="user-panel d-flex align-items-center justify-content-between px-2">
+                <div class="d-flex align-items-center">
+                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
+                        <i class="fa-solid <?= $isSiteUser ? 'fa-location-dot' : 'fa-user-tie' ?>"></i>
+                    </div>
+                    <div class="user-info">
+                        <div class="fw-semibold text-white small text-truncate" style="max-width: 120px;"><?= e($user['name'] ?? 'Admin') ?></div>
+                        <div class="text-muted small text-truncate" style="font-size: 0.7rem;"><?= e($user['email'] ?? '') ?></div>
+                        <div class="mt-1">
+                            <?php if ($isSiteUser): ?>
+                                <span class="badge bg-warning text-dark text-truncate" style="font-size: 0.6rem; max-width: 125px;"><i class="fa-solid fa-eye me-1"></i><?= e($assignedSite ?: 'Site') ?> (View Only)</span>
+                            <?php elseif ($userRole === 'hr'): ?>
+                                <span class="badge bg-info text-white" style="font-size: 0.6rem;">HR Reviewer</span>
+                            <?php elseif ($userRole === 'account'): ?>
+                                <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">Accounts Reviewer</span>
+                            <?php elseif ($isRestricted): ?>
+                                <span class="badge bg-secondary text-white" style="font-size: 0.6rem;"><?= e($roleLabel) ?></span>
+                            <?php else: ?>
+                                <span class="badge bg-primary text-white" style="font-size: 0.6rem;">Super Admin</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <a href="<?= base_url('logout') ?>" class="btn btn-outline-danger btn-sm" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="main-content flex-grow-1 d-flex flex-column">
+            <!-- Top Navbar -->
+            <header class="navbar navbar-expand-lg bg-white border-bottom shadow-sm px-3 py-2 sticky-top">
+                <div class="container-fluid">
+                    <button class="btn btn-outline-secondary d-md-none me-2" id="sidebarToggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h5 class="mb-0 fw-bold text-dark"><?= e($title ?? 'Dashboard') ?></h5>
+                        <?php if ($isSiteUser): ?>
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill px-2 py-1 small d-none d-sm-inline-block">
+                                <i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($assignedSite) ?> &bull; Read-Only
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 ms-auto">
+                        <!-- Animated Welcome to GDCL HYD Brand Pill -->
+                        <div class="gdcl-top-welcome-pill d-none d-md-inline-flex" title="Welcome to GDCL HYD">
+                            <span class="gdcl-top-welcome-logo">
+                                <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD">
+                            </span>
+                            <span class="fw-bold text-primary-emphasis small" style="font-size: 0.8rem; letter-spacing: -0.2px;">Welcome to GDCL HYD</span>
+                        </div>
+
+                        <!-- Notification Bell Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-light rounded-circle position-relative p-2" type="button" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: 40px; height: 40px;" title="Leave Approvals & Notifications">
+                                <i class="fa-solid fa-bell <?= !empty($pendingLeavesCount) ? 'text-warning' : 'text-secondary' ?> fs-5"></i>
+                                <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white" style="font-size: 0.65rem;">
+                                        <?= $pendingLeavesCount ?>
+                                        <span class="visually-hidden">unread notifications</span>
+                                    </span>
+                                <?php endif; ?>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0 mt-2" aria-labelledby="notifDropdown" style="width: 340px; max-width: 90vw; overflow: hidden;">
+                                <li class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold small text-dark"><i class="fa-solid fa-bell me-1 text-primary"></i> Notifications</span>
+                                    <?php if (!empty($pendingLeavesCount) && $pendingLeavesCount > 0): ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
+                                            <?= $pendingLeavesCount ?> <?= $isSiteUser ? 'Pending' : 'Action Required' ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </li>
+                                <li>
+                                    <div class="p-2" style="max-height: 320px; overflow-y: auto;">
+                                        <?php if (empty($pendingLeavesList)): ?>
+                                            <div class="text-center py-4 text-muted small">
+                                                <i class="fa-regular fa-bell-slash fs-4 d-block mb-2 text-secondary opacity-50"></i>
+                                                All caught up! No pending leave requests.
+                                            </div>
+                                        <?php else: ?>
+                                            <?php foreach ($pendingLeavesList as $pnl): 
+                                                $pStep = (int)($pnl['approval_step'] ?? 1);
+                                                $stepText = ($pStep === 1) ? 'Step 1: Dept Head Review' : (($pStep === 2) ? 'Step 2: HR Quota Audit' : 'Step 3: Management Sign-off');
+                                                $stepBadge = ($pStep === 1) ? 'bg-warning text-dark' : (($pStep === 2) ? 'bg-primary text-white' : 'bg-dark text-white');
+                                            ?>
+                                                <a href="<?= base_url('leaves') ?>" class="dropdown-item p-2 rounded-3 text-wrap mb-1 d-flex gap-2 align-items-start" style="border: 1px solid #f1f5f9;">
+                                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                                        <?= strtoupper(substr($pnl['employee_name'] ?? 'E', 0, 2)) ?>
+                                                    </div>
+                                                    <div class="flex-grow-1" style="font-size: 0.78rem;">
+                                                        <div class="fw-bold text-dark"><?= e($pnl['employee_name']) ?> <small class="text-muted font-monospace">(<?= e($pnl['employee_code']) ?>)</small></div>
+                                                        <div class="text-secondary"><?= e($pnl['leave_type']) ?> &bull; <strong><?= $pnl['days_count'] ?> d</strong></div>
+                                                        <div class="mt-1">
+                                                            <span class="badge <?= $stepBadge ?> rounded-pill" style="font-size: 0.65rem;"><?= $stepText ?></span>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </li>
+                                <li class="border-top p-2 bg-light text-center">
+                                    <a href="<?= base_url('leaves') ?>" class="btn btn-sm btn-primary rounded-pill w-100 py-1 fw-semibold" style="font-size: 0.75rem;">
+                                        Open Leave Management &rarr;
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Body -->
+            <main class="p-3 p-md-4 flex-grow-1">
+                <!-- Toast Alerts / Flash -->
+                <?php if (!empty($flashSuccess)): ?>
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 d-flex align-items-center" role="alert">
+                        <i class="fa-solid fa-circle-check fs-5 me-2"></i>
+                        <div><?= e($flashSuccess) ?></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($flashError)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 d-flex align-items-center" role="alert">
+                        <i class="fa-solid fa-circle-exclamation fs-5 me-2"></i>
+                        <div><?= e($flashError) ?></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+                    $__isRenderHost = str_contains($_SERVER['HTTP_HOST'] ?? '', 'onrender.com');
+                    $__isPersistentDb = \Database\Database::isPersistentStorage();
+                    $__cloudDbErr = \Database\Database::getLastConnectionError();
+                ?>
+                <?php if (!$isRestricted && !empty($__cloudDbErr)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 rounded-4 mb-3" role="alert">
+                        <div class="fw-bold"><i class="fa-solid fa-plug-circle-xmark me-2"></i>Cloud Database Connection Error (Fallback to Temporary SQLite)</div>
+                        <div class="small mt-1">Please check your <code>DATABASE_URL</code> in Render Environment Variables: <code><?= e($__cloudDbErr) ?></code></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php elseif (!$isRestricted && $__isRenderHost && !$__isPersistentDb): ?>
+                    <div class="alert alert-warning alert-dismissible fade show shadow-sm border border-warning-subtle rounded-4 mb-3" role="alert">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="fw-bold text-dark">
+                                    <i class="fa-solid fa-database text-warning me-2"></i>Enable Permanent Cloud Database (Prevent Render Free-Tier Data Reset)
+                                </div>
+                                <div class="small text-dark mt-1">
+                                    Render's <strong>Free Plan</strong> resets local container files whenever the server restarts or redeploys.
+                                    To keep <strong>all employees, punches, leaves, and photos 100% permanent forever (free)</strong>:
+                                    create a free PostgreSQL database at <a href="https://neon.tech" target="_blank" class="fw-bold text-decoration-underline">Neon.tech</a> (or Supabase), copy its <code>DATABASE_URL</code>, and add <code>DATABASE_URL</code> in <strong>Render Dashboard &rarr; Environment</strong>.
+                                </div>
+                            </div>
+                            <a href="<?= base_url('backup/download') ?>" class="btn btn-sm btn-dark rounded-pill px-3 fw-semibold text-nowrap">
+                                <i class="fa-solid fa-download me-1"></i> Backup .ZIP Now
+                            </a>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?= $content ?>
+            </main>
+
+            <!-- Admin Footer -->
+            <footer class="bg-white border-top py-3 px-4 text-center text-muted small">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-md-start d-flex align-items-center justify-content-center justify-content-md-start gap-2">
+                        <img src="<?= asset_url('images/gdcl-logo.png') ?>" alt="GDCL HYD" style="width: 20px; height: 20px; object-fit: contain; mix-blend-mode: multiply;">
+                        <span><strong>GDCL HYD Web Attendance</strong> &copy; <?= date('Y') ?></span>
+                    </div>
+                    <div class="col-md-6 text-md-end mt-1 mt-md-0">
+                        <?php if (\Database\Database::isPersistentStorage()): ?>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1"><i class="fa-solid fa-cloud-bolt me-1"></i> Permanent DB (<?= strtoupper(e(\Database\Database::getDriverName())) ?>)</span>
+                        <?php endif; ?>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fa-solid fa-circle me-1" style="font-size: 6px;"></i> System Live</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Global Punch Selfie Photo Modal (Maximized View) -->
+    <div class="modal fade" id="punchPhotoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 600px;">
+            <div class="modal-content rounded-4 border-0 shadow-24 p-3 text-center bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                    <div class="text-start">
+                        <h5 class="fw-bold mb-0 text-dark" id="modalPunchPhotoTitle"><i class="fa-solid fa-camera text-primary me-2"></i>Punch Selfie Snapshot</h5>
+                        <small class="text-muted font-monospace" id="modalPunchPhotoTime"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="p-2 bg-dark rounded-4 overflow-hidden shadow-sm mb-3 position-relative d-flex align-items-center justify-content-center" style="min-height: 320px; background: #0f172a !important;">
+                    <img id="modalPunchPhotoImg" src="" class="img-fluid rounded-3 object-fit-contain" style="max-height: 520px; width: 100%; transition: transform 0.2s;" alt="Punch Snapshot" onerror="this.src='https://placehold.co/500x400?text=Photo+Not+Found'">
+                </div>
+                <div class="d-flex gap-2">
+                    <a id="modalPunchPhotoOpenBtn" href="#" target="_blank" class="btn btn-primary rounded-pill flex-grow-1 py-2 fw-bold shadow-sm">
+                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Full Screen
+                    </a>
+                    <a id="modalPunchPhotoDownloadBtn" href="#" download class="btn btn-outline-success rounded-pill px-4 py-2 fw-semibold">
+                        <i class="fa-solid fa-download me-1"></i> Save
+                    </a>
+                    <button type="button" class="btn btn-light border rounded-pill px-4 py-2 fw-semibold" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- QRCode JS Library (CDN + Local Fallback) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>if (typeof QRCode === 'undefined') { document.write('<script src="<?= asset_url('js/qrcode.min.js') ?>"><\/script>'); }</script>
+    <script src="<?= asset_url('js/admin.js') ?>"></script>
+    <script>
+        // Keep Render instance warm while any Admin portal tab is open (every 4 minutes)
+        setInterval(function() {
+            fetch(<?= json_encode(base_url('health?lite=1')) ?>, { cache: 'no-store', keepalive: true }).catch(function() {});
+        }, 240000);
+    </script>
+</body>
+</html>

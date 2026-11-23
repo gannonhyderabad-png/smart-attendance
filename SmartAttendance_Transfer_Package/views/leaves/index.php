@@ -1,0 +1,2092 @@
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h4 class="fw-bold mb-1 text-dark">
+            <i class="fa-solid fa-plane-departure text-warning me-2"></i>Employee Leave Management
+        </h4>
+        <p class="text-muted small mb-0">Record and manage approved leaves, sick days, on-duty visits, and custom time-offs for employees.</p>
+    </div>
+    <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end">
+        <?php $hdrRole = \App\Core\Auth::role(); ?>
+        <?php if (\App\Core\Auth::isSiteUser()): ?>
+            <span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">
+                <i class="fa-solid fa-location-dot text-danger me-1"></i> Site: <strong><?= e(\App\Core\Auth::assignedSite()) ?></strong> &bull; <span class="text-secondary"><i class="fa-solid fa-lock ms-1 me-1"></i>View Only</span>
+            </span>
+        <?php endif; ?>
+        <button type="button" class="btn btn-outline-info rounded-pill shadow-sm px-3 <?= \App\Core\Auth::isRestricted() ? 'd-none' : '' ?>" data-bs-toggle="modal" data-bs-target="#deptAuthoritiesModal">
+            <i class="fa-solid fa-user-shield me-1"></i> Department Authorities
+        </button>
+        <?php if (\App\Core\Auth::isAdmin()): ?>
+        <button type="button" class="btn btn-outline-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#editCompanyQuotaModal">
+            <i class="fa-solid fa-sliders me-1"></i> Edit Company Leave Quota
+        </button>
+        <button type="button" class="btn btn-primary rounded-pill shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addLeaveModal">
+            <i class="fa-solid fa-plus me-1"></i> Add Leave Entry
+        </button>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php if (!empty($_SESSION['flash_success'])): ?>
+    <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+        <i class="fa-solid fa-circle-check me-2"></i><?= e($_SESSION['flash_success']) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php unset($_SESSION['flash_success']); ?>
+<?php endif; ?>
+
+<?php if (!empty($_SESSION['flash_error'])): ?>
+    <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+        <i class="fa-solid fa-circle-exclamation me-2"></i><?= e($_SESSION['flash_error']) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php unset($_SESSION['flash_error']); ?>
+<?php endif; ?>
+
+<!-- Quick Leave KPI Card: Company Assigned Only (Click to show leave list details) -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-5 col-lg-4">
+        <div class="card border rounded-3 shadow-sm bg-white p-3 border-top border-3 border-primary stat-card-interactive" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#companyAssignedLeaveDetailsModal" title="Click to view full company leave list and quota details">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-secondary small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-building-user text-primary me-1" style="font-size: 0.85rem;"></i> Company Assigned
+                </span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> View Detail List
+                </span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2 my-1">
+                <span class="fs-2 fw-bold text-dark font-sans-serif"><?= $companyQuotas['total'] ?? 37 ?></span>
+                <span class="text-muted small">Days / Year</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-light">
+                <small class="text-muted" style="font-size: 0.72rem;">12 CL &bull; 10 SL &bull; 15 PL</small>
+                <small class="text-primary fw-semibold" style="font-size: 0.72rem;">Click for Leave List &rarr;</small>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Pending Approvals for Department Heads & HR -->
+<?php if (!empty($pendingLeaves)): ?>
+    <div class="card border-0 rounded-4 shadow-sm mb-4 border-start border-4 border-warning overflow-hidden" style="background: #fffdf5;">
+        <div class="card-header bg-warning-subtle py-3 px-4 d-flex justify-content-between align-items-center border-bottom border-warning-subtle">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark fs-6 px-2 py-1"><i class="fa-solid fa-bell me-1"></i> <?= count($pendingLeaves) ?></span>
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark">Pending Leave & OD Approvals Required</h6>
+                    <small class="text-muted">Applications submitted by employees via mobile awaiting Department Head / HR approval</small>
+                </div>
+            </div>
+            <span class="badge bg-danger text-white px-3 py-2 rounded-pill small fw-semibold shadow-sm">
+                <i class="fa-solid fa-circle-exclamation me-1"></i> <?= count($pendingLeaves) ?> Action<?= count($pendingLeaves) > 1 ? 's' : '' ?> Pending
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4">Employee</th>
+                            <th>Request Type</th>
+                            <th>Duration / Dates</th>
+                            <th>3-Step Approval Status</th>
+                            <th>Reason / Notes</th>
+                            <th>Applied Date</th>
+                            <th class="text-end pe-4">Step Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($pendingLeaves as $pl): 
+                            $step = (int) ($pl['approval_step'] ?? 1);
+                            if ($step < 1) $step = 1;
+
+                            $currUserEmail   = strtolower(trim($_SESSION['user_email'] ?? ''));
+                            $currUserRole    = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
+                            $plAuthInfo      = getLeaveStep1Authority($pl);
+                            $plDeptHeadEmail = $plAuthInfo['head_email'];
+                            $plDeptHeadName  = $plAuthInfo['head_name'];
+                            $plDeptName      = trim($pl['department_name'] ?? 'General');
+
+                            // Step 1: Specific designation/department authority check
+                            $canActStep1     = canUserApproveStep1($plAuthInfo, $currUserRole, $currUserEmail, $pl);
+                            // Step 2: HR & Admin review
+                            $canActStep2     = ($currUserRole === 'hr' || $currUserRole === 'admin' || $currUserRole === 'superadmin' || str_contains($currUserEmail, 'hr@'));
+                            // Step 3: System Administrator final sign-off
+                            $canActStep3     = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+                            $canDirect       = ($currUserRole === 'admin' || $currUserRole === 'superadmin');
+
+                            $isStepAuthorized = ($step === 1 && $canActStep1) || ($step === 2 && $canActStep2) || ($step >= 3 && $canActStep3);
+                        ?>
+                            <tr id="leave-pending-<?= $pl['id'] ?>" class="<?= (!empty($_GET['review']) && (int)$_GET['review'] === (int)$pl['id']) ? 'table-warning' : '' ?>">
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-sm rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                            <?= strtoupper(substr($pl['employee_name'] ?? 'E', 0, 2)) ?>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark"><?= e($pl['employee_name'] ?? 'Employee') ?></div>
+                                            <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
+                                                <?= e($pl['employee_code'] ?? '') ?> &bull; <?= e($pl['department_name'] ?? ($pl['department'] ?? 'General')) ?>
+                                                <?php if (!empty($pl['employee_designation'])): ?>
+                                                    &bull; <span class="text-primary fw-semibold"><?= e($pl['employee_designation']) ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="mt-1">
+                                                <span class="badge bg-light text-primary border" style="font-size: 0.68rem;" title="Designated Step 1 Approving Authority">
+                                                    <i class="fa-solid fa-user-shield me-1"></i>Authority: <strong><?= e($plAuthInfo['title']) ?></strong>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 font-monospace">
+                                        <?= e($pl['leave_type']) ?>
+                                    </span>
+                                    <?php if (!empty($pl['applied_by_employee'])): ?>
+                                        <div class="mt-1"><span class="badge bg-light text-secondary border" style="font-size: 0.65rem;"><i class="fa-solid fa-mobile-screen me-1"></i>Mobile Self-Apply</span></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($pl['attachment'])): ?>
+                                        <div class="mt-1">
+                                            <a href="<?= base_url($pl['attachment']) ?>" target="_blank" class="badge bg-light text-success border text-decoration-none" style="font-size: 0.65rem;">
+                                                <i class="fa-solid fa-paperclip me-1"></i>Document
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="small fw-semibold text-dark">
+                                        <i class="fa-regular fa-calendar me-1 text-primary"></i><?= date('d M Y', strtotime($pl['start_date'])) ?>
+                                        <?= $pl['start_date'] !== $pl['end_date'] ? ' to ' . date('d M Y', strtotime($pl['end_date'])) : '' ?>
+                                    </div>
+                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle font-monospace mt-1" style="font-size: 0.72rem;">
+                                        <?= e($pl['days_count']) ?> Day(s)
+                                    </span>
+                                    <?php if (!empty($pl['target_site'])): ?>
+                                        <div class="mt-1 text-muted" style="font-size: 0.68rem;"><i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($pl['target_site']) ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <!-- 3-Step Visual Progress Tracker -->
+                                    <div class="d-flex flex-column gap-1" style="min-width: 220px;">
+                                        <div class="d-flex align-items-center justify-content-between small">
+                                            <span class="fw-bold <?= $step === 1 ? 'text-warning' : ($step > 1 ? 'text-success' : 'text-muted') ?>" style="font-size: 0.72rem;">
+                                                <?= $step > 1 ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : ($step === 1 ? '<i class="fa-solid fa-spinner fa-spin text-warning me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
+                                                1. <?= e($plAuthInfo['badge']) ?>
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
+                                            <span class="fw-bold <?= $step === 2 ? 'text-primary' : ($step > 2 ? 'text-success' : 'text-muted') ?>" style="font-size: 0.72rem;">
+                                                <?= $step > 2 ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : ($step === 2 ? '<i class="fa-solid fa-spinner fa-spin text-primary me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>') ?>
+                                                2. HR &amp; Admin
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right text-muted" style="font-size: 0.6rem;"></i>
+                                            <span class="fw-bold <?= $step === 3 ? 'text-dark' : 'text-muted' ?>" style="font-size: 0.72rem;">
+                                                <?= $step === 3 ? '<i class="fa-solid fa-spinner fa-spin text-dark me-1"></i>' : '<i class="fa-regular fa-circle text-muted me-1"></i>' ?>
+                                                3. Administrator
+                                            </span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar <?= $step === 1 ? 'bg-warning' : ($step === 2 ? 'bg-primary' : 'bg-dark') ?>" 
+                                                 role="progressbar" 
+                                                 style="width: <?= $step === 1 ? '33%' : ($step === 2 ? '66%' : '100%') ?>;">
+                                            </div>
+                                        </div>
+                                        <div class="text-muted" style="font-size: 0.68rem;">
+                                            <?php if ($step === 1): ?>
+                                                <i class="fa-solid fa-hourglass-half text-warning me-1"></i><strong>Step 1 / 3:</strong> Awaiting <?= e($plAuthInfo['title']) ?> Approval
+                                            <?php elseif ($step === 2): ?>
+                                                <i class="fa-solid fa-check text-success me-1"></i>Step 1 Approved (<?= e($pl['step1_approved_by_name'] ?? $plAuthInfo['title']) ?>) &bull; <strong class="text-primary">Step 2: HR &amp; Admin Review</strong>
+                                            <?php else: ?>
+                                                <i class="fa-solid fa-check text-success me-1"></i>Step 1 &amp; HR Approved &bull; <strong class="text-dark">Step 3: Administrator Sign-off</strong>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-dark small"><?= e($pl['reason'] ?: 'No notes provided') ?></span>
+                                </td>
+                                <td>
+                                    <span class="text-muted small"><?= date('d M, h:i A', strtotime($pl['created_at'])) ?></span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <?php if (\App\Core\Auth::isSiteUser()): ?>
+                                            <span class="badge bg-light text-secondary border rounded-pill px-3 py-1"><i class="fa-solid fa-eye me-1"></i> View Only</span>
+                                        <?php elseif ($isStepAuthorized): ?>
+                                            <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="id" value="<?= $pl['id'] ?>">
+                                                <?php if ($step === 1): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold" title="<?= e($plAuthInfo['button_text']) ?>">
+                                                        <i class="fa-solid fa-check me-1"></i> <?= e($plAuthInfo['button_text']) ?>
+                                                    </button>
+                                                <?php elseif ($step === 2): ?>
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold" title="Approve Step 2 (HR &amp; Admin Review)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> Step 2: Approve as HR
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm fw-semibold" title="Approve Step 3 (System Administrator Sign-off)">
+                                                        <i class="fa-solid fa-stamp me-1"></i> Step 3: Final Sign-off
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($canDirect): ?>
+                                                    <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 ms-1" title="Fast-Track: Direct Approve All 3 Steps (Super Admin)" onclick="return confirm('Fast-track and directly approve all 3 steps for <?= addslashes($pl['employee_name'] ?? '') ?>?');">
+                                                        <i class="fa-solid fa-bolt"></i> Direct
+                                                    </button>
+                                                <?php endif; ?>
+                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $pl['id'] ?>, '<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($pl['leave_type'] ?? '') ?>')" title="Reject Request">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <!-- Unauthorized login: clicking shows the Access Error Dialog -->
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm fw-semibold" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plAuthInfo['head_name']) ?>', '<?= addslashes($plAuthInfo['head_email']) ?>', <?= (int)$step ?>, '<?= addslashes($plAuthInfo['title']) ?>')" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-lock text-warning me-1"></i>
+                                                <?php if ($step === 1): ?>
+                                                    Step 1: <?= e($plAuthInfo['badge']) ?> Only
+                                                <?php elseif ($step === 2): ?>
+                                                    Step 2: HR &amp; Admin Only
+                                                <?php else: ?>
+                                                    Step 3: Administrator Only
+                                                <?php endif; ?>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($pl['employee_name'] ?? '') ?>', '<?= addslashes($plDeptName) ?>', '<?= addslashes($plAuthInfo['head_name']) ?>', '<?= addslashes($plAuthInfo['head_email']) ?>', <?= (int)$step ?>, '<?= addslashes($plAuthInfo['title']) ?>')" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<!-- Collapsible Company Assigned Staff Leave Balances Hub -->
+<div class="card border-0 rounded-4 shadow-sm bg-white mb-4">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#staffLeaveQuotaCollapse">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-scale-balanced text-primary fs-5"></i>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">Company Assigned Leave Balances per Staff</h6>
+                <small class="text-muted">Company standard annual allowance: <strong><?= $companyQuotas['total'] ?? 37 ?> Days</strong> (12 CL &bull; 10 SL &bull; 15 PL)</small>
+            </div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#staffLeaveQuotaCollapse">
+            <i class="fa-solid fa-table-list me-1"></i> Toggle Quota Matrix
+        </button>
+    </div>
+    <div class="collapse show" id="staffLeaveQuotaCollapse">
+        <div class="card-body p-0 border-top">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4">Staff Member</th>
+                            <th>Department & Site</th>
+                            <th>Company Assigned Quota</th>
+                            <th>Casual Leave (CL)</th>
+                            <th>Sick Leave (SL)</th>
+                            <th>Paid Leave (PL)</th>
+                            <th>Outdoor Duty (OD)</th>
+                            <th>Available Balance</th>
+                            <th class="pe-4 text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        <?php foreach ($employees as $emp): 
+                            $bal = $employeeBalances[$emp['id']] ?? null;
+                            if (!$bal) continue;
+                        ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold cursor-pointer" style="width: 32px; height: 32px; font-size: 0.8rem;" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)">
+                                            <?= strtoupper(substr($emp['name'], 0, 2)) ?>
+                                        </div>
+                                        <div>
+                                            <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" class="fw-bold text-dark text-decoration-none" title="Click to view full Employee Leave Sheet">
+                                                <?= e($emp['name']) ?>
+                                            </a>
+                                            <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
+                                                <?= e($emp['employee_code']) ?>
+                                                <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" class="text-primary text-decoration-none ms-1 font-sans small fw-semibold" style="font-size: 0.7rem;">
+                                                    <i class="fa-solid fa-file-lines me-1"></i>View Sheet
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div><?= e($emp['department_name'] ?? ($emp['department'] ?? 'General')) ?></div>
+                                    <div class="text-muted small"><i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($emp['site'] ?? 'Main Site') ?></div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="badge bg-light text-dark border font-monospace">
+                                            <?= $bal['assigned']['total'] ?> Days
+                                        </span>
+                                        <?php if (!empty($bal['is_custom'])): ?>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-1" style="font-size: 0.65rem;">Custom</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-muted small mt-1" style="font-size: 0.68rem;"><?= $bal['assigned']['CL'] ?> CL &bull; <?= $bal['assigned']['SL'] ?> SL &bull; <?= $bal['assigned']['PL'] ?> PL</div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-info"><?= $bal['taken']['CL'] ?> used</div>
+                                    <div class="text-muted small"><?= $bal['balance']['CL'] ?> left of <?= $bal['assigned']['CL'] ?></div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-warning"><?= $bal['taken']['SL'] ?> used</div>
+                                    <div class="text-muted small"><?= $bal['balance']['SL'] ?> left of <?= $bal['assigned']['SL'] ?></div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-success"><?= $bal['taken']['PL'] ?> used</div>
+                                    <div class="text-muted small"><?= $bal['balance']['PL'] ?> left of <?= $bal['assigned']['PL'] ?></div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2">
+                                        <?= $bal['taken']['OD'] ?> Visits
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge <?= $bal['balance']['total'] > 5 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' ?> rounded-pill px-3 py-1 fw-bold fs-6 font-monospace">
+                                        <?= $bal['balance']['total'] ?> / <?= $bal['assigned']['total'] ?>
+                                    </span>
+                                    <div class="text-muted small mt-1">Days Remaining</div>
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $emp['id'] ?>)" title="View Complete Leave Sheet">
+                                            <i class="fa-solid fa-file-lines me-1"></i> Sheet
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 <?= \App\Core\Auth::isRestricted() ? 'd-none' : '' ?>" onclick="openEditEmpQuota(<?= htmlspecialchars(json_encode([
+                                            'id' => $emp['id'],
+                                            'name' => $emp['name'],
+                                            'code' => $emp['employee_code'],
+                                            'cl' => $bal['assigned']['CL'],
+                                            'sl' => $bal['assigned']['SL'],
+                                            'pl' => $bal['assigned']['PL'],
+                                            'is_custom' => $bal['is_custom'] ?? false
+                                        ])) ?>)" title="Edit Leave Quota for this employee">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> Quota
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="<?= base_url('leaves') ?>" class="row g-2 mb-4 p-3 bg-light rounded-4 border align-items-end">
+    <div class="col-md-3">
+        <label class="form-label small text-muted fw-semibold mb-1">
+            <i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Search Employee Name or ID
+        </label>
+        <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
+            <input type="text" 
+                   name="search" 
+                   id="leaveSearchInput" 
+                   class="form-control form-control-sm bg-white border-start-0" 
+                   placeholder="Type Name or Code..." 
+                   value="<?= e($filters['search'] ?? '') ?>" 
+                   list="leaveEmployeeSuggestions" 
+                   autocomplete="off">
+        </div>
+        <datalist id="leaveEmployeeSuggestions">
+            <?php foreach ($employees as $empOpt): ?>
+                <option value="<?= e($empOpt['employee_code']) ?> — <?= e($empOpt['name']) ?>"></option>
+            <?php endforeach; ?>
+        </datalist>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small text-muted fw-semibold mb-1"><i class="fa-solid fa-sitemap me-1 text-primary"></i> Department</label>
+        <select name="department_id" class="form-select form-select-sm bg-white" onchange="this.form.submit()">
+            <option value="">All Departments</option>
+            <?php foreach ($departments as $dept): ?>
+                <option value="<?= $dept['id'] ?>" <?= (($filters['department_id'] ?? '') == $dept['id']) ? 'selected' : '' ?>>
+                    <?= e($dept['name']) ?> <?= !empty($dept['head_name']) ? '— Head: ' . e($dept['head_name']) : '' ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small text-muted fw-semibold mb-1">Staff Member</label>
+        <select name="employee_id" class="form-select form-select-sm bg-white">
+            <option value="">All Employees</option>
+            <?php foreach ($employees as $emp): ?>
+                <option value="<?= $emp['id'] ?>" <?= (($filters['employee_id'] ?? '') == $emp['id']) ? 'selected' : '' ?>>
+                    <?= e($emp['name']) ?> (<?= e($emp['employee_code']) ?>)
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small text-muted fw-semibold mb-1">Leave Type</label>
+        <select name="leave_type" class="form-select form-select-sm bg-white">
+            <option value="">All Leave Types</option>
+            <option value="Casual Leave" <?= (($filters['leave_type'] ?? '') === 'Casual Leave') ? 'selected' : '' ?>>Casual Leave (CL)</option>
+            <option value="Sick Leave" <?= (($filters['leave_type'] ?? '') === 'Sick Leave') ? 'selected' : '' ?>>Sick / Medical Leave (SL)</option>
+            <option value="Paid Leave" <?= (($filters['leave_type'] ?? '') === 'Paid Leave') ? 'selected' : '' ?>>Paid Leave (PL)</option>
+            <option value="On Duty" <?= (($filters['leave_type'] ?? '') === 'On Duty') ? 'selected' : '' ?>>On Duty / Official Visit (OD)</option>
+            <option value="Half Day Leave" <?= (($filters['leave_type'] ?? '') === 'Half Day Leave') ? 'selected' : '' ?>>Half Day Leave (HD)</option>
+            <option value="Comp Off" <?= (($filters['leave_type'] ?? '') === 'Comp Off') ? 'selected' : '' ?>>Compensatory Off (CO)</option>
+            <option value="Special Holiday" <?= (($filters['leave_type'] ?? '') === 'Special Holiday') ? 'selected' : '' ?>>Special Holiday / Restricted Off</option>
+        </select>
+    </div>
+    <div class="col-md-2 d-flex gap-1">
+        <button type="submit" class="btn btn-dark btn-sm rounded-pill px-3 flex-grow-1"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+        <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm rounded-pill px-3 border" title="Reset"><i class="fa-solid fa-arrow-rotate-left"></i></a>
+    </div>
+</form>
+
+<!-- Department Approving Authority Info Card (Shown when Department is Selected) -->
+<?php if (!empty($selectedDepartment)): ?>
+    <div class="card border-0 rounded-4 shadow-sm mb-4 border-start border-4 border-primary" style="background: linear-gradient(to right, #eff6ff, #ffffff);">
+        <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 44px; height: 44px; font-size: 1.1rem;">
+                    <i class="fa-solid fa-sitemap"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark fs-6">
+                        Department: <span class="text-primary"><?= e($selectedDepartment['name']) ?></span>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <span class="me-3">
+                            <i class="fa-solid fa-user-tie text-success me-1"></i> Approving Authority (Dept Head): 
+                            <strong class="text-dark"><?= e($selectedDepartment['head_name'] ?: 'Not Assigned (Defaults to HR / Administrator)') ?></strong>
+                            <?php if (!empty($selectedDepartment['head_email'])): ?>
+                                <span class="text-muted">(<?= e($selectedDepartment['head_email']) ?>)</span>
+                            <?php endif; ?>
+                        </span>
+                        <span>
+                            <i class="fa-solid fa-building-shield text-primary me-1"></i> Final Authority: <strong class="text-dark">HR & Administrator</strong>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm <?= \App\Core\Auth::isRestricted() ? 'd-none' : '' ?>" onclick="openEditDeptHeadModal(<?= $selectedDepartment['id'] ?>, '<?= addslashes($selectedDepartment['name']) ?>', '<?= addslashes($selectedDepartment['head_name'] ?? '') ?>', '<?= addslashes($selectedDepartment['head_email'] ?? '') ?>')">
+                <i class="fa-solid fa-user-pen me-1"></i> Change Department Authority
+            </button>
+        </div>
+    </div>
+<?php endif; ?>
+
+<!-- Leaves Table -->
+<div class="card border-0 rounded-4 shadow-sm bg-white overflow-hidden mb-4" id="leaveRecordsCard">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0 text-dark">
+            <i class="fa-solid fa-list-check text-primary me-2"></i>Employee Leave Records
+        </h6>
+        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill"><?= count($leaves) ?> Records</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-muted small text-uppercase">
+                <tr>
+                    <th class="ps-4">Employee</th>
+                    <th>Leave Type</th>
+                    <th>Company Assigned & Balance</th>
+                    <th>Target / Visit Site</th>
+                    <th>Date Period</th>
+                    <th>Days</th>
+                    <th>Attached PDF / Sheet</th>
+                    <th>Reason / Notes</th>
+                    <th>Status</th>
+                    <th class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($leaves)): ?>
+                    <tr>
+                        <td colspan="10" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+                            No leave entries recorded yet. Click <strong>Add Leave Entry</strong> to record employee leave.
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($leaves as $lv): 
+                        $code = \App\Models\Leave::getLeaveCode($lv['leave_type']);
+                        $badgeClass = match($code) {
+                            'CL' => 'bg-info-subtle text-info border border-info-subtle',
+                            'SL' => 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+                            'PL' => 'bg-success-subtle text-success border border-success-subtle',
+                            'OD' => 'bg-primary-subtle text-primary border border-primary-subtle',
+                            'HOL' => 'bg-purple-subtle text-purple border',
+                            default => 'bg-secondary-subtle text-secondary border'
+                        };
+                        $empBal = $employeeBalances[$lv['employee_id']] ?? null;
+                    ?>
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold cursor-pointer" style="width: 32px; height: 32px; font-size: 0.8rem;" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="Click to view Leave Sheet">
+                                        <?= strtoupper(substr($lv['employee_name'], 0, 2)) ?>
+                                    </div>
+                                    <div>
+                                        <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" class="fw-bold text-dark text-decoration-none" title="Click to view full Employee Leave Sheet & Dossier">
+                                            <?= e($lv['employee_name']) ?>
+                                        </a>
+                                        <div class="text-muted font-monospace small" style="font-size: 0.72rem;">
+                                            <?= e($lv['employee_code']) ?> &bull; <?= e($lv['department_name'] ?? 'General') ?>
+                                            <a href="javascript:void(0)" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill text-decoration-none ms-1 px-2 py-0" style="font-size: 0.65rem;" title="View Complete Leave Sheet">
+                                                <i class="fa-solid fa-file-lines me-1"></i>Leave Sheet
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge <?= $badgeClass ?> px-2 py-1 rounded-pill">
+                                    <i class="fa-solid fa-tag me-1"></i><?= e($lv['leave_type']) ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($empBal): ?>
+                                    <div class="small fw-semibold text-dark">
+                                        <span class="text-info" title="Casual Leave Balance"><strong><?= $empBal['balance']['CL'] ?></strong>/<?= $empBal['assigned']['CL'] ?> CL</span> &bull;
+                                        <span class="text-warning" title="Sick Leave Balance"><strong><?= $empBal['balance']['SL'] ?></strong>/<?= $empBal['assigned']['SL'] ?> SL</span> &bull;
+                                        <span class="text-success" title="Paid Leave Balance"><strong><?= $empBal['balance']['PL'] ?></strong>/<?= $empBal['assigned']['PL'] ?> PL</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-shield-halved me-1"></i><?= $empBal['balance']['total'] ?> / <?= $empBal['assigned']['total'] ?> Left
+                                        </span>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted small">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if (!empty($lv['target_site'])): ?>
+                                    <div class="d-inline-flex flex-column">
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="fa-solid fa-location-crosshairs text-primary me-1"></i><?= e($lv['target_site']) ?>
+                                        </span>
+                                        <?php if (!empty($lv['origin_site'])): ?>
+                                            <small class="text-muted" style="font-size: 0.7rem;">From: <?= e($lv['origin_site']) ?></small>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted small">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <div class="small">
+                                    <span class="text-dark fw-semibold">
+                                        <i class="fa-regular fa-calendar me-1 text-primary"></i><?= date('d M Y', strtotime($lv['start_date'])) ?>
+                                    </span>
+                                    <?php if ($lv['start_date'] !== $lv['end_date']): ?>
+                                        <div class="text-muted" style="font-size: 0.75rem;">to <?= date('d M Y', strtotime($lv['end_date'])) ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border px-2 py-1"><?= $lv['days_count'] ?> Day(s)</span>
+                            </td>
+                            <td>
+                                <?php if (!empty($lv['attachment'])): 
+                                    $attExt = strtolower(pathinfo($lv['attachment'], PATHINFO_EXTENSION));
+                                    $attUrl = uploaded_url($lv['attachment']);
+                                ?>
+                                    <?php if ($attExt === 'pdf'): ?>
+                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 shadow-sm font-monospace" style="font-size: 0.75rem;" title="View Attached PDF Sheet">
+                                            <i class="fa-solid fa-file-pdf me-1"></i> PDF Sheet
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="<?= $attUrl ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 shadow-sm" style="font-size: 0.75rem;">
+                                            <i class="fa-solid fa-file-arrow-down me-1"></i> Attachment
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted small">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-muted small">
+                                <?= e($lv['reason'] ?: 'Approved Leave') ?>
+                            </td>
+                            <td>
+                                <?php 
+                                    $st = strtoupper($lv['status'] ?? 'APPROVED');
+                                    $step = (int)($lv['approval_step'] ?? 1);
+                                    if ($st === 'APPROVED'): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-check-double me-1"></i> Fully Approved (3/3)
+                                        </span>
+                                        <div class="mt-1" style="font-size: 0.72rem;">
+                                            <?php if (!empty($lv['step1_approved_by_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-check text-success me-1"></i>HOD: <strong class="text-dark"><?= e($lv['step1_approved_by_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['step2_approved_by_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-check text-success me-1"></i>HR: <strong class="text-dark"><?= e($lv['step2_approved_by_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['step3_approved_by_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-stamp text-success me-1"></i>Mgmt: <strong class="text-dark"><?= e($lv['step3_approved_by_name']) ?></strong></div>
+                                            <?php elseif (!empty($lv['approver_name'])): ?>
+                                                <div class="text-muted"><i class="fa-solid fa-user-check text-success me-1"></i>By: <strong class="text-dark"><?= e($lv['approver_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['approved_at'])): ?>
+                                                <div class="text-muted" style="font-size: 0.68rem;"><?= date('d M Y, h:i A', strtotime($lv['approved_at'])) ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php elseif ($st === 'PENDING_LEVEL_1' || ($st === 'PENDING' && $step <= 1)): 
+                                        $tblStatusAuth = getLeaveStep1Authority($lv);
+                                    ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-hourglass-half me-1"></i> Step 1/3: <?= e($tblStatusAuth['title']) ?>
+                                        </span>
+                                        <div class="mt-1 text-muted" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-user-shield text-warning me-1"></i>Authority: <strong class="text-dark"><?= e($tblStatusAuth['title']) ?></strong>
+                                        </div>
+                                    <?php elseif ($st === 'PENDING_LEVEL_2' || ($st === 'PENDING' && $step === 2)): ?>
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Step 2/3: HR &amp; Admin
+                                        </span>
+                                        <div class="mt-1 text-muted" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-check text-success me-1"></i>Step 1 Approved: <strong class="text-dark"><?= e($lv['step1_approved_by_name'] ?? 'Done') ?></strong>
+                                            <div class="text-primary mt-1"><i class="fa-solid fa-user-gear me-1"></i>Awaiting HR &amp; Admin</div>
+                                        </div>
+                                    <?php elseif ($st === 'PENDING_LEVEL_3' || ($st === 'PENDING' && $step === 3)): ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-stamp me-1"></i> Step 3/3: Administrator
+                                        </span>
+                                        <div class="mt-1 text-muted" style="font-size: 0.72rem;">
+                                            <i class="fa-solid fa-check-double text-success me-1"></i>Step 1 &amp; HR Approved
+                                            <div class="text-dark fw-semibold mt-1"><i class="fa-solid fa-user-tie me-1"></i>Awaiting Administrator Sign-off</div>
+                                        </div>
+                                    <?php elseif ($st === 'REJECTED'): ?>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1" title="<?= e($lv['reject_reason'] ?? 'Rejected') ?>">
+                                            <i class="fa-solid fa-xmark me-1"></i> Rejected <?= !empty($lv['rejected_at_step']) ? '(Step ' . $lv['rejected_at_step'] . ')' : '' ?>
+                                        </span>
+                                        <div class="mt-1" style="font-size: 0.72rem;">
+                                            <?php if (!empty($lv['approver_name'])): ?>
+                                                <div class="text-dark"><i class="fa-solid fa-user-xmark text-danger me-1"></i>By: <strong><?= e($lv['approver_name']) ?></strong></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($lv['reject_reason'])): ?>
+                                                <div class="text-danger small" style="font-size: 0.68rem;"><i class="fa-solid fa-circle-exclamation me-1"></i><?= e($lv['reject_reason']) ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary rounded-pill"><?= e($st) ?></span>
+                                    <?php endif; ?>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="d-inline-flex gap-1">
+                                    <?php 
+                                        $isPending = str_starts_with($st, 'PENDING');
+                                        if ($isPending): 
+                                            $currStep        = (int)($lv['approval_step'] ?? 1);
+                                            $tblUserEmail    = strtolower(trim($_SESSION['user_email'] ?? ''));
+                                            $tblUserRole     = strtolower(trim($_SESSION['user_role'] ?? 'admin'));
+                                            $tblAuthInfo     = getLeaveStep1Authority($lv);
+                                            $lvDeptHeadEmail = $tblAuthInfo['head_email'];
+                                            $lvDeptHeadName  = $tblAuthInfo['head_name'];
+                                            $lvDeptName      = trim($lv['department_name'] ?? 'General');
+
+                                            $tblCanStep1 = canUserApproveStep1($tblAuthInfo, $tblUserRole, $tblUserEmail, $lv);
+                                            $tblCanStep2 = ($tblUserRole === 'hr' || $tblUserRole === 'admin' || $tblUserRole === 'superadmin' || str_contains($tblUserEmail, 'hr@'));
+                                            $tblCanStep3 = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+                                            $tblCanDirect = ($tblUserRole === 'admin' || $tblUserRole === 'superadmin');
+
+                                            $tblIsAuthorized = ($currStep === 1 && $tblCanStep1) || ($currStep === 2 && $tblCanStep2) || ($currStep >= 3 && $tblCanStep3);
+                                    ?>
+                                        <?php if (\App\Core\Auth::isSiteUser()): ?>
+                                            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1"><i class="fa-solid fa-eye me-1"></i> View Only</span>
+                                        <?php elseif ($tblIsAuthorized): ?>
+                                            <form action="<?= base_url('leaves/approve') ?>" method="POST" class="d-inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="id" value="<?= $lv['id'] ?>">
+                                                <?php if ($currStep === 1): ?>
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Approve Step 1 (<?= e($tblAuthInfo['title']) ?>)">
+                                                        <i class="fa-solid fa-check me-1"></i> Step 1: <?= e($tblAuthInfo['badge']) ?>
+                                                    </button>
+                                                <?php elseif ($currStep === 2): ?>
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2 py-1" title="Approve Step 2 (HR &amp; Admin Review)">
+                                                        <i class="fa-solid fa-check-double me-1"></i> Step 2: HR
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-2 py-1" title="Approve Step 3 (System Administrator Sign-off)">
+                                                        <i class="fa-solid fa-stamp me-1"></i> Step 3: Admin
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($tblCanDirect): ?>
+                                                    <button type="submit" name="direct_approve" value="1" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" title="Direct Approve (All Steps)" onclick="return confirm('Directly approve all 3 steps?');">
+                                                        <i class="fa-solid fa-bolt"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="openRejectModal(<?= $lv['id'] ?>, '<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lv['leave_type'] ?? '') ?>')" title="Reject Leave">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <!-- Unauthorized: shows access error dialog on click -->
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($tblAuthInfo['head_name']) ?>', '<?= addslashes($tblAuthInfo['head_email']) ?>', <?= (int)$currStep ?>, '<?= addslashes($tblAuthInfo['title']) ?>')" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-lock text-warning me-1"></i>
+                                                <?= $currStep === 1 ? ('Step 1: ' . e($tblAuthInfo['badge'])) : ($currStep === 2 ? 'Step 2: HR' : 'Step 3: Admin') ?>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 opacity-50" onclick="showAuthorityAccessDialog('<?= addslashes($lv['employee_name'] ?? '') ?>', '<?= addslashes($lvDeptName) ?>', '<?= addslashes($tblAuthInfo['head_name']) ?>', '<?= addslashes($tblAuthInfo['head_email']) ?>', <?= (int)$currStep ?>, '<?= addslashes($tblAuthInfo['title']) ?>')" title="Click to view authority requirement">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="openEmployeeLeaveSheet(<?= $lv['employee_id'] ?>)" title="View Complete Leave Sheet">
+                                        <i class="fa-solid fa-file-lines"></i>
+                                    </button>
+                                    <form action="<?= base_url('leaves/delete') ?>" method="POST" class="<?= \App\Core\Auth::isRestricted() ? 'd-none' : 'd-inline' ?>" onsubmit="return confirm('Are you sure you want to delete this leave entry?');">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="id" value="<?= $lv['id'] ?>">
+                                        <input type="hidden" name="return_url" value="leaves">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" title="Delete Leave">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Leave Modal -->
+<div class="modal fade" id="addLeaveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-plane-departure text-warning me-2"></i>Record Employee Leave / OD
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= base_url('leaves/create') ?>" method="POST" enctype="multipart/form-data">
+                <?= csrf_field() ?>
+                <input type="hidden" name="return_url" value="leaves">
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Employee (Name or Code) <span class="text-danger">*</span></label>
+                        <input type="text" name="employee_id" id="modalEmpInput" list="leaveEmployeeDatalist" class="form-control bg-light" placeholder="Type Employee Name or Code (e.g. EMP001)..." required autocomplete="off" oninput="updateModalEmpQuota(this.value)">
+                        <datalist id="leaveEmployeeDatalist">
+                            <?php foreach ($employees as $emp): ?>
+                                <option value="<?= e($emp['employee_code']) ?> — <?= e($emp['name']) ?>" data-empid="<?= $emp['id'] ?>" data-empcode="<?= e($emp['employee_code']) ?>">
+                                    <?= e($emp['name']) ?> (<?= e($emp['department_name'] ?? ($emp['department'] ?? 'General')) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </datalist>
+                        <small class="text-muted" style="font-size: 0.72rem;">Type employee code or name to search and select.</small>
+                    </div>
+
+                    <!-- Live Employee Leave Quota Preview in Modal -->
+                    <div id="modalEmpQuotaBox" class="p-3 bg-light rounded-4 border mb-3 d-none">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="small fw-bold text-dark"><i class="fa-solid fa-scale-balanced text-primary me-1"></i>Company Assigned Quota:</span>
+                            <span id="modalEmpTotalBalBadge" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace"></span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 small mt-2">
+                            <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1" id="modalClBal"></span>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1" id="modalSlBal"></span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1" id="modalPlBal"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Leave Type <span class="text-danger">*</span></label>
+                        <select name="leave_type" id="modalLeaveTypeSelect" class="form-select bg-light" required onchange="handleLeaveTypeChange(this.value)">
+                            <option value="Casual Leave">Casual Leave (CL)</option>
+                            <option value="Sick Leave">Sick / Medical Leave (SL)</option>
+                            <option value="Paid Leave">Paid Leave (PL)</option>
+                            <option value="On Duty">On Duty / Official Visit (OD)</option>
+                            <option value="Half Day Leave">Half Day Leave (HD)</option>
+                            <option value="Comp Off">Compensatory Off (CO)</option>
+                            <option value="Special Holiday">Special Holiday / Restricted Off</option>
+                            <option value="Unpaid Leave">Unpaid Leave / LOP</option>
+                        </select>
+                    </div>
+
+                    <!-- ON DUTY (OD) WHERE TO GO / TARGET SITE FIELDS -->
+                    <div class="p-3 bg-light rounded-4 border border-primary-subtle mb-3 d-none" id="odSiteFields">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-primary text-white"><i class="fa-solid fa-location-crosshairs me-1"></i> Outdoor / OD Visit Details</span>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-muted">Where to Go Site / Target Site <span class="text-danger">*</span></label>
+                                <input type="text" name="target_site" id="odTargetSite" list="allSitesList" class="form-control bg-white" placeholder="e.g. Hyderabad Metro Site, Client Office, Site-B">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-muted">From / Base Site</label>
+                                <input type="text" name="origin_site" id="odOriginSite" list="allSitesList" class="form-control bg-white" placeholder="e.g. Head Office / Primary Site">
+                            </div>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Specify the destination client or project site where the employee is visiting.</small>
+                    </div>
+
+                    <!-- Available Work Sites Datalist -->
+                    <datalist id="allSitesList">
+                        <?php foreach ($siteList ?? [] as $s): ?>
+                            <option value="<?= e($s) ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">From Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="leaveFromDate" class="form-control bg-light" value="<?= date('Y-m-d') ?>" required onchange="syncToDate(this.value)">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">To Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="leaveToDate" class="form-control bg-light" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                    </div>
+
+                    <!-- ATTACH PDF / DOCUMENT SHEET -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">
+                            <i class="fa-solid fa-paperclip text-primary me-1"></i>Attach PDF / Document Sheet <small class="text-muted">(Optional)</small>
+                        </label>
+                        <input type="file" name="attachment" class="form-control bg-light" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.csv">
+                        <small class="text-muted" style="font-size: 0.72rem;">Upload approval slip, medical certificate, OD tour sheet, or permission form (PDF / Images / Docs).</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Reason / Approval Notes</label>
+                        <input type="text" name="reason" class="form-control bg-light" placeholder="e.g. Doctor appointment, Family function, Approved on-duty site visit">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Save Leave Entry
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Company Standard Leave Quota Modal -->
+<div class="modal fade" id="editCompanyQuotaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-sliders text-primary me-2"></i>Edit Company Leave Quota
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= base_url('leaves/update-company-quota') ?>" method="POST">
+                <?= csrf_field() ?>
+                <div class="modal-body py-4">
+                    <p class="text-muted small mb-3">Set standard annual leave allowances assigned by the company to all employees.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Casual Leave (CL) Quota (Days/Year) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.5" min="0" max="365" name="cl_quota" id="compClQuota" class="form-control bg-light font-monospace fw-bold" value="<?= $companyQuotas['CL'] ?? 12 ?>" required oninput="calcCompTotal()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Sick Leave (SL) Quota (Days/Year) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.5" min="0" max="365" name="sl_quota" id="compSlQuota" class="form-control bg-light font-monospace fw-bold" value="<?= $companyQuotas['SL'] ?? 10 ?>" required oninput="calcCompTotal()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Paid / Annual Leave (PL) Quota (Days/Year) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.5" min="0" max="365" name="pl_quota" id="compPlQuota" class="form-control bg-light font-monospace fw-bold" value="<?= $companyQuotas['PL'] ?? 15 ?>" required oninput="calcCompTotal()">
+                    </div>
+
+                    <div class="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary-subtle d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold text-dark">Total Company Annual Allowance:</span>
+                        <span id="compTotalDisplay" class="badge bg-primary text-white fs-6 font-monospace px-3 py-2 rounded-pill"><?= $companyQuotas['total'] ?? 37 ?> Days</span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Update Company Quota
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Individual Employee Leave Quota Modal -->
+<div class="modal fade" id="editEmpQuotaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-user-pen text-primary me-2"></i>Edit Employee Leave Quota
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= base_url('leaves/update-employee-quota') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="employee_id" id="editEmpId">
+                <div class="modal-body py-4">
+                    <div class="p-3 bg-light rounded-4 border mb-3">
+                        <div class="fw-bold text-dark" id="editEmpName">—</div>
+                        <div class="text-muted font-monospace small" id="editEmpCode">—</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="use_company_default" id="useCompanyDefaultCheck" value="1" onchange="toggleCustomQuotaInputs(this.checked)">
+                        <label class="form-check-label small fw-semibold text-dark" for="useCompanyDefaultCheck">
+                            Use Standard Company Quota (<?= $companyQuotas['total'] ?? 37 ?> Days)
+                        </label>
+                    </div>
+
+                    <div id="customQuotaInputsContainer">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Custom Casual Leave (CL) Quota</label>
+                            <input type="number" step="0.5" min="0" max="365" name="cl_quota" id="editEmpCl" class="form-control bg-light font-monospace fw-bold" oninput="calcEmpTotal()">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Custom Sick Leave (SL) Quota</label>
+                            <input type="number" step="0.5" min="0" max="365" name="sl_quota" id="editEmpSl" class="form-control bg-light font-monospace fw-bold" oninput="calcEmpTotal()">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Custom Paid Leave (PL) Quota</label>
+                            <input type="number" step="0.5" min="0" max="365" name="pl_quota" id="editEmpPl" class="form-control bg-light font-monospace fw-bold" oninput="calcEmpTotal()">
+                        </div>
+
+                        <div class="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary-subtle d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold text-dark">Total Assigned to this Employee:</span>
+                            <span id="editEmpTotalDisplay" class="badge bg-primary text-white fs-6 font-monospace px-3 py-2 rounded-pill">0 Days</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Save Employee Quota
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Employee Leave Statement & Dossier Sheet Modal -->
+<div class="modal fade" id="employeeLeaveSheetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <!-- Modal Actions Bar (hidden when printing) -->
+            <div class="modal-header border-bottom bg-light d-print-none py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white p-2 rounded-3"><i class="fa-solid fa-file-invoice fs-6"></i></span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Employee Leave Statement & Dossier Sheet</h5>
+                        <small class="text-muted">Official company leave record & balance report</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-dark rounded-pill px-3 shadow-sm" onclick="printLeaveSheet()">
+                        <i class="fa-solid fa-print me-1"></i> Print Leave Sheet
+                    </button>
+                    <button type="button" class="btn btn-light rounded-circle shadow-sm" data-bs-dismiss="modal" style="width: 38px; height: 38px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body p-4 p-md-5" id="printableLeaveSheetArea">
+                <!-- Company Official Printable Header -->
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fa-solid fa-building-circle-check text-primary fs-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-0 font-monospace" style="letter-spacing: -0.5px;">Gannon Dunkerley & Co. Ltd.</h4>
+                            <div class="text-uppercase small fw-bold text-primary tracking-wider" style="font-size: 0.72rem; letter-spacing: 1px;">
+                                <i class="fa-solid fa-file-waveform me-1"></i>Employee Leave Statement & Dossier Sheet
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end text-muted small">
+                        <div><i class="fa-regular fa-clock me-1 text-secondary"></i><strong>Report Date:</strong> <?= date('d M Y, h:i A') ?></div>
+                        <div><i class="fa-regular fa-calendar me-1 text-secondary"></i><strong>Calendar Year:</strong> <?= date('Y') ?></div>
+                        <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill mt-1">
+                            <i class="fa-solid fa-circle-check me-1"></i>Official Company Record
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employee Profile Card with Small Icons -->
+                <div class="row g-3 mb-4 p-3 bg-light rounded-3 border">
+                    <div class="col-md-3">
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-regular fa-user text-primary me-1" style="font-size: 0.72rem;"></i>Employee Name</small>
+                        <span class="fs-6 fw-bold text-dark" id="sheetEmpName">—</span>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-id-badge text-primary me-1" style="font-size: 0.72rem;"></i>Employee Code</small>
+                        <span class="fs-6 fw-bold text-primary font-monospace" id="sheetEmpCode">—</span>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-sitemap text-primary me-1" style="font-size: 0.72rem;"></i>Department</small>
+                        <span class="fs-6 fw-semibold text-dark" id="sheetEmpDept">—</span>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-location-dot text-danger me-1" style="font-size: 0.72rem;"></i>Base Work Site</small>
+                        <span class="fs-6 fw-semibold text-dark" id="sheetEmpSite">—</span>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted fw-semibold d-block mb-1"><i class="fa-solid fa-briefcase text-primary me-1" style="font-size: 0.72rem;"></i>Designation / Role</small>
+                        <span class="fs-6 fw-semibold text-dark" id="sheetEmpRole">—</span>
+                    </div>
+                </div>
+
+                <!-- Leave Quota & Balance Classic KPI Grid with Small Icons -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #6c757d !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-muted text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total Quota</span>
+                                    <i class="fa-solid fa-scale-balanced text-secondary" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-dark mb-0 font-monospace" id="sheetTotalAssigned">0 Days</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;"><i class="fa-regular fa-calendar-check me-1"></i>Assigned / Year</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #0dcaf0 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-info-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Casual Leave</span>
+                                    <i class="fa-solid fa-umbrella-beach text-info" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-info-emphasis mb-0 font-monospace" id="sheetClBalance">0 / 0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;" id="sheetClTaken"><i class="fa-solid fa-chart-pie text-info me-1" style="font-size: 0.65rem;"></i>0 Days Used</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #ffc107 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-warning-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Sick Leave</span>
+                                    <i class="fa-solid fa-heart-pulse text-warning" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-warning-emphasis mb-0 font-monospace" id="sheetSlBalance">0 / 0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;" id="sheetSlTaken"><i class="fa-solid fa-chart-pie text-warning me-1" style="font-size: 0.65rem;"></i>0 Days Used</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #198754 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-success-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Paid Leave</span>
+                                    <i class="fa-solid fa-star text-success" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-success-emphasis mb-0 font-monospace" id="sheetPlBalance">0 / 0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;" id="sheetPlTaken"><i class="fa-solid fa-chart-pie text-success me-1" style="font-size: 0.65rem;"></i>0 Days Used</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #0d6efd !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-primary-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Outdoor Duty</span>
+                                    <i class="fa-solid fa-route text-primary" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-primary mb-0 font-monospace" id="sheetOdVisits">0</div>
+                                <div class="text-muted mt-1" style="font-size: 0.68rem;"><i class="fa-solid fa-car-side text-primary me-1" style="font-size: 0.65rem;"></i>Site Visits</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white" style="border-top: 3px solid #198754 !important; background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%) !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-success-emphasis text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Remaining</span>
+                                    <i class="fa-solid fa-wallet text-success" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <div class="h5 fw-bold text-success mb-0 font-monospace" id="sheetTotalRemaining">0 Days</div>
+                                <div class="text-success-emphasis mt-1 fw-semibold" style="font-size: 0.68rem;"><i class="fa-solid fa-check-double text-success me-1" style="font-size: 0.65rem;"></i>Available Days</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Leave Records Table with Small Icons -->
+                <div class="card border shadow-sm rounded-3 overflow-hidden mb-4">
+                    <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0 text-dark small"><i class="fa-solid fa-list-check me-1 text-primary"></i>Recorded Leave & Outdoor Duty (OD) History</h6>
+                        <span class="badge bg-secondary text-white rounded-pill" id="sheetTotalRecordsCount">0 Entries</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small text-muted text-uppercase" style="font-size: 0.72rem;">
+                                <tr>
+                                    <th class="ps-3" style="width: 45px;"><i class="fa-solid fa-hashtag me-1 text-secondary"></i>#</th>
+                                    <th><i class="fa-solid fa-tag me-1 text-primary"></i>Leave Type</th>
+                                    <th><i class="fa-regular fa-calendar me-1 text-primary"></i>Date Period</th>
+                                    <th><i class="fa-regular fa-clock me-1 text-primary"></i>Days</th>
+                                    <th><i class="fa-solid fa-location-dot me-1 text-danger"></i>Origin / Target Site</th>
+                                    <th><i class="fa-regular fa-comment-dots me-1 text-primary"></i>Reason / Notes</th>
+                                    <th><i class="fa-solid fa-paperclip me-1 text-primary"></i>Attached File</th>
+                                    <th class="pe-3 text-end"><i class="fa-solid fa-shield-halved me-1 text-primary"></i>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sheetTableBody" class="small">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Signature & Authorization Section for Print -->
+                <div class="row pt-4 mt-4 border-top text-muted small">
+                    <div class="col-4 text-center">
+                        <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                        <span>Employee Signature</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                        <span>Site / Project Manager</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div style="border-bottom: 1px dashed #ccc; height: 35px; width: 80%; margin: 0 auto 5px;"></div>
+                        <span>HR & Admin Department</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light py-3 px-4 d-print-none">
+                <a id="sheetViewDossierLink" href="#" class="btn btn-outline-primary rounded-pill px-3 me-auto">
+                    <i class="fa-solid fa-chart-pie me-1"></i> View Full Attendance Dossier
+                </a>
+                <button type="button" class="btn btn-dark rounded-pill px-4" onclick="printLeaveSheet()">
+                    <i class="fa-solid fa-print me-1"></i> Print Leave Sheet
+                </button>
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    #printableLeaveSheetArea, #printableLeaveSheetArea * {
+        visibility: visible !important;
+    }
+    #printableLeaveSheetArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        background: #fff !important;
+    }
+    .modal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+    .modal-dialog {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+</style>
+
+<script>
+const allEmployeeBalances = <?= json_encode($employeeBalances ?? []) ?>;
+const defaultCompanyQuotas = <?= json_encode($companyQuotas ?? ['CL' => 12, 'SL' => 10, 'PL' => 15, 'total' => 37]) ?>;
+const leavesByEmployee = <?= json_encode($leavesByEmployee ?? []) ?>;
+const employeesMap = {
+    <?php foreach ($employees as $emp): ?>
+        "<?= (int)$emp['id'] ?>": <?= json_encode($emp) ?>,
+    <?php endforeach; ?>
+};
+const employeesLookup = {
+    <?php foreach ($employees as $emp): ?>
+        "<?= addslashes(strtolower($emp['employee_code'])) ?>": <?= (int)$emp['id'] ?>,
+        "<?= addslashes(strtolower($emp['name'])) ?>": <?= (int)$emp['id'] ?>,
+        "<?= (int)$emp['id'] ?>": <?= (int)$emp['id'] ?>,
+    <?php endforeach; ?>
+};
+
+function openEmployeeLeaveSheet(empId) {
+    const emp = employeesMap[empId];
+    if (!emp) return;
+
+    const bal = allEmployeeBalances[empId] || {
+        assigned: { total: 37, CL: 12, SL: 10, PL: 15 },
+        taken: { total: 0, CL: 0, SL: 0, PL: 0, OD: 0 },
+        balance: { total: 37, CL: 12, SL: 10, PL: 15 }
+    };
+
+    const empLeaves = leavesByEmployee[empId] || [];
+
+    // Populate profile card
+    document.getElementById('sheetEmpName').textContent = emp.name || '—';
+    document.getElementById('sheetEmpCode').textContent = emp.employee_code || '—';
+    document.getElementById('sheetEmpDept').textContent = emp.department_name || emp.department || 'General';
+    document.getElementById('sheetEmpSite').textContent = emp.site || 'Main Site';
+    document.getElementById('sheetEmpRole').textContent = emp.designation || emp.role || 'Staff Member';
+
+    // Populate balances with classic style & small icons
+    document.getElementById('sheetTotalAssigned').textContent = `${bal.assigned.total} Days`;
+    document.getElementById('sheetClBalance').textContent = `${bal.balance.CL} / ${bal.assigned.CL} Left`;
+    document.getElementById('sheetClTaken').innerHTML = `<i class="fa-solid fa-chart-pie text-info me-1" style="font-size: 0.65rem;"></i>${bal.taken.CL} Days Used`;
+
+    document.getElementById('sheetSlBalance').textContent = `${bal.balance.SL} / ${bal.assigned.SL} Left`;
+    document.getElementById('sheetSlTaken').innerHTML = `<i class="fa-solid fa-chart-pie text-warning me-1" style="font-size: 0.65rem;"></i>${bal.taken.SL} Days Used`;
+
+    document.getElementById('sheetPlBalance').textContent = `${bal.balance.PL} / ${bal.assigned.PL} Left`;
+    document.getElementById('sheetPlTaken').innerHTML = `<i class="fa-solid fa-chart-pie text-success me-1" style="font-size: 0.65rem;"></i>${bal.taken.PL} Days Used`;
+
+    document.getElementById('sheetOdVisits').textContent = `${bal.taken.OD} Visits`;
+    document.getElementById('sheetTotalRemaining').textContent = `${bal.balance.total} / ${bal.assigned.total} Days`;
+
+    document.getElementById('sheetTotalRecordsCount').textContent = `${empLeaves.length} Recorded Entries`;
+    document.getElementById('sheetViewDossierLink').href = `<?= base_url('reports') ?>?report_type=employee&employee_id=${empId}`;
+
+    // Populate table with small icons list
+    const tbody = document.getElementById('sheetTableBody');
+    tbody.innerHTML = '';
+
+    if (empLeaves.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">
+            <div class="py-3">
+                <i class="fa-solid fa-folder-open fa-2x mb-2 text-secondary opacity-50 d-block"></i>
+                <div class="fw-semibold text-dark small">No Leave Records Found</div>
+                <div class="text-muted" style="font-size: 0.75rem;">No leaves or outdoor duties recorded yet for this employee in <?= date('Y') ?>.</div>
+            </div>
+        </td></tr>`;
+    } else {
+        empLeaves.forEach((lv, index) => {
+            const isOd = lv.leave_type === 'On Duty' || lv.leave_type.includes('OD') || lv.leave_type.includes('Duty');
+            
+            let badgeBg = 'bg-light text-dark border';
+            let typeIcon = 'fa-calendar-day';
+            if (isOd) {
+                badgeBg = 'bg-primary-subtle text-primary border border-primary-subtle';
+                typeIcon = 'fa-route';
+            } else if (lv.leave_type.includes('Casual')) {
+                badgeBg = 'bg-info-subtle text-info border border-info-subtle';
+                typeIcon = 'fa-umbrella-beach';
+            } else if (lv.leave_type.includes('Sick')) {
+                badgeBg = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+                typeIcon = 'fa-heart-pulse';
+            } else if (lv.leave_type.includes('Paid')) {
+                badgeBg = 'bg-success-subtle text-success border border-success-subtle';
+                typeIcon = 'fa-star';
+            }
+
+            const datePeriod = (lv.start_date === lv.end_date) ? 
+                `<span>${formatDateStr(lv.start_date)}</span>` : 
+                `<span>${formatDateStr(lv.start_date)} <i class="fa-solid fa-arrow-right text-muted mx-1" style="font-size: 0.65rem;"></i> ${formatDateStr(lv.end_date)}</span>`;
+
+            let siteInfo = '<span class="text-muted">—</span>';
+            if (lv.target_site) {
+                siteInfo = `<span class="badge bg-light text-dark border"><i class="fa-solid fa-location-dot text-danger me-1" style="font-size: 0.65rem;"></i>${escapeHtml(lv.target_site)}</span>`;
+                if (lv.origin_site) {
+                    siteInfo += `<div class="text-muted small mt-1" style="font-size: 0.68rem;"><i class="fa-solid fa-arrow-turn-up text-secondary me-1" style="font-size: 0.6rem;"></i>From: ${escapeHtml(lv.origin_site)}</div>`;
+                }
+            }
+
+            let docLink = '<span class="text-muted">—</span>';
+            if (lv.attachment) {
+                const cleanAtt = lv.attachment.replace(/^uploads\//, '');
+                const isPdf = cleanAtt.toLowerCase().endsWith('.pdf');
+                docLink = `<a href="<?= base_url('uploads/') ?>${encodeURIComponent(cleanAtt)}" target="_blank" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'} rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+                    <i class="fa-solid ${isPdf ? 'fa-file-pdf' : 'fa-paperclip'} me-1"></i>${isPdf ? 'PDF Sheet' : 'Attachment'}
+                </a>`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-3 text-muted font-monospace">${index + 1}</td>
+                <td>
+                    <span class="badge ${badgeBg} rounded-pill px-2 py-1">
+                        <i class="fa-solid ${typeIcon} me-1" style="font-size: 0.68rem;"></i>${escapeHtml(lv.leave_type)}
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center gap-1 text-dark">
+                        <i class="fa-regular fa-calendar text-muted" style="font-size: 0.72rem;"></i>
+                        <strong>${datePeriod}</strong>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">
+                        <i class="fa-regular fa-clock text-secondary me-1" style="font-size: 0.68rem;"></i>${lv.days_count} Day(s)
+                    </span>
+                </td>
+                <td>${siteInfo}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-1 text-dark">
+                        <i class="fa-regular fa-note-sticky text-muted" style="font-size: 0.72rem;"></i>
+                        <span class="text-truncate" style="max-width: 180px;" title="${escapeHtml(lv.reason || 'Approved Leave')}">${escapeHtml(lv.reason || 'Approved Leave')}</span>
+                    </div>
+                </td>
+                <td>${docLink}</td>
+                <td class="pe-3 text-end">
+                    ${(() => {
+                        const statusUpper = (lv.status || 'APPROVED').toUpperCase();
+                        const approverDisplay = escapeHtml(lv.approver_name || lv.department_head || 'Admin/HR');
+                        if (statusUpper === 'PENDING') {
+                            return `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-hourglass-half me-1" style="font-size: 0.65rem;"></i>Pending</span><div class="text-muted small mt-1" style="font-size:0.68rem;"><i class="fa-solid fa-user-check text-muted me-1" style="font-size: 0.6rem;"></i>Auth: ${escapeHtml(lv.department_head || 'HR / Dept Head')}</div>`;
+                        } else if (statusUpper === 'REJECTED') {
+                            return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-xmark me-1" style="font-size: 0.65rem;"></i>Rejected</span><div class="text-danger small mt-1" style="font-size:0.68rem;">${escapeHtml(lv.reject_reason || 'Not approved')}</div>`;
+                        } else {
+                            return `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-circle-check me-1" style="font-size: 0.65rem;"></i>Approved</span><div class="text-dark small mt-1" style="font-size:0.68rem;"><i class="fa-solid fa-circle-check text-success me-1" style="font-size: 0.6rem;"></i>By: <strong>${approverDisplay}</strong></div>`;
+                        }
+                    })()}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('employeeLeaveSheetModal'));
+    modal.show();
+}
+
+function formatDateStr(str) {
+    if (!str) return '';
+    const parts = str.split('-');
+    if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    return str;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+    });
+}
+
+function printLeaveSheet() {
+    const content = document.getElementById('printableLeaveSheetArea');
+    if (!content) return;
+
+    const empName = document.getElementById('sheetEmpName')?.textContent || 'Employee';
+    const empCode = document.getElementById('sheetEmpCode')?.textContent || '';
+    const title = `Leave Statement - ${empName} (${empCode})`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${title}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+            <style>
+                @page { size: A4 portrait; margin: 10mm 15mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #fff !important; color: #111827; margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                .table { width: 100% !important; border-collapse: collapse !important; }
+                .table th, .table td { padding: 8px 10px !important; border: 1px solid #e5e7eb !important; font-size: 13px !important; }
+                .bg-light { background-color: #f8fafc !important; }
+                .bg-primary { background-color: #2563eb !important; color: #fff !important; }
+                .bg-success { background-color: #16a34a !important; color: #fff !important; }
+                .badge { border: 1px solid #ddd !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; font-size: 11px !important; }
+                .rounded-4 { border-radius: 10px !important; }
+                .border { border: 1px solid #e5e7eb !important; }
+            </style>
+        </head>
+        <body>
+            <div>
+                ${content.innerHTML}
+            </div>
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 600);
+}
+
+function calcCompTotal() {
+    const cl = parseFloat(document.getElementById('compClQuota').value) || 0;
+    const sl = parseFloat(document.getElementById('compSlQuota').value) || 0;
+    const pl = parseFloat(document.getElementById('compPlQuota').value) || 0;
+    document.getElementById('compTotalDisplay').textContent = `${(cl + sl + pl)} Days`;
+}
+
+function openEditEmpQuota(data) {
+    document.getElementById('editEmpId').value = data.id;
+    document.getElementById('editEmpName').textContent = data.name;
+    document.getElementById('editEmpCode').textContent = data.code;
+    
+    const isCustom = data.is_custom;
+    const check = document.getElementById('useCompanyDefaultCheck');
+    check.checked = !isCustom;
+
+    document.getElementById('editEmpCl').value = data.cl;
+    document.getElementById('editEmpSl').value = data.sl;
+    document.getElementById('editEmpPl').value = data.pl;
+
+    toggleCustomQuotaInputs(!isCustom);
+    calcEmpTotal();
+
+    const modal = new bootstrap.Modal(document.getElementById('editEmpQuotaModal'));
+    modal.show();
+}
+
+function toggleCustomQuotaInputs(useDefault) {
+    const container = document.getElementById('customQuotaInputsContainer');
+    if (useDefault) {
+        container.style.opacity = '0.5';
+        container.style.pointerEvents = 'none';
+        document.getElementById('editEmpCl').value = defaultCompanyQuotas.CL;
+        document.getElementById('editEmpSl').value = defaultCompanyQuotas.SL;
+        document.getElementById('editEmpPl').value = defaultCompanyQuotas.PL;
+    } else {
+        container.style.opacity = '1';
+        container.style.pointerEvents = 'auto';
+    }
+    calcEmpTotal();
+}
+
+function calcEmpTotal() {
+    const cl = parseFloat(document.getElementById('editEmpCl').value) || 0;
+    const sl = parseFloat(document.getElementById('editEmpSl').value) || 0;
+    const pl = parseFloat(document.getElementById('editEmpPl').value) || 0;
+    document.getElementById('editEmpTotalDisplay').textContent = `${(cl + sl + pl)} Days`;
+}
+
+function updateModalEmpQuota(val) {
+    const box = document.getElementById('modalEmpQuotaBox');
+    if (!val || !box) {
+        if (box) box.classList.add('d-none');
+        return;
+    }
+
+    let empId = null;
+    const cleanVal = val.toLowerCase().trim();
+    
+    // Check if format is "CODE — Name"
+    if (cleanVal.includes('—')) {
+        const parts = cleanVal.split('—');
+        const code = parts[0].trim();
+        if (employeesLookup[code]) empId = employeesLookup[code];
+    } else if (cleanVal.includes('-')) {
+        const parts = cleanVal.split('-');
+        const code = parts[0].trim();
+        if (employeesLookup[code]) empId = employeesLookup[code];
+    } else if (employeesLookup[cleanVal]) {
+        empId = employeesLookup[cleanVal];
+    }
+
+    if (!empId) {
+        for (const [key, id] of Object.entries(employeesLookup)) {
+            if (cleanVal.includes(key) || key.includes(cleanVal)) {
+                empId = id;
+                break;
+            }
+        }
+    }
+
+    if (empId && allEmployeeBalances[empId]) {
+        const b = allEmployeeBalances[empId];
+        box.classList.remove('d-none');
+        document.getElementById('modalEmpTotalBalBadge').textContent = `${b.balance.total} / ${b.assigned.total} Days Left`;
+        document.getElementById('modalClBal').textContent = `CL: ${b.balance.CL} / ${b.assigned.CL} Left`;
+        document.getElementById('modalSlBal').textContent = `SL: ${b.balance.SL} / ${b.assigned.SL} Left`;
+        document.getElementById('modalPlBal').textContent = `PL: ${b.balance.PL} / ${b.assigned.PL} Left`;
+    } else {
+        box.classList.add('d-none');
+    }
+}
+
+function syncToDate(val) {
+    const toInput = document.getElementById('leaveToDate');
+    if (toInput && (!toInput.value || toInput.value < val)) {
+        toInput.value = val;
+    }
+}
+
+function handleLeaveTypeChange(val) {
+    const odBlock = document.getElementById('odSiteFields');
+    const targetInput = document.getElementById('odTargetSite');
+    if (!odBlock) return;
+    const isOd = (val === 'On Duty' || val.includes('Duty') || val.includes('OD') || val.includes('Official') || val.includes('Outdoor'));
+    if (isOd) {
+        odBlock.classList.remove('d-none');
+        if (targetInput) targetInput.required = true;
+    } else {
+        odBlock.classList.add('d-none');
+        if (targetInput) {
+            targetInput.required = false;
+            targetInput.value = '';
+        }
+    }
+}
+
+function openRejectModal(id, empName, leaveType) {
+    document.getElementById('rejectLeaveId').value = id;
+    document.getElementById('rejectEmpName').textContent = empName;
+    document.getElementById('rejectLeaveType').textContent = leaveType;
+    new bootstrap.Modal(document.getElementById('rejectLeaveModal')).show();
+}
+
+function showAuthorityAccessDialog(empName, deptName, headName, headEmail, step, authTitle) {
+    document.getElementById('errModalEmpName').textContent = empName || 'Employee';
+    document.getElementById('errModalDeptName').textContent = deptName || 'General';
+    let headStr = headName || (authTitle || 'Designated Authority');
+    if (headEmail) {
+        headStr += ' (' + headEmail + ')';
+    }
+    document.getElementById('errModalHeadInfo').textContent = headStr;
+
+    if (step === 1) {
+        const title = authTitle || 'Department Authority';
+        document.getElementById('errModalStepTitle').textContent = 'Step 1: ' + title + ' Approval';
+        document.getElementById('errModalHelpText').textContent = 'Step 1 for this employee requires approval from the designated ' + title + ' (' + headStr + ') only. Accounts approve Accounts, Incharge approves Incharge & general staff, Coordinator approves Coordinators, Tender approves Tender staff.';
+    } else if (step === 2) {
+        document.getElementById('errModalStepTitle').textContent = 'Step 2: HR & Admin Review';
+        document.getElementById('errModalHelpText').textContent = 'Step 2 requires HR & Admin authorization (e.g. hr@attendance.local or admin@attendance.local). Department authorities cannot approve Step 2.';
+    } else {
+        document.getElementById('errModalStepTitle').textContent = 'Step 3: System Administrator Sign-off';
+        document.getElementById('errModalHelpText').textContent = 'Step 3 requires System Administrator authorization (e.g. admin@attendance.local). Only administrators can perform final sign-off.';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('authorityAccessErrorModal'));
+    modal.show();
+}
+
+function applyAuthorityUser(selectElem) {
+    const email = selectElem.value;
+    const opt = selectElem.options[selectElem.selectedIndex];
+    const name = opt ? opt.getAttribute('data-name') : '';
+    if (email) {
+        document.getElementById('editDeptHeadName').value = name || '';
+        document.getElementById('editDeptHeadEmail').value = email;
+    }
+}
+
+function openEditDeptHeadModal(id, name, code, description, headName, headEmail) {
+    document.getElementById('editDeptId').value = id || '';
+    document.getElementById('editDeptModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Department & Authority';
+    document.getElementById('editDeptName').value = name || '';
+    document.getElementById('editDeptCode').value = code || '';
+    document.getElementById('editDeptDesc').value = description || '';
+    document.getElementById('editDeptHeadName').value = headName || '';
+    document.getElementById('editDeptHeadEmail').value = headEmail || '';
+    
+    const sel = document.getElementById('selectAuthorityUser');
+    if (sel) {
+        sel.value = headEmail || '';
+    }
+
+    document.getElementById('btnSubmitDept').textContent = 'Update Department';
+    new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
+}
+
+function openCreateDeptModal() {
+    document.getElementById('editDeptId').value = '';
+    document.getElementById('editDeptModalTitle').innerHTML = '<i class="fa-solid fa-plus text-primary me-2"></i>Add New Department';
+    document.getElementById('editDeptName').value = '';
+    document.getElementById('editDeptCode').value = '';
+    document.getElementById('editDeptDesc').value = '';
+    document.getElementById('editDeptHeadName').value = '';
+    document.getElementById('editDeptHeadEmail').value = '';
+    
+    const sel = document.getElementById('selectAuthorityUser');
+    if (sel) {
+        sel.value = '';
+    }
+
+    document.getElementById('btnSubmitDept').textContent = 'Create Department';
+    new bootstrap.Modal(document.getElementById('editDeptHeadModal')).show();
+}
+
+function syncHeadEmail(val) {
+    if (!val) return;
+    const options = document.querySelectorAll('#staffHeadSuggestions option');
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].value.toLowerCase() === val.toLowerCase()) {
+            const email = options[i].getAttribute('data-email');
+            if (email) {
+                document.getElementById('editDeptHeadEmail').value = email;
+            }
+            break;
+        }
+    }
+}
+</script>
+
+<!-- Reject Leave Modal -->
+<div class="modal fade" id="rejectLeaveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="<?= base_url('leaves/reject') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="rejectLeaveId" value="">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="fa-solid fa-circle-xmark me-2"></i>Reject Leave Request
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Are you sure you want to reject this leave request for <strong id="rejectEmpName" class="text-dark"></strong> (<span id="rejectLeaveType"></span>)?
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea name="reject_reason" class="form-control rounded-3" rows="3" placeholder="e.g. Critical project deadline, shift replacement unavailable, insufficient notice" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Rejection</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Authority Access Error Dialog -->
+<div class="modal fade" id="authorityAccessErrorModal" tabindex="-1" aria-labelledby="authorityErrorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header bg-danger text-white border-0 py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="authorityErrorTitle">Access Error: Not Authorized</h5>
+                        <small class="text-white-50" id="errModalStepTitle">Department Approving Authority Restriction</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 64px; height: 64px;">
+                    <i class="fa-solid fa-user-xmark fs-2"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-2">You Are Not The Authority!</h5>
+                <p class="text-muted small mb-3">
+                    You do not have permission to approve or reject leave requests for this department.
+                </p>
+
+                <div class="p-3 bg-light rounded-4 border text-start mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-semibold">Employee:</span>
+                        <strong class="text-dark small" id="errModalEmpName">—</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-semibold">Department:</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="errModalDeptName">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-semibold">Designated Authority:</span>
+                        <span class="small fw-bold text-danger text-truncate ms-2" id="errModalHeadInfo">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-muted fw-semibold">Your Current Login:</span>
+                        <code class="text-dark small font-monospace"><?= e($_SESSION['user_email'] ?? '') ?> (<?= ucfirst(e($_SESSION['user_role'] ?? 'user')) ?>)</code>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning border-0 small text-start py-2 px-3 mb-0">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    <span id="errModalHelpText">Please sign in as the designated authority for this department to review and approve Step 1.</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light px-4 py-3 justify-content-center">
+                <button type="button" class="btn btn-secondary rounded-pill px-5 shadow-sm fw-semibold" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Department Authorities Hub Modal -->
+<div class="modal fade" id="deptAuthoritiesModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                        <i class="fa-solid fa-user-shield fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Department Approving Authorities</h5>
+                        <small class="text-muted">Manage departments, staff counts, and assigned approving authorities</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="openCreateDeptModal()">
+                        <i class="fa-solid fa-plus me-1"></i> Add Department
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                            <tr>
+                                <th>Department Details</th>
+                                <th>Code</th>
+                                <th>Assigned Staff</th>
+                                <th>Designated Dept Head</th>
+                                <th>Contact Email</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($departments as $dept): ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark"><i class="fa-solid fa-sitemap text-primary me-2"></i><?= e($dept['name']) ?></div>
+                                        <small class="text-muted"><?= e($dept['description'] ?? 'No description') ?></small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border font-monospace"><?= e($dept['code'] ?: '—') ?></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-secondary border px-2 py-1">
+                                            <i class="fa-solid fa-users me-1"></i><?= (int)($dept['employee_count'] ?? 0) ?> Staff
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($dept['head_name'])): ?>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
+                                                <i class="fa-solid fa-user-check me-1"></i><?= e($dept['head_name']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary-subtle text-muted border border-secondary-subtle rounded-pill px-2 py-1">
+                                                <i class="fa-solid fa-building-shield me-1"></i>HR / Admin (Default)
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($dept['head_email'])): ?>
+                                            <span class="badge bg-light text-primary border font-monospace">
+                                                <i class="fa-regular fa-envelope me-1"></i><?= e($dept['head_email']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted small fst-italic"><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>No email set</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-inline-flex align-items-center gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openEditDeptHeadModal(<?= $dept['id'] ?>, '<?= addslashes($dept['name']) ?>', '<?= addslashes($dept['code'] ?? '') ?>', '<?= addslashes($dept['description'] ?? '') ?>', '<?= addslashes($dept['head_name'] ?? '') ?>', '<?= addslashes($dept['head_email'] ?? '') ?>')">
+                                                <i class="fa-solid fa-pen-to-square me-1"></i> Edit Department
+                                            </button>
+                                            <?php if ((int)($dept['employee_count'] ?? 0) === 0): ?>
+                                                <form action="<?= base_url('leaves/delete-department') ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete department \'<?= addslashes($dept['name']) ?>\'?');">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="department_id" value="<?= $dept['id'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle p-1" style="width: 28px; height: 28px;" title="Delete empty department">
+                                                        <i class="fa-solid fa-trash-can" style="font-size: 0.72rem;"></i>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit / Create Department Modal -->
+<div class="modal fade" id="editDeptHeadModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="<?= base_url('leaves/save-department') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="department_id" id="editDeptId" value="">
+                
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark" id="editDeptModalTitle">
+                        <i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Department & Authority
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            Department Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="name" id="editDeptName" class="form-control rounded-3" placeholder="e.g. Engineering & Tech, Human Resources, Operations" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark mb-1">Code</label>
+                            <input type="text" name="code" id="editDeptCode" class="form-control rounded-3 font-monospace text-uppercase" placeholder="e.g. ENG">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-dark mb-1">Description / Notes</label>
+                            <input type="text" name="description" id="editDeptDesc" class="form-control rounded-3" placeholder="e.g. Software, QA & Site Support">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-user-shield text-primary me-1"></i> Assign Authority From System Logins
+                        </label>
+                        <select id="selectAuthorityUser" class="form-select rounded-3 bg-light" onchange="applyAuthorityUser(this)">
+                            <option value="">-- Choose from existing logins or type manually below --</option>
+                            <?php foreach ($systemUsers ?? [] as $su):
+                                $preferredContact = !empty($su['company_mail']) ? $su['company_mail'] : $su['email'];
+                            ?>
+                                <option value="<?= e($preferredContact) ?>" data-name="<?= e($su['name']) ?>">
+                                    <?= e($su['name']) ?> (<?= e($preferredContact) ?> &bull; <?= ucfirst(e($su['role'])) ?><?= !empty($su['company_mail']) ? ' &bull; <em class=\'text-info\'>Mailbox</em>' : '' ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text small text-muted">Selecting a system login auto-fills the Authority Name and Login Email below.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            Approving Authority / Department Head Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="head_name" id="editDeptHeadName" list="staffHeadSuggestions" class="form-control rounded-3" placeholder="Type name or select from employee list..." required oninput="syncHeadEmail(this.value)">
+                        <div class="form-text small">This person's name will appear on all leave approvals and mobile requests for this department.</div>
+                    </div>
+
+                    <!-- Staff autocomplete suggestions -->
+                    <datalist id="staffHeadSuggestions">
+                        <?php foreach ($employees ?? [] as $emp): ?>
+                            <option value="<?= e($emp['name']) ?>" data-email="<?= e($emp['email'] ?? '') ?>">
+                                <?= e($emp['employee_code']) ?> &bull; <?= e($emp['department_name'] ?? ($emp['department'] ?? 'Staff')) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </datalist>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-envelope text-primary me-1"></i> Authority Official Notification Email
+                        </label>
+                        <input type="email" name="head_email" id="editDeptHeadEmail" class="form-control rounded-3" placeholder="e.g. rajesh.hod@company.com">
+                        <div class="form-text small text-muted">When staff apply for leave or OD, email notifications will be delivered directly to this mail ID for Step 1 approval.</div>
+                    </div>
+
+                    <div class="alert alert-light border small text-muted rounded-3 mb-0">
+                        <i class="fa-solid fa-circle-info text-primary me-1"></i> <strong>Note:</strong> HR & System Administrators always retain full authority to approve or reject any employee request across all departments.
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="btnSubmitDept" class="btn btn-primary rounded-pill px-4 fw-bold">Save Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- Company Assigned Leave Detail List Modal -->
+<div class="modal fade" id="companyAssignedLeaveDetailsModal" tabindex="-1" aria-labelledby="companyAssignedModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+            <div class="modal-header border-0 py-3 px-4 text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+                <div>
+                    <h5 class="modal-title fw-bold text-white mb-0" id="companyAssignedModalTitle">
+                        <i class="fa-solid fa-building-user me-2"></i>Company Assigned Leave Quotas &amp; Detail Leave Records
+                    </h5>
+                    <small class="text-white-50">Standard annual entitlement: <strong><?= $companyQuotas['total'] ?? 37 ?> Days</strong> per staff member &bull; Full list of recorded leaves</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <!-- Quota Cards Row -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-secondary">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Total Assigned</span>
+                            <div class="fs-4 fw-bold text-dark mt-1"><?= $companyQuotas['total'] ?? 37 ?> <small class="fs-6 text-muted fw-normal">Days/Yr</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Combined Annual Quota</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-info">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Casual Leave (CL)</span>
+                            <div class="fs-4 fw-bold text-info mt-1"><?= $companyQuotas['CL'] ?? 12 ?> <small class="fs-6 text-muted fw-normal">Days</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Monthly / casual time-offs</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-warning">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Sick Leave (SL)</span>
+                            <div class="fs-4 fw-bold text-warning mt-1"><?= $companyQuotas['SL'] ?? 10 ?> <small class="fs-6 text-muted fw-normal">Days</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Medical &amp; recovery days</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border rounded-3 p-3 bg-white shadow-sm border-top border-3 border-success">
+                            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.68rem;">Paid Leave (PL)</span>
+                            <div class="fs-4 fw-bold text-success mt-1"><?= $companyQuotas['PL'] ?? 15 ?> <small class="fs-6 text-muted fw-normal">Days</small></div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Earned / annual privilege leave</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail Leave List Table Card -->
+                <div class="card border-0 rounded-3 shadow-sm bg-white overflow-hidden">
+                    <div class="card-header bg-white border-bottom py-3 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-list text-primary me-2"></i>Recorded Leaves List (<?= count($leaves) ?> Entries)</h6>
+                            <small class="text-muted">Applications submitted and approved in the system</small>
+                        </div>
+                        <div style="max-width: 280px; width: 100%;">
+                            <input type="text" id="modalLeaveFilterInput" class="form-control form-control-sm rounded-pill" placeholder="Instant filter in list..." onkeyup="filterModalLeaveTable(this.value)">
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" id="modalLeaveDetailTable">
+                            <thead class="table-light text-muted small text-uppercase sticky-top" style="font-size: 0.72rem;">
+                                <tr>
+                                    <th class="ps-3">Employee</th>
+                                    <th>Leave Type</th>
+                                    <th>Period (From &rarr; To)</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Reason / Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($leaves)): ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">No recorded leave entries found.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($leaves as $ml): ?>
+                                        <tr class="modal-leave-row">
+                                            <td class="ps-3">
+                                                <div class="fw-bold text-dark"><?= e($ml['employee_name'] ?? 'Employee') ?></div>
+                                                <small class="text-muted font-monospace"><?= e($ml['employee_code'] ?? '') ?> &bull; <?= e($ml['department_name'] ?? 'General') ?></small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
+                                                    <?= e($ml['leave_type']) ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="text-dark fw-semibold small"><?= date('d M Y', strtotime($ml['start_date'])) ?> &rarr; <?= date('d M Y', strtotime($ml['end_date'])) ?></div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border font-monospace"><?= $ml['days_count'] ?> d</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge <?= str_contains($ml['status'] ?? '', 'APPROVED') ? 'bg-success text-white' : (str_contains($ml['status'] ?? '', 'REJECT') ? 'bg-danger text-white' : 'bg-warning text-dark') ?> rounded-pill px-2 py-1">
+                                                    <?= e($ml['status']) ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="small text-truncate" style="max-width: 220px;" title="<?= e($ml['reason']) ?>"><?= e($ml['reason'] ?: '—') ?></div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-white py-2 px-4 d-flex justify-content-between align-items-center">
+                <small class="text-muted">Showing all leave records matching current site/company filters</small>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" data-bs-dismiss="modal" onclick="document.getElementById('leaveRecordsCard')?.scrollIntoView({behavior: 'smooth'})">
+                        <i class="fa-solid fa-arrow-down me-1"></i> Jump to Table Below
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterModalLeaveTable(query) {
+    const q = (query || '').toLowerCase().trim();
+    document.querySelectorAll('#modalLeaveDetailTable .modal-leave-row').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Live filter for leaves records table when user types in search bar
+    const leaveSearch = document.getElementById('leaveSearchInput');
+    if (leaveSearch) {
+        leaveSearch.addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#leaveRecordsCard tbody tr');
+            if (q.length > 0) {
+                rows.forEach(r => {
+                    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+                });
+            } else {
+                rows.forEach(r => { r.style.display = ''; });
+            }
+        });
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const reviewId = params.get('review');
+    if (reviewId) {
+        const target = document.getElementById('leave-pending-' + reviewId);
+        if (target) {
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+    }
+});
+</script>

@@ -407,9 +407,14 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                         <i class="fa-solid fa-location-dot text-primary" style="font-size: 1.05rem;"></i>
                         <span>Location</span>
                     </div>
-                    <span class="summary-val text-truncate" style="max-width: 170px;" title="<?= e($employee['site'] ?? 'Hyderabad') ?>">
-                        <?= e($employee['site'] ?? 'Hyderabad') ?>
-                    </span>
+                    <div class="text-end">
+                        <span class="summary-val text-truncate d-block" style="max-width: 170px;" title="<?= e($employee['site'] ?? 'Hyderabad') ?>">
+                            <?= e($employee['site'] ?? 'Hyderabad') ?>
+                        </span>
+                        <a href="javascript:void(0)" onclick="window.showLiveLocationMap()" class="small text-decoration-none fw-semibold" style="font-size: 0.68rem; color: #0284c7;">
+                            <i class="fa-solid fa-satellite-dish me-1"></i>Show Live Location
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -501,6 +506,9 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                             <span id="gpsStatusText" class="small fw-semibold text-muted text-truncate" style="font-size: 0.74rem;">Acquiring GPS location...</span>
                         </div>
                         <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 rounded-pill shadow-sm" onclick="window.showLiveLocationMap()" title="Show Live Location on Map" style="font-size: 0.65rem;">
+                                <i class="fa-solid fa-map-location-dot me-1"></i>Live Map
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-sm" onclick="window.setSiteToCurrentLocation()" title="Set this current spot as the site location preference" style="font-size: 0.65rem;">
                                 <i class="fa-solid fa-thumbtack me-1"></i>Set Site Here
                             </button>
@@ -963,6 +971,41 @@ $initDateVal = $initDaily['date'] ?? date('Y-m-d');
                 <button type="button" class="btn btn-light border rounded-pill py-2" data-bs-dismiss="modal">
                     Close Dialog
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Location Interactive Map Modal for Mobile Punch -->
+<div class="modal fade" id="liveLocationMapModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg text-center overflow-hidden">
+            <div class="modal-header border-bottom py-2 px-3 bg-light d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.68rem;">
+                        <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 7px; height: 7px;"></span>LIVE GPS
+                    </span>
+                    <h6 class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">My Live Location</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 position-relative">
+                <div id="punchLiveMap" style="width: 100%; height: 280px; background: #e2e8f0;"></div>
+            </div>
+            <div class="p-3 bg-light border-top text-start small">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted fw-semibold">Detected GPS:</span>
+                    <span class="fw-bold font-monospace text-dark" id="modalGpsCoords">Detecting position...</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted fw-semibold">Site Proximity:</span>
+                    <span class="fw-bold font-monospace" id="modalGpsProximity">Calculating distance...</span>
+                </div>
+                <div class="d-grid gap-2">
+                    <a id="modalGpsGmapsLink" href="#" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill fw-semibold">
+                        <i class="fa-solid fa-diamond-turn-right me-1"></i> Open in Google Maps
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -1747,6 +1790,120 @@ window.switchAppTab = function(tabName) {
             if (lat && lon) { userLat = lat; userLon = lon; updateGpsUI(); }
         });
     }
+
+    let punchLiveLeafletMap = null;
+    let punchUserMarker = null;
+    let punchAccuracyCircle = null;
+    let punchSiteMarker = null;
+    let punchSiteCircle = null;
+
+    window.showLiveLocationMap = function() {
+        const modalEl = document.getElementById('liveLocationMapModal');
+        if (!modalEl || typeof bootstrap === 'undefined') return;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        const coordsEl = document.getElementById('modalGpsCoords');
+        const proxEl = document.getElementById('modalGpsProximity');
+        const gmapsLink = document.getElementById('modalGpsGmapsLink');
+
+        function updateMapDisplay() {
+            if (userLat === null || userLon === null) {
+                if (coordsEl) coordsEl.textContent = 'Acquiring GPS...';
+                if (proxEl) proxEl.textContent = 'Waiting for satellite fix...';
+                return;
+            }
+
+            if (coordsEl) coordsEl.textContent = `${userLat.toFixed(5)}, ${userLon.toFixed(5)} (±${Math.round(userAccuracy || 15)}m)`;
+            if (gmapsLink) gmapsLink.href = `https://www.google.com/maps?q=${userLat},${userLon}`;
+
+            if (siteLat !== null && siteLon !== null) {
+                const dist = calcDistance(userLat, userLon, siteLat, siteLon);
+                if (dist <= siteRadius) {
+                    if (proxEl) proxEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-circle-check me-1"></i>Within Site (~${dist}m away)</span>`;
+                } else {
+                    const distStr = dist >= 1000 ? (dist/1000).toFixed(2) + ' km' : dist + ' m';
+                    if (proxEl) proxEl.innerHTML = `<span class="text-danger"><i class="fa-solid fa-circle-xmark me-1"></i>Outside Site (${distStr} away)</span>`;
+                }
+            } else {
+                if (proxEl) proxEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-location-dot me-1"></i>Office Wi-Fi / Free Roam Active</span>`;
+            }
+
+            if (typeof L === 'undefined') return;
+
+            const mapEl = document.getElementById('punchLiveMap');
+            if (!mapEl) return;
+
+            if (!punchLiveLeafletMap) {
+                punchLiveLeafletMap = L.map('punchLiveMap').setView([userLat, userLon], 16);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(punchLiveLeafletMap);
+            } else {
+                punchLiveLeafletMap.setView([userLat, userLon], 16);
+            }
+
+            // User marker (blue pulsing dot)
+            const userIconHtml = `
+                <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                    <div style="position: absolute; width: 28px; height: 28px; border-radius: 50%; background: rgba(14, 165, 233, 0.4); animation: pulse 2s infinite;"></div>
+                    <div style="position: relative; width: 16px; height: 16px; border-radius: 50%; background: #0284c7; border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>
+                </div>`;
+            const userIcon = L.divIcon({ html: userIconHtml, className: 'punch-user-icon', iconSize: [28, 28], iconAnchor: [14, 14] });
+
+            if (punchUserMarker) {
+                punchUserMarker.setLatLng([userLat, userLon]);
+            } else {
+                punchUserMarker = L.marker([userLat, userLon], { icon: userIcon }).addTo(punchLiveLeafletMap);
+                punchUserMarker.bindPopup('<strong>You Are Here</strong><br><small>Current GPS Position</small>');
+            }
+
+            if (punchAccuracyCircle) {
+                punchAccuracyCircle.setLatLng([userLat, userLon]);
+                punchAccuracyCircle.setRadius(userAccuracy || 20);
+            } else {
+                punchAccuracyCircle = L.circle([userLat, userLon], {
+                    radius: userAccuracy || 20,
+                    color: '#0284c7',
+                    fillColor: '#38bdf8',
+                    fillOpacity: 0.15,
+                    weight: 1
+                }).addTo(punchLiveLeafletMap);
+            }
+
+            // Site marker and radius circle (if configured)
+            if (siteLat !== null && siteLon !== null) {
+                if (!punchSiteMarker) {
+                    const siteIconHtml = `<div style="background: #10b981; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-size: 11px;"><i class="fa-solid fa-building"></i></div>`;
+                    const sIcon = L.divIcon({ html: siteIconHtml, className: 'site-icon', iconSize: [24, 24], iconAnchor: [12, 12] });
+                    punchSiteMarker = L.marker([siteLat, siteLon], { icon: sIcon }).addTo(punchLiveLeafletMap);
+                    punchSiteMarker.bindPopup(`<strong>${siteName || 'Work Site'}</strong><br><small>Allowed Perimeter: ${siteRadius}m</small>`);
+                }
+                if (!punchSiteCircle) {
+                    punchSiteCircle = L.circle([siteLat, siteLon], {
+                        radius: siteRadius || 200,
+                        color: '#10b981',
+                        fillColor: '#34d399',
+                        fillOpacity: 0.12,
+                        weight: 2
+                    }).addTo(punchLiveLeafletMap);
+                }
+            }
+
+            punchLiveLeafletMap.invalidateSize();
+        }
+
+        setTimeout(() => {
+            if (userLat === null || userLon === null) {
+                window.refreshGpsLocation(function() {
+                    updateMapDisplay();
+                });
+            } else {
+                updateMapDisplay();
+            }
+        }, 300);
+    };
 
     function showGeofenceModal(title, subtitle, distText, siteName) {
         const modalEl = document.getElementById('geofenceErrorModal');

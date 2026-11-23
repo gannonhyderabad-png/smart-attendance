@@ -39,11 +39,11 @@ if (-not $cfExe -or -not (Test-Path $cfExe)) {
 }
 
 Write-Host "Connecting Cloudflare secure public tunnel for mobile punches..." -ForegroundColor Cyan
-$p = Start-Process -FilePath $cfExe -ArgumentList "tunnel --protocol http2 --ha-connections 4 --url http://localhost:8000 --logfile `"$logFile`"" -PassThru -WindowStyle Hidden
+$p = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url http://localhost:8000 --logfile `"$logFile`"" -PassThru -WindowStyle Hidden
 
 $tunnelUrl = ""
-for ($i = 0; $i -lt 20; $i++) {
-    Start-Sleep -Milliseconds 600
+for ($i = 0; $i -lt 45; $i++) {
+    Start-Sleep -Milliseconds 800
     if (Test-Path $logFile) {
         $lines = Get-Content $logFile -Raw
         if ($lines -match '(https://[a-zA-Z0-9-]+\.trycloudflare\.com)') {

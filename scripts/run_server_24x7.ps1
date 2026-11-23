@@ -120,7 +120,7 @@ function Start-CloudflareTunnel {
     if (Test-Path $logPath) { Remove-Item $logPath -Force }
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $bin
-    $psi.Arguments = "tunnel --protocol http2 --ha-connections 4 --url http://localhost:8000 --logfile `"$logPath`""
+    $psi.Arguments = "tunnel --url http://localhost:8000 --logfile `"$logPath`""
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
     return [System.Diagnostics.Process]::Start($psi)
@@ -144,13 +144,18 @@ function Do-DailyDatabaseBackup {
     }
 }
 
+# Open Windows Firewall for Port 8000 for seamless local Wi-Fi punch
+try {
+    netsh advfirewall firewall add rule name="SmartAttendance Port 8000" dir=in action=allow protocol=TCP localport=8000 profile=any >$null 2>&1
+} catch {}
+
 # Initial start
 $phpProc = Start-PhpServer -bin $phpBin -dir $root
 Start-Sleep -Seconds 2
 $cfProc = Start-CloudflareTunnel -bin $cfBin -logPath $cfLog
 
 # Extract Tunnel URL
-for ($i = 0; $i -lt 15; $i++) {
+for ($i = 0; $i -lt 45; $i++) {
     Start-Sleep -Milliseconds 800
     if (Test-Path $cfLog) {
         $logTxt = Get-Content $cfLog -Raw -ErrorAction SilentlyContinue

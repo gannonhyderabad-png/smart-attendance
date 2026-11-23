@@ -1,0 +1,68 @@
+# Cloudflare Tunnel Launcher & URL Extractor for Smart Attendance
+$ErrorActionPreference = "SilentlyContinue"
+$root = Split-Path -Parent $PSScriptRoot
+$scratch = Join-Path $root "scratch"
+if (-not (Test-Path $scratch)) { New-Item -ItemType Directory -Path $scratch -Force | Out-Null }
+
+$logFile = Join-Path $scratch "cloudflared.log"
+$urlFile = Join-Path $scratch "cloudflare_url.txt"
+if (Test-Path $urlFile) { Remove-Item $urlFile -Force }
+if (Test-Path $logFile) { Remove-Item $logFile -Force }
+
+$cfExe = ""
+$cfCandidates = @(
+    (Join-Path $PSScriptRoot "cloudflared.exe"),
+    "C:\Program Files (x86)\cloudflared\cloudflared.exe",
+    "C:\Program Files\cloudflared\cloudflared.exe"
+)
+foreach ($cand in $cfCandidates) {
+    if (Test-Path $cand) { $cfExe = $cand; break }
+}
+if (-not $cfExe) {
+    $found = Get-Command cloudflared.exe -ErrorAction SilentlyContinue
+    if ($found) { $cfExe = $found.Source }
+}
+
+if (-not $cfExe) {
+    Write-Host "[SETUP] Auto-downloading portable Cloudflare Tunnel binary..." -ForegroundColor Cyan
+    $targetCf = Join-Path $PSScriptRoot "cloudflared.exe"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile $targetCf -TimeoutSec 35
+        if (Test-Path $targetCf) { $cfExe = $targetCf }
+    } catch {}
+}
+
+if (-not $cfExe -or -not (Test-Path $cfExe)) {
+    Write-Host "[NOTICE] Cloudflared not found. Server running on LAN only." -ForegroundColor Yellow
+    exit 0
+}
+
+Write-Host "Connecting Cloudflare secure public tunnel for mobile punches..." -ForegroundColor Cyan
+$p = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url http://localhost:8000 --logfile `"$logFile`"" -PassThru -WindowStyle Hidden
+
+$tunnelUrl = ""
+for ($i = 0; $i -lt 45; $i++) {
+    Start-Sleep -Milliseconds 800
+    if (Test-Path $logFile) {
+        $lines = Get-Content $logFile -Raw
+        if ($lines -match '(https://[a-zA-Z0-9-]+\.trycloudflare\.com)') {
+            $tunnelUrl = $matches[1]
+            Set-Content -Path $urlFile -Value $tunnelUrl -Force
+            break
+        }
+    }
+}
+
+if ($tunnelUrl) {
+    Write-Host ""
+    Write-Host "===================================================================" -ForegroundColor Green
+    Write-Host "  MOBILE ATTENDANCE PUBLIC LINK (ONLINE EVERYWHERE):" -ForegroundColor Green
+    Write-Host "  $tunnelUrl" -ForegroundColor White
+    Write-Host "===================================================================" -ForegroundColor Green
+    Write-Host "  Any employee can open this link on their phone from anywhere!" -ForegroundColor Yellow
+    Write-Host "  Punches will instantly appear on your PC screen in real-time." -ForegroundColor Yellow
+    Write-Host ""
+} else {
+    Write-Host "[INFO] Cloudflare tunnel started in background. Log: $logFile" -ForegroundColor Gray
+}

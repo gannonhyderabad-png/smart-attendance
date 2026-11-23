@@ -66,6 +66,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
    }"
 echo.
 
+:: 5. Open Windows Firewall for Port 8000
+echo [4/4] Opening Windows Firewall for Port 8000 (Local Wi-Fi Mobile Access)...
+netsh advfirewall firewall add rule name="SmartAttendance Port 8000" dir=in action=allow protocol=TCP localport=8000 profile=any >nul 2>&1
+echo [OK] Windows Firewall configured for mobile attendance.
+echo.
+
 echo ===================================================================
 echo   SERVER SYSTEM CONFIGURATION COMPLETE!
 echo ===================================================================

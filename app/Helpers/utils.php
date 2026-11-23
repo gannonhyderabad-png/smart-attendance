@@ -76,34 +76,89 @@ if (!function_exists('mobile_base_url')) {
     }
 }
 
-if (!function_exists('public_url')) {
+if (!function_exists('is_lan_ip')) {
     /**
-     * Return always-reachable public URL for employees
+     * Check if given host is a local / private LAN IP
      */
-    function public_url(string $path = ''): string {
-        $path = ltrim(str_replace('\\', '/', $path), '/');
-
-        // 1. If accessed via live public host or active Cloudflare tunnel domain
-        if (!empty($_SERVER['HTTP_HOST']) && !str_contains($_SERVER['HTTP_HOST'], 'localhost') && !str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')) {
-            return base_url($path);
+    function is_lan_ip(string $host): bool {
+        $hostOnly = explode(':', $host)[0];
+        if (in_array($hostOnly, ['localhost', '127.0.0.1', '::1'], true)) {
+            return true;
         }
+        if (str_starts_with($hostOnly, '192.168.') || str_starts_with($hostOnly, '10.') || str_starts_with($hostOnly, '172.')) {
+            return true;
+        }
+        return false;
+    }
+}
 
-        // 2. Check if active Cloudflare tunnel URL was written by launcher
+if (!function_exists('get_active_tunnel_url')) {
+    /**
+     * Get active Cloudflare tunnel URL if available
+     */
+    function get_active_tunnel_url(): ?string {
         $cfLogPath = dirname(__DIR__, 2) . '/scratch/cloudflare_url.txt';
         if (file_exists($cfLogPath)) {
             $savedUrl = trim((string)@file_get_contents($cfLogPath));
             if (!empty($savedUrl) && str_starts_with($savedUrl, 'http')) {
-                return rtrim($savedUrl, '/') . '/' . $path;
+                return rtrim($savedUrl, '/');
             }
         }
-
-        // 3. Configured explicit TUNNEL_URL in .env (only if valid external tunnel, not render)
         $configuredTunnel = env('TUNNEL_URL');
         if (!empty($configuredTunnel) && !str_contains($configuredTunnel, 'localhost') && !str_contains($configuredTunnel, 'onrender.com')) {
-            return rtrim($configuredTunnel, '/') . '/' . $path;
+            return rtrim($configuredTunnel, '/');
+        }
+        return null;
+    }
+}
+
+if (!function_exists('punch_wifi_url')) {
+    /**
+     * Return direct local Wi-Fi URL (requires employee phone to be connected to office Wi-Fi)
+     */
+    function punch_wifi_url(string $employeeCode): string {
+        $lanIp = get_server_lan_ip() ?: '127.0.0.1';
+        $port = $_SERVER['SERVER_PORT'] ?? '8000';
+        $portSuffix = ($port && $port != '80' && $port != '443') ? ':' . $port : ':8000';
+        $encoded = rawurlencode(trim($employeeCode));
+        return 'http://' . $lanIp . $portSuffix . '/p/' . $encoded;
+    }
+}
+
+if (!function_exists('punch_online_url')) {
+    /**
+     * Return public internet URL for punch (Cloudflare Tunnel)
+     */
+    function punch_online_url(string $employeeCode): ?string {
+        $tunnel = get_active_tunnel_url();
+        if ($tunnel) {
+            $encoded = rawurlencode(trim($employeeCode));
+            return $tunnel . '/p/' . $encoded;
+        }
+        return null;
+    }
+}
+
+if (!function_exists('public_url')) {
+    /**
+     * Return always-reachable public URL for employees (prioritizes public tunnel over local LAN IP)
+     */
+    function public_url(string $path = ''): string {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        // 1. If accessed via live public internet domain (e.g. *.trycloudflare.com or custom domain)
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        if (!empty($host) && !is_lan_ip($host)) {
+            return base_url($path);
         }
 
-        // 4. Fallback to server LAN IP so any phone on the same Wi-Fi/LAN can reach it
+        // 2. Check if active Cloudflare tunnel URL is available
+        $tunnelUrl = get_active_tunnel_url();
+        if ($tunnelUrl) {
+            return $tunnelUrl . '/' . $path;
+        }
+
+        // 3. Fallback to server LAN IP so phones on the same Wi-Fi can reach it
         $lanIp = get_server_lan_ip();
         $port = $_SERVER['SERVER_PORT'] ?? '8000';
         $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
@@ -128,7 +183,7 @@ if (!function_exists('asset_url')) {
 
 if (!function_exists('punch_url')) {
     /**
-     * Generate punch URL for employee code (always uses public URL so QR and links work on mobile/public networks)
+     * Generate punch URL for employee code (prefers public internet link so 4G/5G mobile data works anywhere, falls back to office Wi-Fi)
      */
     function punch_url(string $employeeCode): string {
         $encoded = rawurlencode(trim($employeeCode));

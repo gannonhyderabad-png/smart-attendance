@@ -372,62 +372,58 @@ $userName = $user['name'] ?? 'Admin';
         </div>
     </div>
 
-    <!-- 3. Live Locations (Visual Map & Sites Card) -->
+    <!-- 3. Live Locations (Interactive Live Map & Real GPS Pins) -->
     <div class="col-lg-4">
-        <div class="dash-card p-4 h-100 position-relative overflow-hidden">
+        <div class="dash-card p-4 h-100 position-relative d-flex flex-column">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="fw-bold text-dark mb-0">Live Locations</h6>
-                <span class="badge bg-light text-secondary border small">Active Sites</span>
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="fw-bold text-dark mb-0">Live Locations</h6>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.65rem;">
+                        <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 7px; height: 7px;"></span>LIVE GPS
+                    </span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill font-monospace" onclick="openLiveMapModal()" style="font-size: 0.72rem;">
+                    <i class="fa-solid fa-expand me-1"></i>Full Map
+                </button>
             </div>
 
-            <!-- Stylized Vector Map Preview Graphic -->
-            <div class="position-relative my-2 rounded-3 overflow-hidden border" style="height: 120px; background: #eef2f6;">
-                <svg viewBox="0 0 400 180" class="w-100 h-100" style="opacity: 0.85;">
-                    <!-- Stylized map road/river curves -->
-                    <path d="M-10,90 Q120,40 200,95 T410,80" fill="none" stroke="#93c5fd" stroke-width="14" stroke-linecap="round"/>
-                    <path d="M80,-10 Q140,80 180,190" fill="none" stroke="#e2e8f0" stroke-width="8"/>
-                    <path d="M220,-10 Q280,100 360,190" fill="none" stroke="#e2e8f0" stroke-width="8"/>
-                    
-                    <!-- Map Pin 1 (Blue) -->
-                    <g transform="translate(100, 65)">
-                        <circle cx="0" cy="0" r="14" fill="#3b82f6" opacity="0.25"/>
-                        <circle cx="0" cy="0" r="9" fill="#2563eb"/>
-                        <circle cx="0" cy="0" r="4" fill="#ffffff"/>
-                    </g>
-                    <!-- Map Pin 2 (Green) -->
-                    <g transform="translate(195, 75)">
-                        <circle cx="0" cy="0" r="14" fill="#10b981" opacity="0.25"/>
-                        <circle cx="0" cy="0" r="9" fill="#059669"/>
-                        <circle cx="0" cy="0" r="4" fill="#ffffff"/>
-                    </g>
-                    <!-- Map Pin 3 (Purple) -->
-                    <g transform="translate(290, 85)">
-                        <circle cx="0" cy="0" r="14" fill="#8b5cf6" opacity="0.25"/>
-                        <circle cx="0" cy="0" r="9" fill="#7c3aed"/>
-                        <circle cx="0" cy="0" r="4" fill="#ffffff"/>
-                    </g>
-                    <!-- Map Pin 4 (Orange/Red) -->
-                    <g transform="translate(240, 130)">
-                        <circle cx="0" cy="0" r="14" fill="#ef4444" opacity="0.25"/>
-                        <circle cx="0" cy="0" r="9" fill="#dc2626"/>
-                        <circle cx="0" cy="0" r="4" fill="#ffffff"/>
-                    </g>
-                </svg>
+            <!-- Real Leaflet Live Interactive Map Widget -->
+            <div class="position-relative my-2 rounded-3 overflow-hidden border shadow-sm" style="height: 165px; min-height: 165px; background: #e2e8f0;">
+                <div id="liveDashboardMap" style="width: 100%; height: 100%; z-index: 1;"></div>
             </div>
 
-            <!-- Site Location Badges List -->
-            <div class="d-flex flex-column gap-2 mt-2">
-                <?php foreach (array_slice($sites, 0, 3) as $s): ?>
-                    <div class="d-flex justify-content-between align-items-center small py-1 border-bottom border-light">
-                        <div class="d-flex align-items-center gap-2 text-truncate">
-                            <i class="fa-solid fa-location-dot text-danger" style="font-size: 0.8rem;"></i>
-                            <span class="fw-semibold text-dark text-truncate"><?= e($s['site_name']) ?></span>
+            <!-- Live GPS Attendance / Sites List -->
+            <div class="d-flex flex-column gap-2 mt-2 flex-grow-1">
+                <?php if (!empty($liveLocations)): ?>
+                    <?php foreach (array_slice($liveLocations, 0, 3) as $loc): ?>
+                        <div class="d-flex justify-content-between align-items-center small py-1 border-bottom border-light" style="cursor: pointer;" onclick="focusDashboardPin(<?= (float)$loc['latitude'] ?>, <?= (float)$loc['longitude'] ?>, '<?= addslashes(e($loc['employee_name'])) ?>')">
+                            <div class="d-flex align-items-center gap-2 text-truncate">
+                                <span class="badge rounded-circle p-1 <?= $loc['punch_type'] === 'IN' ? 'bg-success' : 'bg-danger' ?>" style="width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;" title="Punch <?= e($loc['punch_type']) ?>">
+                                    <i class="fa-solid <?= $loc['punch_type'] === 'IN' ? 'fa-arrow-down' : 'fa-arrow-up' ?>" style="font-size: 0.62rem;"></i>
+                                </span>
+                                <div class="text-truncate">
+                                    <span class="fw-semibold text-dark d-block text-truncate" style="font-size: 0.78rem;"><?= e($loc['employee_name']) ?></span>
+                                    <span class="text-muted font-monospace" style="font-size: 0.68rem;"><?= round((float)$loc['latitude'], 4) ?>, <?= round((float)$loc['longitude'], 4) ?> &bull; <?= e($loc['punch_site'] ?: $loc['employee_site']) ?></span>
+                                </div>
+                            </div>
+                            <span class="badge bg-light text-secondary border font-monospace text-nowrap" style="font-size: 0.68rem;">
+                                <?= date('h:i A', strtotime($loc['punch_time'])) ?>
+                            </span>
                         </div>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
-                            <?= (int)$s['count'] ?> Staff
-                        </span>
-                    </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <?php foreach (array_slice($sites, 0, 3) as $s): ?>
+                        <div class="d-flex justify-content-between align-items-center small py-1 border-bottom border-light">
+                            <div class="d-flex align-items-center gap-2 text-truncate">
+                                <i class="fa-solid fa-location-dot text-danger" style="font-size: 0.8rem;"></i>
+                                <span class="fw-semibold text-dark text-truncate"><?= e($s['site_name']) ?></span>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
+                                <?= (int)$s['count'] ?> Staff
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -606,6 +602,208 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-poll every 4 seconds so punches on mobile reflect live on the web page
     setInterval(syncLiveDashboardStats, 4000);
 });
+</script>
+
+
+<!-- Full-screen Live GPS Tracking Map Modal -->
+<div class="modal fade" id="liveMapModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+            <div class="modal-header border-bottom py-3 px-4 bg-light">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-success-subtle text-success p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                        <i class="fa-solid fa-satellite-dish"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Live Workforce GPS Map</h5>
+                        <small class="text-muted">Real-time attendance punch locations & active work sites</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                        <i class="fa-solid fa-signal me-1"></i><?= count($liveLocations ?? []) ?> Live Punches
+                    </span>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0 position-relative">
+                <div id="liveModalMap" style="width: 100%; height: 540px; background: #e2e8f0;"></div>
+            </div>
+            <div class="modal-footer bg-light py-2 px-4 d-flex justify-content-between">
+                <div class="d-flex align-items-center gap-3 small">
+                    <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle bg-success p-1" style="width: 10px; height: 10px;"></span> Punch IN</span>
+                    <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle bg-danger p-1" style="width: 10px; height: 10px;"></span> Punch OUT</span>
+                    <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle bg-primary p-1" style="width: 10px; height: 10px;"></span> Company Site</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close Map</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Leaflet Live Map Integration for Dashboard
+let dashMap = null;
+let modalMap = null;
+const livePunchesData = <?= json_encode($liveLocations ?? []) ?>;
+const siteMarkersData = <?= json_encode($siteMarkers ?? []) ?>;
+
+function initDashboardMaps() {
+    // Default Center: Hyderabad (17.4291, 78.4573) or average of live punches
+    let centerLat = 17.4291;
+    let centerLng = 78.4573;
+    let initialZoom = 13;
+
+    if (livePunchesData.length > 0 && livePunchesData[0].latitude && livePunchesData[0].longitude) {
+        centerLat = parseFloat(livePunchesData[0].latitude);
+        centerLng = parseFloat(livePunchesData[0].longitude);
+    } else if (siteMarkersData.length > 0 && siteMarkersData[0].site_lat) {
+        centerLat = parseFloat(siteMarkersData[0].site_lat);
+        centerLng = parseFloat(siteMarkersData[0].site_lng);
+    }
+
+    // 1. Initialize Dashboard Card Map
+    const dashMapEl = document.getElementById('liveDashboardMap');
+    if (dashMapEl && !dashMap && typeof L !== 'undefined') {
+        dashMap = L.map('liveDashboardMap', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([centerLat, centerLng], initialZoom);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+        }).addTo(dashMap);
+
+        // Plot pins on dashboard map
+        livePunchesData.slice(0, 10).forEach(p => {
+            if (!p.latitude || !p.longitude) return;
+            const lat = parseFloat(p.latitude);
+            const lng = parseFloat(p.longitude);
+            if (isNaN(lat) || isNaN(lng)) return;
+
+            const isIn = (p.punch_type === 'IN');
+            const pinColor = isIn ? '#10b981' : '#ef4444';
+
+            const iconHtml = `<div style="background-color: ${pinColor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 8px rgba(0,0,0,0.35);"></div>`;
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-live-pin',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            const marker = L.marker([lat, lng], { icon: customIcon }).addTo(dashMap);
+            marker.bindPopup(`<strong>${p.employee_name}</strong><br><small>${p.punch_type} @ ${p.punch_time}</small>`);
+        });
+
+        setTimeout(() => dashMap.invalidateSize(), 400);
+    }
+}
+
+function openLiveMapModal() {
+    const modalEl = document.getElementById('liveMapModal');
+    if (!modalEl || typeof bootstrap === 'undefined') return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    setTimeout(() => {
+        let centerLat = 17.4291;
+        let centerLng = 78.4573;
+        if (livePunchesData.length > 0 && livePunchesData[0].latitude && livePunchesData[0].longitude) {
+            centerLat = parseFloat(livePunchesData[0].latitude);
+            centerLng = parseFloat(livePunchesData[0].longitude);
+        }
+
+        if (!modalMap && typeof L !== 'undefined') {
+            modalMap = L.map('liveModalMap').setView([centerLat, centerLng], 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(modalMap);
+
+            // Add pins with rich popups
+            livePunchesData.forEach(p => {
+                if (!p.latitude || !p.longitude) return;
+                const lat = parseFloat(p.latitude);
+                const lng = parseFloat(p.longitude);
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                const isIn = (p.punch_type === 'IN');
+                const badgeColor = isIn ? '#10b981' : '#ef4444';
+                const pulseColor = isIn ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+
+                const iconHtml = `
+                    <div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                        <div style="position: absolute; width: 32px; height: 32px; border-radius: 50%; background: ${pulseColor}; animation: pulse 2s infinite;"></div>
+                        <div style="position: relative; width: 22px; height: 22px; border-radius: 50%; background: ${badgeColor}; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px;">
+                            <i class="fa-solid ${isIn ? 'fa-arrow-down' : 'fa-arrow-up'}"></i>
+                        </div>
+                    </div>`;
+
+                const customIcon = L.divIcon({
+                    html: iconHtml,
+                    className: 'custom-pulse-pin',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                const popupHtml = `
+                    <div style="font-family: inherit; min-width: 200px;">
+                        <div style="font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 2px;">${p.employee_name}</div>
+                        <div style="font-size: 11px; color: #64748b; font-family: monospace; margin-bottom: 6px;">${p.employee_code} &bull; ${p.department || 'Workforce'}</div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: ${isIn ? '#ecfdf5' : '#fef2f2'}; color: ${badgeColor}; border: 1px solid ${isIn ? '#a7f3d0' : '#fecaca'};">
+                                Punch ${p.punch_type}
+                            </span>
+                            <span style="font-size: 11px; font-family: monospace; color: #334155;">${p.punch_time}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #475569; margin-bottom: 6px;">
+                            <i class="fa-solid fa-location-dot" style="color: #ef4444;"></i> Site: <strong>${p.punch_site || p.employee_site || 'Main Site'}</strong>
+                        </div>
+                        <div style="font-size: 10px; font-family: monospace; color: #64748b; margin-bottom: 8px;">
+                            Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}
+                        </div>
+                        <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="display: block; text-align: center; font-size: 11px; font-weight: 600; padding: 4px 8px; background: #0284c7; color: #ffffff; border-radius: 6px; text-decoration: none;">
+                            <i class="fa-solid fa-diamond-turn-right me-1"></i> Open in Google Maps
+                        </a>
+                    </div>`;
+
+                const marker = L.marker([lat, lng], { icon: customIcon }).addTo(modalMap);
+                marker.bindPopup(popupHtml);
+            });
+
+            // Plot Site Offices
+            siteMarkersData.forEach(s => {
+                if (!s.site_lat || !s.site_lng) return;
+                const sLat = parseFloat(s.site_lat);
+                const sLng = parseFloat(s.site_lng);
+                if (isNaN(sLat) || isNaN(sLng)) return;
+
+                const siteIconHtml = `<div style="background-color: #0284c7; width: 18px; height: 18px; border-radius: 4px; border: 2px solid #ffffff; box-shadow: 0 0 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 9px;"><i class="fa-solid fa-building"></i></div>`;
+                const sIcon = L.divIcon({
+                    html: siteIconHtml,
+                    className: 'custom-site-pin',
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9]
+                });
+                const sMarker = L.marker([sLat, sLng], { icon: sIcon }).addTo(modalMap);
+                sMarker.bindPopup(`<strong>${s.site_name} (Site Office)</strong><br><small>${s.staff_count} Staff Assigned</small>`);
+            });
+        }
+        if (modalMap) {
+            modalMap.invalidateSize();
+        }
+    }, 300);
+}
+
+function focusDashboardPin(lat, lng, name) {
+    if (dashMap && lat && lng) {
+        dashMap.setView([lat, lng], 16, { animate: true });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initDashboardMaps);
 </script>
 
 </div> <!-- /#dashboardLiveContent -->

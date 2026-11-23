@@ -175,6 +175,8 @@
                             $empCodeClean = trim((string)($emp['employee_code'] ?? ''));
                             $empPunchLocalUrl = base_url('p/' . rawurlencode($empCodeClean));
                             $empPunchMobileUrl = punch_url($empCodeClean);
+                            $empPunchWifiUrl = punch_wifi_url($empCodeClean);
+                            $empPunchOnlineUrl = punch_online_url($empCodeClean) ?: $empPunchMobileUrl;
                         ?>
                             <tr class="<?= $currentView === 'trash' ? 'table-light opacity-75' : '' ?>">
                                 <td class="ps-3 text-center fw-bold text-muted" style="width: 50px;">
@@ -277,7 +279,7 @@
                                             <a href="<?= e($empPunchLocalUrl) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-sm text-nowrap" title="Open Mobile Attendance Punch Page">
                                                 <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Punch
                                             </a>
-                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="showEmployeeQr('<?= e($empPunchMobileUrl) ?>', '<?= e(addslashes($emp['name'])) ?>', '<?= e($emp['employee_code']) ?>')" title="Show QR Code">
+                                            <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="showEmployeeQr('<?= e($empPunchOnlineUrl) ?>', '<?= e($empPunchWifiUrl) ?>', '<?= e(addslashes($emp['name'])) ?>', '<?= e($emp['employee_code']) ?>')" title="Show QR Code">
                                                 <i class="fa-solid fa-qrcode text-dark"></i>
                                             </button>
                                             <button class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px;" type="button" onclick="copyToClipboard('<?= e($empPunchMobileUrl) ?>', this)" title="Copy Direct Attendance Link">
@@ -322,9 +324,9 @@
     </div>
 </div>
 
-<!-- Quick QR Code Modal for Employee Table -->
+<!-- Quick QR Code Modal with Dual Network Selector (Mobile 4G/5G vs Office Wi-Fi) -->
 <div class="modal fade" id="quickQrModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
         <div class="modal-content rounded-4 border-0 shadow-lg p-3 text-center">
             <div class="d-flex justify-content-between align-items-center mb-2 px-2">
                 <div class="text-start">
@@ -333,16 +335,38 @@
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="p-3 bg-light rounded-4 border my-2">
+
+            <!-- Network Selection Tabs -->
+            <ul class="nav nav-pills nav-fill mb-2 bg-light p-1 rounded-pill border" id="qrNavTabs">
+                <li class="nav-item">
+                    <button class="nav-link active rounded-pill py-1 px-2 small fw-bold" id="qrOnlineTab" onclick="switchQrMode('online')" style="font-size: 0.78rem;">
+                        <i class="fa-solid fa-globe me-1 text-primary"></i>Mobile 4G/5G
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill py-1 px-2 small fw-bold text-secondary" id="qrWifiTab" onclick="switchQrMode('wifi')" style="font-size: 0.78rem;">
+                        <i class="fa-solid fa-wifi me-1 text-success"></i>Office Wi-Fi
+                    </button>
+                </li>
+            </ul>
+
+            <div class="p-3 bg-light rounded-4 border my-1">
                 <div id="quickQrContainer" class="d-flex justify-content-center p-2 bg-white rounded-3 shadow-sm border mx-auto" style="width: 170px; height: 170px;"></div>
-                <small class="text-muted d-block mt-2">Scan with any smartphone camera</small>
+                <div id="qrNetworkNotice" class="small fw-semibold mt-2 text-primary" style="font-size: 0.73rem;">
+                    <i class="fa-solid fa-circle-check me-1"></i>Online Mode: Scan on phone with mobile data enabled
+                </div>
+                <div id="qrUrlDisplay" class="font-monospace text-muted text-truncate px-2 py-1 mt-1 bg-white rounded border" style="font-size: 0.65rem;"></div>
             </div>
+
             <div class="d-flex gap-2 justify-content-center mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm" onclick="copyCurrentQrUrl(this)" title="Copy Attendance Link">
+                    <i class="fa-regular fa-copy me-1"></i> Copy
+                </button>
                 <a id="modalWaBtn" href="#" target="_blank" class="btn btn-success btn-sm rounded-pill px-3 flex-grow-1 shadow-sm">
                     <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp
                 </a>
                 <a id="modalOpenBtn" href="#" target="_blank" class="btn btn-primary btn-sm rounded-pill px-3 flex-grow-1 shadow-sm">
-                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Page
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open
                 </a>
             </div>
         </div>
@@ -350,19 +374,18 @@
 </div>
 
 <script>
-function showEmployeeQr(punchUrl, name, code) {
-    document.getElementById('modalEmpName').textContent = name;
-    document.getElementById('modalEmpCode').textContent = code;
-    document.getElementById('modalOpenBtn').href = punchUrl;
-    
-    const waText = `Hello ${name}, here is your attendance punch link: ${punchUrl}`;
-    document.getElementById('modalWaBtn').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`;
-    
+let currentQrOnlineUrl = '';
+let currentQrWifiUrl = '';
+let currentQrEmpName = '';
+let activeQrMode = 'online';
+
+function renderCurrentQr(url) {
     const qrBox = document.getElementById('quickQrContainer');
+    if (!qrBox) return;
     qrBox.innerHTML = '';
     if (typeof QRCode !== 'undefined') {
         new QRCode(qrBox, {
-            text: punchUrl,
+            text: url,
             width: 154,
             height: 154,
             colorDark: "#111827",
@@ -370,9 +393,71 @@ function showEmployeeQr(punchUrl, name, code) {
             correctLevel: (typeof QRCode.CorrectLevel !== 'undefined') ? QRCode.CorrectLevel.M : 0
         });
     } else {
-        qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=154x154&data=${encodeURIComponent(punchUrl)}" style="width:154px;height:154px;" alt="QR Code">`;
+        qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=154x154&data=${encodeURIComponent(url)}" style="width:154px;height:154px;" alt="QR Code">`;
     }
+    const displayEl = document.getElementById('qrUrlDisplay');
+    if (displayEl) displayEl.textContent = url;
+    const openBtn = document.getElementById('modalOpenBtn');
+    if (openBtn) openBtn.href = url;
+    const waBtn = document.getElementById('modalWaBtn');
+    if (waBtn) {
+        const waText = `Hello ${currentQrEmpName}, here is your attendance punch link: ${url}`;
+        waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`;
+    }
+}
+
+function switchQrMode(mode) {
+    activeQrMode = mode;
+    const onlineTab = document.getElementById('qrOnlineTab');
+    const wifiTab = document.getElementById('qrWifiTab');
+    const noticeEl = document.getElementById('qrNetworkNotice');
+
+    if (mode === 'online') {
+        onlineTab.className = 'nav-link active rounded-pill py-1 px-2 small fw-bold text-white bg-primary';
+        wifiTab.className = 'nav-link rounded-pill py-1 px-2 small fw-bold text-secondary bg-transparent';
+        if (noticeEl) {
+            noticeEl.className = 'small fw-semibold mt-2 text-primary';
+            noticeEl.innerHTML = '<i class="fa-solid fa-globe me-1"></i>Works everywhere on phone Mobile Data (4G/5G)';
+        }
+        renderCurrentQr(currentQrOnlineUrl || currentQrWifiUrl);
+    } else {
+        wifiTab.className = 'nav-link active rounded-pill py-1 px-2 small fw-bold text-white bg-success';
+        onlineTab.className = 'nav-link rounded-pill py-1 px-2 small fw-bold text-secondary bg-transparent';
+        if (noticeEl) {
+            noticeEl.className = 'small fw-semibold mt-2 text-success';
+            noticeEl.innerHTML = '<i class="fa-solid fa-wifi me-1"></i>Office Wi-Fi: Connect phone to office Wi-Fi router';
+        }
+        renderCurrentQr(currentQrWifiUrl || currentQrOnlineUrl);
+    }
+}
+
+function showEmployeeQr(onlineUrl, wifiUrl, name, code) {
+    currentQrOnlineUrl = onlineUrl;
+    currentQrWifiUrl = wifiUrl;
+    currentQrEmpName = name;
+
+    document.getElementById('modalEmpName').textContent = name;
+    document.getElementById('modalEmpCode').textContent = code;
+
+    // Prefer online link if available, otherwise switch to Wi-Fi
+    if (onlineUrl && !onlineUrl.includes('192.168.') && !onlineUrl.includes('localhost') && !onlineUrl.includes('127.0.0.1')) {
+        switchQrMode('online');
+    } else {
+        switchQrMode('wifi');
+    }
+
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickQrModal'));
     modal.show();
+}
+
+function copyCurrentQrUrl(btn) {
+    const activeUrl = (activeQrMode === 'online') ? (currentQrOnlineUrl || currentQrWifiUrl) : (currentQrWifiUrl || currentQrOnlineUrl);
+    if (navigator.clipboard && activeUrl) {
+        navigator.clipboard.writeText(activeUrl).then(() => {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check text-success"></i> Copied!';
+            setTimeout(() => { btn.innerHTML = orig; }, 1500);
+        });
+    }
 }
 </script>

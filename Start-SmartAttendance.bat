@@ -85,6 +85,9 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') 
     taskkill /F /PID %%a >nul 2>&1
 )
 
+:: Auto-allow incoming port 8000 in Windows Firewall for Wi-Fi mobile connections
+netsh advfirewall firewall add rule name="SmartAttendance Port 8000" dir=in action=allow protocol=TCP localport=8000 profile=any >nul 2>&1
+
 :: 4. Start PHP Built-in Server on port 8000 with explicit database drivers
 echo [1/3] Starting Local Web Server on port 8000 (SQLite Driver Active)...
 start /b "SmartAttendance-PHP" "%PHP_BIN%" %PHP_FLAGS% -S 0.0.0.0:8000 index.php > nul 2>&1

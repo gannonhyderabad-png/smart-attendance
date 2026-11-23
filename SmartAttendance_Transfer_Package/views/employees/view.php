@@ -1,0 +1,441 @@
+<div class="row g-4">
+    <!-- Left Column: Employee ID Card & QR Code -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 bg-white text-center p-4">
+            
+            <div class="position-relative mx-auto mb-3" style="width: 80px; height: 80px;">
+                <?php if (!empty($employee['photo'])): ?>
+                    <img src="<?= uploaded_url($employee['photo']) ?>" class="rounded-circle border shadow object-fit-cover w-100 h-100" alt="<?= e($employee['name']) ?>">
+                <?php else: ?>
+                    <div class="avatar-lg bg-primary text-white rounded-circle d-flex align-items-center justify-content-center w-100 h-100 shadow" style="font-size: 2rem;">
+                        <?= strtoupper(substr($employee['name'], 0, 1)) ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <h4 class="fw-bold text-dark mb-1"><?= e($employee['name']) ?></h4>
+            <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+                <span class="badge bg-primary-subtle text-primary font-monospace px-2 py-1 fs-6"><?= e($employee['employee_code']) ?></span>
+                <span class="badge bg-light text-dark border"><?= e($employee['department_name'] ?? 'General') ?></span>
+            </div>
+
+            <div class="p-3 bg-light rounded-4 border text-start small mb-4">
+                <div class="row g-2">
+                    <div class="col-4 text-muted fw-semibold">Designation:</div>
+                    <div class="col-8 text-dark"><?= e($employee['designation'] ?? 'Staff') ?></div>
+
+                    <div class="col-4 text-muted fw-semibold">Employee Type:</div>
+                    <div class="col-8">
+                        <?php
+                            $eType = $employee['employee_type'] ?? 'Permanent';
+                            $eBadge = ($eType === 'Probation')
+                                ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle'
+                                : (($eType === 'Contract')
+                                    ? 'bg-info-subtle text-info-emphasis border-info-subtle'
+                                    : 'bg-success-subtle text-success border-success-subtle');
+                        ?>
+                        <span class="badge <?= $eBadge ?> border px-2 py-1"><?= e($eType) ?></span>
+                        <?php if ($eType === 'Contract' && !empty($employee['contract_details'])): ?>
+                            <div class="small text-dark fw-semibold mt-1">
+                                <i class="fa-solid fa-file-signature text-info me-1"></i><?= e($employee['contract_details']) ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="col-4 text-muted fw-semibold">Assigned Project:</div>
+                    <div class="col-8 text-primary fw-bold"><?= e($employee['project'] ?? 'General Operations') ?></div>
+
+                    <div class="col-4 text-muted fw-semibold">Work Site / Location:</div>
+                    <div class="col-8 text-dark fw-semibold"><i class="fa-solid fa-location-dot text-danger me-1"></i><?= e($employee['site'] ?? 'Main Office') ?></div>
+
+                    <div class="col-4 text-muted fw-semibold">GPS Geofence:</div>
+                    <div class="col-8 text-dark">
+                        <?php if (!empty($employee['geofence_enabled']) && !empty($employee['site_latitude']) && !empty($employee['site_longitude'])): ?>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                <i class="fa-solid fa-map-pin me-1"></i> Active (Radius: <?= e($employee['site_radius'] ?? 200) ?>m)
+                            </span>
+                            <div class="font-monospace text-muted small mt-1">
+                                <?= round((float)$employee['site_latitude'], 5) ?>, <?= round((float)$employee['site_longitude'], 5) ?>
+                            </div>
+                        <?php else: ?>
+                            <span class="badge bg-light text-muted border">Unrestricted</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="col-4 text-muted fw-semibold">Email:</div>
+                    <div class="col-8 text-dark"><?= e($employee['email'] ?? '—') ?></div>
+
+                    <div class="col-4 text-muted fw-semibold">Phone:</div>
+                    <div class="col-8 text-dark"><?= e($employee['phone'] ?? '—') ?></div>
+
+                    <div class="col-4 text-muted fw-semibold">Shift Hours:</div>
+                    <div class="col-8 text-dark"><?= date('h:i A', strtotime($employee['shift_start'])) ?> - <?= date('h:i A', strtotime($employee['shift_end'])) ?></div>
+
+                    <div class="col-4 text-muted fw-semibold">Today Worked:</div>
+                    <div class="col-8 text-success fw-bold font-monospace"><?= format_seconds($todayWorkSeconds) ?></div>
+                </div>
+            </div>
+
+            <!-- QR Code Generator Section with Dual Network Mode -->
+            <?php
+            $empCodeClean = trim((string)($employee['employee_code'] ?? ''));
+            $viewWifiUrl = punch_wifi_url($empCodeClean);
+            $viewOnlineUrl = punch_online_url($empCodeClean) ?: $punchUrl;
+            ?>
+            <div class="qr-container p-4 bg-light rounded-4 border mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-qrcode text-primary me-1"></i> Attendance QR Code</h6>
+                    <span class="badge bg-success text-white small"><i class="fa-solid fa-circle-check me-1"></i> Ready to Scan</span>
+                </div>
+
+                <!-- Network Mode Selector -->
+                <ul class="nav nav-pills nav-fill mb-2 bg-white p-1 rounded-pill border" id="viewQrTabs">
+                    <li class="nav-item">
+                        <button type="button" class="nav-link active rounded-pill py-1 px-3 small fw-bold" id="viewTabOnline" onclick="switchViewQr('online')" style="font-size: 0.78rem;">
+                            <i class="fa-solid fa-globe me-1 text-primary"></i>Mobile 4G/5G
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link rounded-pill py-1 px-3 small fw-bold text-secondary" id="viewTabWifi" onclick="switchViewQr('wifi')" style="font-size: 0.78rem;">
+                            <i class="fa-solid fa-wifi me-1 text-success"></i>Office Wi-Fi
+                        </button>
+                    </li>
+                </ul>
+
+                <div id="qrcodeBox" class="d-flex justify-content-center my-2 p-2 bg-white rounded-3 shadow-sm border mx-auto" style="width: 180px; height: 180px;"></div>
+                <div id="viewQrNotice" class="small fw-semibold mt-1 text-primary" style="font-size: 0.74rem;">
+                    <i class="fa-solid fa-globe me-1"></i>Works everywhere on phone cellular data (4G/5G)
+                </div>
+                <div class="small font-monospace text-primary text-truncate p-1 bg-white rounded border mt-2" id="viewQrUrlText"><?= e($punchUrl) ?></div>
+            </div>
+
+            <!-- URL Copy & Share Tools -->
+            <div class="mb-3 text-start">
+                <label class="form-label small fw-semibold text-muted mb-1">Direct Attendance URL:</label>
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control bg-light font-monospace small" id="punchUrlInput" value="<?= e($punchUrl) ?>" readonly>
+                    <button class="btn btn-primary" type="button" onclick="copyToClipboard('<?= e($punchUrl) ?>', this)">
+                        <i class="fa-regular fa-copy me-1"></i> Copy URL
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sharing Buttons -->
+            <div class="d-flex gap-2 justify-content-center mt-3">
+                <?php 
+                $waText = "Hello " . $employee['name'] . ", here is your daily attendance punch link: " . $punchUrl;
+                $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
+                ?>
+                <a href="<?= $waUrl ?>" target="_blank" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
+                    <i class="fa-brands fa-whatsapp me-1"></i> Send on WhatsApp
+                </a>
+                <a href="<?= e($punchUrl) ?>" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Punch Page
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Right Column: Recent Punches & Stats -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0">Recent Attendance History</h5>
+                    <small class="text-muted">Last 10 punch entries with live selfie verification</small>
+                </div>
+                <?php if (\App\Core\Auth::isAdmin()): ?>
+                    <a href="<?= base_url('attendance?employee_id=' . $employee['id']) ?>" class="btn btn-light btn-sm border rounded-pill px-3">
+                        Full Log History <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                <?php elseif (\App\Core\Auth::isSiteUser()): ?>
+                    <a href="<?= base_url('reports?report_type=employee&employee_id=' . $employee['id']) ?>" class="btn btn-light btn-sm border rounded-pill px-3">
+                        Attendance Report <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Punch IN</th>
+                                <th>Punch OUT</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th class="pe-4">Location / Device</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            <?php if (empty($recentAttendance)): ?>
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fa-regular fa-calendar-xmark fs-4 d-block mb-2 text-secondary"></i>
+                                        No attendance logs found for this employee.
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($recentAttendance as $att): ?>
+                                    <tr>
+                                        <td class="ps-4 fw-semibold"><?= date('d M Y', strtotime($att['punch_date'])) ?></td>
+                                        <td>
+                                            <?php if (!empty($att['in_time'])): ?>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 font-monospace">
+                                                        <i class="fa-solid fa-arrow-right-to-bracket me-1"></i><?= date('h:i:s A', strtotime($att['in_time'])) ?>
+                                                    </span>
+                                                    <?php if (!empty($att['in_photo'])): ?>
+                                                        <a href="javascript:void(0)" onclick="viewPunchPhoto('<?= uploaded_url($att['in_photo']) ?>', '<?= e($employee['name']) ?> - Punch IN Selfie', '<?= date('d M Y, h:i:s A', strtotime($att['in_time'])) ?>')" class="btn btn-sm btn-light border p-0 rounded-circle shadow-sm overflow-hidden" title="Click to Maximize IN Selfie" style="width: 28px; height: 28px; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                                                            <img src="<?= uploaded_url($att['in_photo']) ?>" class="w-100 h-100 object-fit-cover" alt="IN Selfie">
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($att['out_time'])): ?>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 font-monospace">
+                                                        <i class="fa-solid fa-arrow-right-from-bracket me-1"></i><?= date('h:i:s A', strtotime($att['out_time'])) ?>
+                                                    </span>
+                                                    <?php if (!empty($att['out_photo'])): ?>
+                                                        <a href="javascript:void(0)" onclick="viewPunchPhoto('<?= uploaded_url($att['out_photo']) ?>', '<?= e($employee['name']) ?> - Punch OUT Selfie', '<?= date('d M Y, h:i:s A', strtotime($att['out_time'])) ?>')" class="btn btn-sm btn-light border p-0 rounded-circle shadow-sm overflow-hidden" title="Click to Maximize OUT Selfie" style="width: 28px; height: 28px; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                                                            <img src="<?= uploaded_url($att['out_photo']) ?>" class="w-100 h-100 object-fit-cover" alt="OUT Selfie">
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php elseif ($att['status'] === 'IN'): ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                                    <i class="fa-solid fa-clock me-1"></i> Working Now
+                                                </span>
+                                            <?php elseif ($att['status'] === 'NO_OUT' || !empty($att['auto_closed'])): ?>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" title="Employee did not punch OUT. Auto-closed at scheduled shift end.">
+                                                    <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i> No OUT Punch
+                                                </span>
+                                                <div class="small text-muted font-monospace" style="font-size: 0.68rem;">
+                                                    <i class="fa-regular fa-clock me-1"></i>Auto-closed: <?= date('h:i A', strtotime($employee['shift_end'] ?? '18:00:00')) ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold font-monospace <?= $att['duration_seconds'] > 0 ? 'text-primary' : 'text-muted' ?>">
+                                                <?= $att['formatted_duration'] ?>
+                                            </span>
+                                            <?php if ($att['status'] === 'NO_OUT' || !empty($att['auto_closed'])): ?>
+                                                <div class="small text-muted" style="font-size: 0.65rem;" title="Auto-calculated from Punch IN to site shift end time">
+                                                    <i class="fa-solid fa-calculator me-1"></i>Shift Time
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($att['status'] === 'IN'): ?>
+                                                <span class="badge bg-success px-2 py-1">
+                                                    <i class="fa-solid fa-circle me-1" style="font-size: 6px;"></i> Working Now
+                                                </span>
+                                            <?php elseif ($att['status'] === 'NO_OUT' || !empty($att['auto_closed'])): ?>
+                                                <span class="badge bg-warning text-dark border border-warning px-2 py-1" title="No Out Punch - Auto closed at shift end">
+                                                    <i class="fa-solid fa-triangle-exclamation me-1"></i> No OUT Punch
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">
+                                                    <i class="fa-solid fa-check me-1"></i> Completed
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="pe-4 text-muted small">
+                                            <?php 
+                                             $devIp = $att['in_ip'] ?: ($att['out_ip'] ?? '127.0.0.1');
+                                             $devInfo = $att['in_device'] ?: ($att['out_device'] ?? '—');
+                                            ?>
+                                            <div class="text-truncate" style="max-width: 170px;" title="<?= e($devInfo) ?>">
+                                                <code><?= e($devIp) ?></code>
+                                                <div class="text-muted small text-truncate"><?= e($devInfo) ?></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leave & OD (Outdoor Duty) History Log -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-plane-departure text-warning me-2"></i>Approved Leaves & OD Site Logs</h5>
+                    <small class="text-muted">Recorded leave periods, outdoor duties, target sites, and attached sheets</small>
+                </div>
+                <a href="<?= base_url('leaves') ?>" class="btn btn-light btn-sm border rounded-pill px-3">
+                    <?= \App\Core\Auth::isSiteUser() ? 'View Leaves' : 'Manage Leaves' ?> <i class="fa-solid fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Dates</th>
+                                <th>Type</th>
+                                <th>Days</th>
+                                <th>Site Route / Target</th>
+                                <th>Reason / Notes</th>
+                                <th class="pe-4 text-end">PDF Sheet</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            <?php if (empty($leaves)): ?>
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fa-regular fa-folder-open fs-4 d-block mb-2 text-secondary"></i>
+                                        No leave or outdoor duty logs recorded for this employee.
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($leaves as $lv): 
+                                    $isOd = str_contains(strtoupper($lv['leave_type'] ?? ''), 'OD') || str_contains(strtoupper($lv['leave_type'] ?? ''), 'OUTDOOR') || str_contains(strtoupper($lv['leave_type'] ?? ''), 'DUTY');
+                                ?>
+                                    <tr>
+                                        <td class="ps-4 fw-semibold text-dark">
+                                            <?= date('d M Y', strtotime($lv['start_date'])) ?>
+                                            <?php if ($lv['start_date'] !== $lv['end_date']): ?>
+                                                <div class="text-muted small">to <?= date('d M Y', strtotime($lv['end_date'])) ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($isOd): ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1 fw-bold">
+                                                    <i class="fa-solid fa-briefcase me-1"></i><?= e($lv['leave_type']) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1 fw-bold">
+                                                    <i class="fa-solid fa-plane-departure me-1"></i><?= e($lv['leave_type']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><span class="badge bg-light text-dark border"><?= e($lv['days_count']) ?> day(s)</span></td>
+                                        <td>
+                                            <?php if (!empty($lv['target_site'])): ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                                    <i class="fa-solid fa-location-dot text-danger me-1"></i>Target: <?= e($lv['target_site']) ?>
+                                                </span>
+                                                <?php if (!empty($lv['origin_site'])): ?>
+                                                    <div class="small text-muted mt-1">From: <?= e($lv['origin_site']) ?></div>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 200px;" title="<?= e($lv['reason']) ?>">
+                                                <?= !empty($lv['reason']) ? e($lv['reason']) : '<span class="text-muted">—</span>' ?>
+                                            </div>
+                                        </td>
+                                        <td class="pe-4 text-end">
+                                            <?php if (!empty($lv['attachment'])): ?>
+                                                <a href="<?= uploaded_url($lv['attachment']) ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-semibold shadow-sm" style="font-size: 0.78rem;">
+                                                    <i class="fa-solid fa-file-pdf me-1"></i> View Sheet
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="text-muted small">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+            <a href="<?= base_url('employees') ?>" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to Employee List
+            </a>
+            <?php if (!\App\Core\Auth::isRestricted()): ?>
+            <div class="d-flex gap-2">
+                <a href="<?= base_url('employees/edit/' . $employee['id']) ?>" class="btn btn-outline-primary rounded-pill px-3">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Profile
+                </a>
+            </div>
+            <?php endif; ?>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const onlinePunchUrl = <?= json_encode($viewOnlineUrl ?? $punchUrl) ?>;
+    const wifiPunchUrl = <?= json_encode($viewWifiUrl ?? $punchUrl) ?>;
+    const empName = <?= json_encode($employee['name'] ?? 'Staff') ?>;
+    let currentActiveViewUrl = onlinePunchUrl || wifiPunchUrl;
+
+    function renderViewQr(url) {
+        const qrContainer = document.getElementById('qrcodeBox');
+        if (!qrContainer) return;
+        qrContainer.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrContainer, {
+                text: url,
+                width: 160,
+                height: 160,
+                colorDark: "#111827",
+                colorLight: "#ffffff",
+                correctLevel: (typeof QRCode.CorrectLevel !== 'undefined') ? QRCode.CorrectLevel.M : 0
+            });
+        } else {
+            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}" style="width:160px;height:160px;" alt="QR Code">`;
+        }
+
+        const urlText = document.getElementById('viewQrUrlText');
+        if (urlText) urlText.textContent = url;
+        const inputField = document.getElementById('punchUrlInput');
+        if (inputField) inputField.value = url;
+    }
+
+    function switchViewQr(mode) {
+        const tabOnline = document.getElementById('viewTabOnline');
+        const tabWifi = document.getElementById('viewTabWifi');
+        const notice = document.getElementById('viewQrNotice');
+
+        if (mode === 'online') {
+            currentActiveViewUrl = onlinePunchUrl || wifiPunchUrl;
+            if (tabOnline) tabOnline.className = 'nav-link active rounded-pill py-1 px-3 small fw-bold text-white bg-primary';
+            if (tabWifi) tabWifi.className = 'nav-link rounded-pill py-1 px-3 small fw-bold text-secondary bg-transparent';
+            if (notice) {
+                notice.className = 'small fw-semibold mt-1 text-primary';
+                notice.innerHTML = '<i class="fa-solid fa-globe me-1"></i>Works everywhere on phone cellular data (4G/5G)';
+            }
+        } else {
+            currentActiveViewUrl = wifiPunchUrl || onlinePunchUrl;
+            if (tabWifi) tabWifi.className = 'nav-link active rounded-pill py-1 px-3 small fw-bold text-white bg-success';
+            if (tabOnline) tabOnline.className = 'nav-link rounded-pill py-1 px-3 small fw-bold text-secondary bg-transparent';
+            if (notice) {
+                notice.className = 'small fw-semibold mt-1 text-success';
+                notice.innerHTML = '<i class="fa-solid fa-wifi me-1"></i>Office Wi-Fi: Connect phone to office Wi-Fi router';
+            }
+        }
+        renderViewQr(currentActiveViewUrl);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (onlinePunchUrl && !onlinePunchUrl.includes('192.168.') && !onlinePunchUrl.includes('localhost') && !onlinePunchUrl.includes('127.0.0.1')) {
+            switchViewQr('online');
+        } else {
+            switchViewQr('wifi');
+        }
+    });
+    window.addEventListener('load', () => renderViewQr(currentActiveViewUrl));
+    setTimeout(() => renderViewQr(currentActiveViewUrl), 400);
+</script>

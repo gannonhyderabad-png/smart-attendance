@@ -76,15 +76,37 @@
                 </div>
             </div>
 
-            <!-- QR Code Generator Section -->
+            <!-- QR Code Generator Section with Dual Network Mode -->
+            <?php
+            $empCodeClean = trim((string)($employee['employee_code'] ?? ''));
+            $viewWifiUrl = punch_wifi_url($empCodeClean);
+            $viewOnlineUrl = punch_online_url($empCodeClean) ?: $punchUrl;
+            ?>
             <div class="qr-container p-4 bg-light rounded-4 border mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                    <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-qrcode text-primary me-1"></i> Attendance Punch QR</h6>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-qrcode text-primary me-1"></i> Attendance QR Code</h6>
                     <span class="badge bg-success text-white small"><i class="fa-solid fa-circle-check me-1"></i> Ready to Scan</span>
                 </div>
-                <p class="text-muted small mb-2">Scan with any mobile phone to open attendance punch portal</p>
-                <div id="qrcodeBox" class="d-flex justify-content-center my-3 p-2 bg-white rounded-3 shadow-sm border mx-auto" style="width: 180px; height: 180px;"></div>
-                <div class="small font-monospace text-primary text-truncate p-1 bg-white rounded border"><?= e($punchUrl) ?></div>
+
+                <!-- Network Mode Selector -->
+                <ul class="nav nav-pills nav-fill mb-2 bg-white p-1 rounded-pill border" id="viewQrTabs">
+                    <li class="nav-item">
+                        <button type="button" class="nav-link active rounded-pill py-1 px-3 small fw-bold" id="viewTabOnline" onclick="switchViewQr('online')" style="font-size: 0.78rem;">
+                            <i class="fa-solid fa-globe me-1 text-primary"></i>Mobile 4G/5G
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link rounded-pill py-1 px-3 small fw-bold text-secondary" id="viewTabWifi" onclick="switchViewQr('wifi')" style="font-size: 0.78rem;">
+                            <i class="fa-solid fa-wifi me-1 text-success"></i>Office Wi-Fi
+                        </button>
+                    </li>
+                </ul>
+
+                <div id="qrcodeBox" class="d-flex justify-content-center my-2 p-2 bg-white rounded-3 shadow-sm border mx-auto" style="width: 180px; height: 180px;"></div>
+                <div id="viewQrNotice" class="small fw-semibold mt-1 text-primary" style="font-size: 0.74rem;">
+                    <i class="fa-solid fa-globe me-1"></i>Works everywhere on phone cellular data (4G/5G)
+                </div>
+                <div class="small font-monospace text-primary text-truncate p-1 bg-white rounded border mt-2" id="viewQrUrlText"><?= e($punchUrl) ?></div>
             </div>
 
             <!-- URL Copy & Share Tools -->
@@ -354,13 +376,18 @@
 </div>
 
 <script>
-    function renderEmployeeQr() {
+    const onlinePunchUrl = <?= json_encode($viewOnlineUrl ?? $punchUrl) ?>;
+    const wifiPunchUrl = <?= json_encode($viewWifiUrl ?? $punchUrl) ?>;
+    const empName = <?= json_encode($employee['name'] ?? 'Staff') ?>;
+    let currentActiveViewUrl = onlinePunchUrl || wifiPunchUrl;
+
+    function renderViewQr(url) {
         const qrContainer = document.getElementById('qrcodeBox');
         if (!qrContainer) return;
+        qrContainer.innerHTML = '';
         if (typeof QRCode !== 'undefined') {
-            qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
-                text: <?= json_encode($punchUrl) ?>,
+                text: url,
                 width: 160,
                 height: 160,
                 colorDark: "#111827",
@@ -368,11 +395,47 @@
                 correctLevel: (typeof QRCode.CorrectLevel !== 'undefined') ? QRCode.CorrectLevel.M : 0
             });
         } else {
-            // Dynamic fallback image if library is delayed
-            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(<?= json_encode($punchUrl) ?>)}" style="width:160px;height:160px;" alt="QR Code">`;
+            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}" style="width:160px;height:160px;" alt="QR Code">`;
         }
+
+        const urlText = document.getElementById('viewQrUrlText');
+        if (urlText) urlText.textContent = url;
+        const inputField = document.getElementById('punchUrlInput');
+        if (inputField) inputField.value = url;
     }
-    document.addEventListener('DOMContentLoaded', renderEmployeeQr);
-    window.addEventListener('load', renderEmployeeQr);
-    setTimeout(renderEmployeeQr, 500);
+
+    function switchViewQr(mode) {
+        const tabOnline = document.getElementById('viewTabOnline');
+        const tabWifi = document.getElementById('viewTabWifi');
+        const notice = document.getElementById('viewQrNotice');
+
+        if (mode === 'online') {
+            currentActiveViewUrl = onlinePunchUrl || wifiPunchUrl;
+            if (tabOnline) tabOnline.className = 'nav-link active rounded-pill py-1 px-3 small fw-bold text-white bg-primary';
+            if (tabWifi) tabWifi.className = 'nav-link rounded-pill py-1 px-3 small fw-bold text-secondary bg-transparent';
+            if (notice) {
+                notice.className = 'small fw-semibold mt-1 text-primary';
+                notice.innerHTML = '<i class="fa-solid fa-globe me-1"></i>Works everywhere on phone cellular data (4G/5G)';
+            }
+        } else {
+            currentActiveViewUrl = wifiPunchUrl || onlinePunchUrl;
+            if (tabWifi) tabWifi.className = 'nav-link active rounded-pill py-1 px-3 small fw-bold text-white bg-success';
+            if (tabOnline) tabOnline.className = 'nav-link rounded-pill py-1 px-3 small fw-bold text-secondary bg-transparent';
+            if (notice) {
+                notice.className = 'small fw-semibold mt-1 text-success';
+                notice.innerHTML = '<i class="fa-solid fa-wifi me-1"></i>Office Wi-Fi: Connect phone to office Wi-Fi router';
+            }
+        }
+        renderViewQr(currentActiveViewUrl);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (onlinePunchUrl && !onlinePunchUrl.includes('192.168.') && !onlinePunchUrl.includes('localhost') && !onlinePunchUrl.includes('127.0.0.1')) {
+            switchViewQr('online');
+        } else {
+            switchViewQr('wifi');
+        }
+    });
+    window.addEventListener('load', () => renderViewQr(currentActiveViewUrl));
+    setTimeout(() => renderViewQr(currentActiveViewUrl), 400);
 </script>

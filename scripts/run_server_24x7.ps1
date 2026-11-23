@@ -86,8 +86,6 @@ Write-Log "Starting Smart Attendance 24/7 Watchdog Server..."
 Write-Log "PHP Binary: $phpBin"
 Write-Log "Cloudflare Tunnel: $(if ($cfBin -and (Test-Path $cfBin)) { $cfBin } else { 'Disabled (Local LAN Only)' })"
 
-$env:PHP_CLI_SERVER_WORKERS = "8"
-
 # 3. Kill existing lingering processes on port 8000
 try {
     $activeConns = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
@@ -102,14 +100,16 @@ $lastBackupDate = ""
 
 function Start-PhpServer {
     param($bin, $dir)
-    Write-Log "[Watchdog] Launching PHP Multi-threaded Server on port 8000..."
+    Write-Log "[Watchdog] Launching PHP Server on port 8000 with explicit SQLite drivers..."
+    $phpDir = Split-Path -Parent $bin
+    $extDir = Join-Path $phpDir "ext"
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $bin
-    $psi.Arguments = "-S 0.0.0.0:8000 index.php"
+    $psi.Arguments = "-d extension_dir=`"$extDir`" -d extension=pdo_sqlite -d extension=sqlite3 -d extension=curl -d extension=mbstring -d extension=fileinfo -d extension=gd -d extension=openssl -d extension=pdo_mysql -S 0.0.0.0:8000 index.php"
     $psi.WorkingDirectory = $dir
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
-    $psi.EnvironmentVariables["PHP_CLI_SERVER_WORKERS"] = "8"
     return [System.Diagnostics.Process]::Start($psi)
 }
 

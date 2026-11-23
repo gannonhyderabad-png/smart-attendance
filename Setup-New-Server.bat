@@ -35,6 +35,9 @@ if not defined PHP_BIN (
     if exist "%~dp0php\php.exe" set "PHP_BIN=%~dp0php\php.exe"
 )
 echo [OK] PHP Engine: %PHP_BIN%
+
+:: Ensure PHP SQLite and essential drivers are enabled in php.ini
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\fix_php_ini.ps1"
 echo.
 
 :: 3. Configure PowerShell Profile with 1-word commands

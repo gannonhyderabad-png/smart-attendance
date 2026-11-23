@@ -60,6 +60,19 @@ exit /b 1
 :PHP_FOUND
 echo [OK] PHP Engine: %PHP_BIN%
 
+:: Extract PHP directory
+for %%I in ("%PHP_BIN%") do set "PHP_DIR=%%~dpI"
+set "PHP_DIR=%PHP_DIR:~0,-1%"
+
+:: Auto-enable pdo_sqlite in php.ini if missing
+if exist "%PHP_DIR%\php.ini-production" if not exist "%PHP_DIR%\php.ini" (
+    copy "%PHP_DIR%\php.ini-production" "%PHP_DIR%\php.ini" >nul 2>&1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path '%PHP_DIR%\php.ini') { $c = Get-Content '%PHP_DIR%\php.ini' -Raw; if ($c -notmatch 'extension=pdo_sqlite') { $c = $c -replace ';extension=pdo_sqlite', 'extension=pdo_sqlite'; $c = $c -replace ';extension_dir = \"ext\"', 'extension_dir = \"ext\"'; Set-Content '%PHP_DIR%\php.ini' $c -Force } }" >nul 2>&1
+
+:: Build Driver Flags to guarantee SQLite works 100% on any PC
+set PHP_FLAGS=-d extension_dir="%PHP_DIR%\ext" -d extension=pdo_sqlite -d extension=sqlite3 -d extension=curl -d extension=mbstring -d extension=fileinfo -d extension=gd -d extension=openssl -d extension=pdo_mysql
+
 :: 2. Ensure directories exist
 if not exist "database" mkdir database
 if not exist "scratch" mkdir scratch
@@ -72,10 +85,9 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') 
     taskkill /F /PID %%a >nul 2>&1
 )
 
-:: 4. Start PHP Built-in Server on port 8000
-echo [1/3] Starting Multi-Threaded Local Web Server on port 8000...
-set PHP_CLI_SERVER_WORKERS=8
-start /b "SmartAttendance-PHP" "%PHP_BIN%" -S 0.0.0.0:8000 index.php > nul 2>&1
+:: 4. Start PHP Built-in Server on port 8000 with explicit database drivers
+echo [1/3] Starting Local Web Server on port 8000 (SQLite Driver Active)...
+start /b "SmartAttendance-PHP" "%PHP_BIN%" %PHP_FLAGS% -S 0.0.0.0:8000 index.php > nul 2>&1
 timeout /t 2 /nobreak > nul
 
 :: 5. Start Cloudflare Tunnel for Mobile Punches
